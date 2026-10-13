@@ -129,6 +129,16 @@ body {
   border-radius: 999px;
 }
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 ::placeholder {
   opacity: 0.35 !important;
 }
