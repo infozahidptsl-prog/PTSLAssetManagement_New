@@ -37,7 +37,7 @@ else
 
         <div class="flex flex-col gap-4 pb-4 lg:flex-row lg:items-stretch lg:flex-wrap xl:flex-nowrap">
             <!-- Left Column: Compact Profile & Digital Pass -->
-            <div class="flex w-full shrink-0 flex-col rounded-2xl bg-surface p-4 border border-line shadow-sm md:w-[260px] lg:w-[270px]">
+            <div class="flex w-full shrink-0 flex-col rounded-2xl bg-surface p-4 border border-line shadow-sm md:w-[240px] lg:w-[250px]">
                 <!-- Profile Image Container -->
                 <div class="group relative mx-auto flex h-32 w-32 shrink-0 flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner">
                     @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
@@ -129,8 +129,11 @@ else
 
             </div>
 
-            <!-- Right Column: Compact Details Content & Assets in Hand -->
-            <div class="flex flex-none lg:flex-1 lg:min-w-[400px] flex-col rounded-2xl border border-line bg-surface p-4 lg:p-5 shadow-sm">
+            <!-- Right Column: Details Content & Assets in Hand -->
+            @{
+                var hasAbout = !string.IsNullOrWhiteSpace(employee.About);
+            }
+            <div class="flex flex-none lg:flex-1 lg:min-w-[340px] flex-col rounded-2xl border border-line bg-surface p-4 lg:p-5 shadow-sm">
                 
                 <div class="mb-2.5 flex items-center justify-between border-b border-line-soft pb-2.5">
                     <div class="flex items-center gap-3">
@@ -158,24 +161,24 @@ else
                     </div>
                 </div>
 
-                <!-- 9 Fields Organized into Modern Clean 3-Column Responsive Grid with Distinct Label Colors -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <!-- 9 Fields Organized into Responsive Grid (2 columns when About is present to prevent value clipping) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 @(hasAbout ? "" : "lg:grid-cols-3") gap-2">
                     <div class="flex flex-col gap-0.5 rounded-lg bg-blue-50/50 px-3 py-1.5 border border-blue-100/80">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600">Employee ID</span>
                         <span class="text-xs font-semibold text-txt-hi font-mono">@employee.EmployeeId</span>
                     </div>
                     <div class="flex flex-col gap-0.5 rounded-lg bg-purple-50/50 px-3 py-1.5 border border-purple-100/80">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-purple-600">Department</span>
-                        <span class="text-xs font-medium text-txt-hi truncate" title="@employee.Department">@(string.IsNullOrEmpty(employee.Department) ? "—" : employee.Department)</span>
+                        <span class="text-xs font-medium text-txt-hi" title="@employee.Department">@(string.IsNullOrEmpty(employee.Department) ? "—" : employee.Department)</span>
                     </div>
                     <div class="flex flex-col gap-0.5 rounded-lg bg-indigo-50/50 px-3 py-1.5 border border-indigo-100/80">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Team</span>
-                        <span class="text-xs font-medium text-txt-hi truncate" title="@employee.Team">@(string.IsNullOrEmpty(employee.Team) ? "—" : employee.Team)</span>
+                        <span class="text-xs font-medium text-txt-hi" title="@employee.Team">@(string.IsNullOrEmpty(employee.Team) ? "—" : employee.Team)</span>
                     </div>
 
                     <div class="flex flex-col gap-0.5 rounded-lg bg-emerald-50/50 px-3 py-1.5 border border-emerald-100/80">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Location</span>
-                        <span class="text-xs font-medium text-txt-hi truncate" title="@employee.Location">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
+                        <span class="text-xs font-medium text-txt-hi" title="@employee.Location">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
                     </div>
                     <div class="flex flex-col gap-0.5 rounded-lg bg-amber-50/50 px-3 py-1.5 border border-amber-100/80">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700">Joining Date</span>
@@ -183,7 +186,7 @@ else
                     </div>
                     <div class="flex flex-col gap-0.5 rounded-lg bg-cyan-50/50 px-3 py-1.5 border border-cyan-100/80">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Reports To</span>
-                        <span class="text-xs font-medium text-txt-hi truncate" title="@employee.Manager">@(string.IsNullOrEmpty(employee.Manager) ? "—" : employee.Manager)</span>
+                        <span class="text-xs font-medium text-txt-hi" title="@employee.Manager">@(string.IsNullOrEmpty(employee.Manager) ? "—" : employee.Manager)</span>
                     </div>
 
                     <div class="flex flex-col gap-0.5 rounded-lg bg-rose-50/50 px-3 py-1.5 border border-rose-100/80">
@@ -194,18 +197,18 @@ else
                         <span class="text-[10px] font-bold uppercase tracking-wider text-teal-700">Phone</span>
                         @if (!string.IsNullOrEmpty(employee.Contact))
                         {
-                            <a href="tel:@employee.Contact" class="text-xs font-medium text-txt-hi hover:text-teal-700 hover:underline truncate">@employee.Contact</a>
+                            <a href="tel:@employee.Contact" class="text-xs font-medium text-txt-hi hover:text-teal-700 hover:underline">@employee.Contact</a>
                         }
                         else
                         {
                             <span class="text-xs font-medium text-txt-hi">—</span>
                         }
                     </div>
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-violet-50/50 px-3 py-1.5 border border-violet-100/80">
+                    <div class="flex flex-col gap-0.5 rounded-lg bg-violet-50/50 px-3 py-1.5 border border-violet-100/80 @(hasAbout ? "col-span-1 sm:col-span-2" : "")">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-violet-600">Email</span>
                         @if (!string.IsNullOrEmpty(employee.Email))
                         {
-                            <a href="mailto:@employee.Email" class="text-xs font-medium text-txt-hi hover:text-violet-700 hover:underline truncate" title="@employee.Email">@employee.Email</a>
+                            <a href="mailto:@employee.Email" class="text-xs font-medium text-txt-hi hover:text-violet-700 hover:underline break-all sm:break-normal" title="@employee.Email">@employee.Email</a>
                         }
                         else
                         {
@@ -257,9 +260,9 @@ else
             </div>
 
             <!-- Third Column: About Card -->
-            @if (!string.IsNullOrWhiteSpace(employee.About))
+            @if (hasAbout)
             {
-                <div class="flex flex-col rounded-2xl border border-line-soft bg-surface p-4 lg:p-5 shadow-xs w-full lg:w-[280px] shrink-0 relative overflow-hidden transition-all hover:shadow-sm">
+                <div class="flex flex-col rounded-2xl border border-line-soft bg-surface p-4 lg:p-5 shadow-xs w-full lg:w-[260px] shrink-0 relative overflow-hidden transition-all hover:shadow-sm">
                     <div class="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-[#DA943B]/10 to-transparent rounded-full -z-0 pointer-events-none"></div>
                     
                     <h3 class="text-xs font-bold text-txt-hi mb-3 uppercase tracking-widest border-b border-line-soft pb-2 relative z-10 flex items-center justify-between">
@@ -268,7 +271,7 @@ else
                     </h3>
                     
                     <div class="text-[13px] leading-[1.7] text-slate-700 text-justify relative z-10 
-                                [&>p]:mb-3 [&>p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic">
+                                [&>p]:mb-3 [&>p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic max-h-[250px] overflow-y-auto pr-1">
                         @ParseAboutText(employee.About)
                     </div>
                 </div>
