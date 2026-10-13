@@ -200,31 +200,88 @@ else
                                     </div>
                                 </summary>
                                 
-                                <div class="mt-3 rounded-xl bg-slate-50/50 p-4 border border-line-soft">
-                                    <h3 class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-3">Item Details</h3>
-                                    <div class="space-y-2.5">
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-txt-mid">Serial number</span>
-                                            <span class="rounded-md bg-elevated px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi uppercase border border-line-soft">@device.Serial</span>
+                                <div class="mt-3 rounded-2xl bg-slate-50/70 p-3.5 sm:p-4 border border-line-soft">
+                                    <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-line-soft/80">
+                                        <div class="flex items-center gap-1.5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                            <span class="text-[11px] font-bold uppercase tracking-wider text-txt-mid">Item Details</span>
                                         </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-txt-mid">Category</span>
-                                            <span class="rounded-md bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-800">@device.Category</span>
+                                        <span class="text-[11px] font-mono font-medium text-txt-lo select-all">@(string.IsNullOrEmpty(device.AssetTag) ? device.Id.ToString() : device.AssetTag)</span>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-2.5">
+                                        <!-- Serial Number -->
+                                        <div class="rounded-xl bg-surface p-3 border border-line-soft shadow-xs flex flex-col justify-center">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider text-txt-lo">Serial Number</span>
+                                            <span class="mt-1 font-mono text-xs font-semibold text-txt-hi select-all truncate">
+                                                @(string.IsNullOrWhiteSpace(device.Serial) ? "—" : device.Serial)
+                                            </span>
                                         </div>
-                                        <div class="flex items-start justify-between gap-2">
-                                            <span class="text-xs text-txt-mid whitespace-nowrap">Specification</span>
-                                            <span class="rounded-md bg-cyan-100 px-2 py-0.5 text-[11px] font-medium text-cyan-800 text-right">@(string.Join(" · ", new[] { (device.Category == "Monitor" ? device.DeviceName : null), device.Processor, device.Ram, device.Ssd, device.Hdd, device.MonitorDisplay }.Where(s => !string.IsNullOrWhiteSpace(s))))</span>
+
+                                        <!-- Category -->
+                                        <div class="rounded-xl bg-surface p-3 border border-line-soft shadow-xs flex flex-col justify-center">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider text-txt-lo">Category</span>
+                                            <span class="mt-1 text-xs font-semibold text-txt-hi truncate">
+                                                @device.Category
+                                            </span>
                                         </div>
-                                        <div class="my-2.5 border-t border-line-soft"></div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-txt-mid">Supplier</span>
-                                            <span class="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">@(string.IsNullOrEmpty(device.From) ? "—" : device.From)</span>
+
+                                        <!-- Supplier -->
+                                        <div class="rounded-xl bg-surface p-3 border border-line-soft shadow-xs flex flex-col justify-center">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider text-txt-lo">Supplier</span>
+                                            <span class="mt-1 text-xs font-medium text-txt-hi truncate" title="@device.From">
+                                                @(string.IsNullOrWhiteSpace(device.From) ? "—" : device.From)
+                                            </span>
                                         </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-txt-mid">Purchase date</span>
-                                            <span class="rounded-md bg-pink-100 px-2 py-0.5 text-[11px] font-medium text-pink-800">@(device.ProcurementDate?.ToString("d MMM yyyy") ?? "—")</span>
+
+                                        <!-- Purchase Date -->
+                                        <div class="rounded-xl bg-surface p-3 border border-line-soft shadow-xs flex flex-col justify-center">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider text-txt-lo">Purchase Date</span>
+                                            <span class="mt-1 text-xs font-medium text-txt-hi truncate">
+                                                @(device.ProcurementDate?.ToString("dd MMM yyyy") ?? "—")
+                                            </span>
                                         </div>
                                     </div>
+
+                                    @{
+                                        var specs = GetDeviceSpecs(device);
+                                    }
+                                    @if (specs.Any())
+                                    {
+                                        <div class="mt-2.5 rounded-xl bg-surface p-3 border border-line-soft shadow-xs">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider text-txt-lo block mb-2">Specifications</span>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                @foreach (var spec in specs)
+                                                {
+                                                    <span class="inline-flex items-center rounded-lg bg-canvas px-2.5 py-1 text-xs font-medium text-txt-hi border border-line-soft">
+                                                        @spec
+                                                    </span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (device.HasWarranty && device.WarrantyEndDate.HasValue)
+                                    {
+                                        var daysLeft = (device.WarrantyEndDate.Value - DateTime.Now).TotalDays;
+                                        <div class="mt-2.5 rounded-xl bg-surface p-3 border border-line-soft shadow-xs flex items-center justify-between">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider text-txt-lo">Warranty</span>
+                                            @if (daysLeft > 0)
+                                            {
+                                                <span class="inline-flex items-center gap-1.5 text-xs font-medium text-ok-600">
+                                                    <span class="h-1.5 w-1.5 rounded-full bg-ok-500"></span>
+                                                    In warranty · @((int)daysLeft)d left
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="inline-flex items-center gap-1.5 text-xs font-medium text-danger-500">
+                                                    <span class="h-1.5 w-1.5 rounded-full bg-danger-500"></span>
+                                                    Expired (@device.WarrantyEndDate.Value.ToString("dd MMM yyyy"))
+                                                </span>
+                                            }
+                                        </div>
+                                    }
                                 </div>
                             </details>
                         }
@@ -329,6 +386,24 @@ else
         }
 
         return (cond, "bg-blue-50 text-blue-700 ring-blue-600/20", "bg-accent-500");
+    }
+
+    private static List<string> GetDeviceSpecs(Device device)
+    {
+        var list = new List<string>();
+        if (!string.IsNullOrWhiteSpace(device.Processor))
+            list.Add(device.Processor.Trim());
+        if (!string.IsNullOrWhiteSpace(device.Ram))
+            list.Add(device.Ram.Trim());
+        if (!string.IsNullOrWhiteSpace(device.Ssd))
+            list.Add(device.Ssd.Trim().EndsWith("SSD", StringComparison.OrdinalIgnoreCase) ? device.Ssd.Trim() : $"{device.Ssd.Trim()} SSD");
+        if (!string.IsNullOrWhiteSpace(device.Hdd))
+            list.Add(device.Hdd.Trim().EndsWith("HDD", StringComparison.OrdinalIgnoreCase) ? device.Hdd.Trim() : $"{device.Hdd.Trim()} HDD");
+        if (!string.IsNullOrWhiteSpace(device.MonitorDisplay))
+            list.Add(device.MonitorDisplay.Trim());
+        if (device.Category == "Monitor" && !string.IsNullOrWhiteSpace(device.DeviceName) && !list.Any(s => s.Contains(device.DeviceName, StringComparison.OrdinalIgnoreCase)))
+            list.Insert(0, device.DeviceName.Trim());
+        return list;
     }
 
     protected override async Task OnInitializedAsync()
