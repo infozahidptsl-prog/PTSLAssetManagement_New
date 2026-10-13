@@ -1,0 +1,430 @@
+@page "/employees"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Employees.View)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Infrastructure.Services
+@inject EmployeeService EmployeeService
+@inject HandoverService HandoverService
+@inject DeviceService DeviceService
+@inject NavigationManager Navigation
+
+<PageTitle>Employees Vs Assets - PrimeTech Asset Manager</PageTitle>
+
+<PageHeader Title="Employees Vs Assets">
+    <Actions>
+        <button type="button" id="btn-add-employee" @onclick="OpenAddModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+            Add employee
+        </button>
+    </Actions>
+</PageHeader>
+
+<div class="flex flex-wrap items-center justify-between gap-3 border-y border-line-soft bg-surface px-6 py-3 lg:px-9">
+    <label class="flex items-center gap-2 text-sm text-txt-mid">
+        <span class="text-xs font-semibold uppercase tracking-wider text-txt-lo">Status:</span>
+        <select @bind="employeeStatusFilter" class="rounded-md border border-line bg-surface py-1 pl-2 pr-6 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
+            <option value="Active">Active only</option>
+            <option value="Inactive">Inactive only</option>
+            <option value="Teams">Team accounts</option>
+            <option value="All">All employees</option>
+        </select>
+    </label>
+    <span class="tnum text-xs text-txt-lo">
+        @if (employeeStatusFilter == "Teams")
+        {
+            @($"{filteredEmployees.Count} team accounts")
+        }
+        else
+        {
+            @($"{filteredEmployees.Count} people")
+        }
+    </span>
+</div>
+
+<div class="overflow-x-auto">
+    <table class="w-full min-w-[50rem] border-collapse text-sm">
+        <caption class="sr-only">Employees and their issued assets</caption>
+        <thead>
+            <tr class="border-b border-line-soft text-left text-[10px] font-semibold uppercase tracking-widest text-txt-lo bg-surface">
+                <th scope="col" class="py-2 pl-6 pr-3 lg:pl-9 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Employee")'>
+                    <div class="flex items-center gap-1.5">Employee @RenderSortIcon("Employee")</div>
+                </th>
+                <th scope="col" class="px-3 py-2 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Email")'>
+                    <div class="flex items-center gap-1.5">Mail ID @RenderSortIcon("Email")</div>
+                </th>
+                <th scope="col" class="px-3 py-2 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Assets")'>
+                    <div class="flex items-center gap-1.5">Assigned Assets @RenderSortIcon("Assets")</div>
+                </th>
+                <th scope="col" class="px-3 py-2 text-right">Manage</th>
+                <th scope="col" class="py-2 pl-3 pr-6 lg:pr-9"><span class="sr-only">Open</span></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-line-soft bg-surface">
+            @foreach (var emp in filteredEmployees)
+            {
+                var assets = employeeAssets.GetValueOrDefault(emp.Id, new EmployeeAssets());
+                <tr class="group transition-colors duration-150 hover:bg-elevated cursor-pointer" @onclick="() => NavigateToEmployee(emp.Id)">
+                    <th scope="row" class="py-2 pl-6 pr-3 text-left lg:pl-9">
+                        <a href="/employee/@emp.Id" @onclick:stopPropagation="true" class="flex items-center gap-2.5 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-elevated text-[10px] font-semibold text-txt-mid" aria-hidden="true">
+                                @GetInitials(emp.Name)
+                            </span>
+                            <span class="min-w-0">
+                                <span class="block truncate font-medium text-txt-hi">@emp.Name</span>
+                                <span class="block truncate text-[11px] font-normal text-txt-lo mt-0.5">
+                                    @(string.IsNullOrEmpty(emp.EmployeeId) ? "" : emp.EmployeeId + " · ")@emp.Designation
+                                    @(emp.IsActive ? "" : " · left")
+                                    @(emp.IsTeamAccount ? " · Team" : "")
+                                </span>
+                            </span>
+                        </a>
+                    </th>
+                    <td class="whitespace-nowrap px-3 py-3 text-xs text-txt-mid">@emp.Email</td>
+                    <td class="px-3 py-3">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="@(assets.Systems > 0 ? "bg-accent-50 text-accent-700 border-accent-200" : "bg-surface text-txt-mid border-line-soft") inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold">
+                                💻 Sys: @assets.Systems
+                            </span>
+                            <span class="@(assets.Components > 0 ? "bg-accent-50 text-accent-700 border-accent-200" : "bg-surface text-txt-mid border-line-soft") inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold">
+                                🔌 Comp: @assets.Components
+                            </span>
+                            <span class="@(assets.Peripherals > 0 ? "bg-accent-50 text-accent-700 border-accent-200" : "bg-surface text-txt-mid border-line-soft") inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold">
+                                🖱️ Peri: @assets.Peripherals
+                            </span>
+                        </div>
+                    </td>
+                    <td class="px-3 py-3 text-right">
+                        <div class="flex items-center justify-end gap-1">
+                            <button type="button" title="Edit" @onclick="() => OpenEditModal(emp)" @onclick:stopPropagation="true" class="rounded-lg p-1.5 text-txt-lo transition-colors hover:bg-elevated hover:text-txt-hi focus:outline-none focus:ring-2 focus:ring-accent-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                            </button>
+                            <button type="button" title="Delete" @onclick="() => OpenDeleteModal(emp)" @onclick:stopPropagation="true" class="rounded-lg p-1.5 text-txt-lo transition-colors hover:bg-danger-soft hover:text-danger-600 focus:outline-none focus:ring-2 focus:ring-accent-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="py-3 pl-3 pr-6 text-right lg:pr-9">
+                        <a href="/employee/@emp.Id" @onclick:stopPropagation="true" class="inline-flex">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-txt-lo transition-colors duration-150 group-hover:text-txt-hi" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- Add / Edit Employee Modal -->
+<AddEmployeeModal Show="showAddEditModal" Model="editModel" IsEdit="isEdit"
+    OnClose="CloseModal" OnSave="SaveEmployee" />
+
+<!-- Delete Confirmation / Blocker Modal -->
+@if (showDeleteModal && deleteTarget != null)
+{
+    var heldAssets = GetHeldAssets(deleteTarget);
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
+        <div class="w-full max-w-md rounded-2xl bg-surface shadow-xl border border-line-soft">
+            <div class="flex items-start gap-4 p-6">
+                @if (heldAssets.Count > 0)
+                {
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-semibold text-txt-hi">Cannot delete — assets still held</h2>
+                        <p class="text-sm text-txt-mid mt-1">@deleteTarget.Name still holds @heldAssets.Count asset@(heldAssets.Count == 1 ? "" : "s"). Return them first before deleting this record.</p>
+                        <ul class="mt-3 space-y-1">
+                            @foreach (var a in heldAssets)
+                            {
+                                <li class="text-xs text-txt-mid font-medium">• @a.Brand @a.DeviceName <span class="font-mono text-txt-lo">@a.AssetTag</span></li>
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-semibold text-txt-hi">Delete @deleteTarget.Name?</h2>
+                        <p class="text-sm text-txt-mid mt-1">This will permanently remove their staff record. Past movements in the audit trail will keep their name. This cannot be undone.</p>
+                    </div>
+                }
+            </div>
+            <div class="flex items-center justify-end gap-3 border-t border-line-soft bg-elevated px-6 py-4 rounded-b-2xl">
+                <button type="button" @onclick="CloseDeleteModal" class="rounded-lg px-4 py-2.5 text-sm font-semibold text-txt-hi hover:bg-raised focus:outline-none border border-line">Cancel</button>
+                @if (heldAssets.Count > 0)
+                {
+                    <a href="/store-returns" class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none">
+                        Go to Receive Returns
+                    </a>
+                }
+                else
+                {
+                    <button type="button" @onclick="ConfirmDelete" class="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none">Delete employee</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Employee> allEmployees = new();
+    private List<Device> allDevices = new();
+    
+    private class EmployeeAssets
+    {
+        public int Systems { get; set; }
+        public int Components { get; set; }
+        public int Peripherals { get; set; }
+    }
+    private Dictionary<string, EmployeeAssets> employeeAssets = new();
+    
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? Search { get; set; }
+
+    private string searchTerm = "";
+    private string employeeStatusFilter = "Active";
+
+    protected override void OnParametersSet()
+    {
+        if (searchTerm != (Search ?? ""))
+        {
+            searchTerm = Search ?? "";
+        }
+    }
+
+    // Modal state
+    private bool showAddEditModal = false;
+    private bool isEdit = false;
+    private Employee editModel = new();
+    private bool showDeleteModal = false;
+    private Employee? deleteTarget = null;
+
+    private string SortColumn { get; set; } = "Employee";
+    private bool SortAscending { get; set; } = true;
+
+    private void SortBy(string column)
+    {
+        if (SortColumn == column) SortAscending = !SortAscending;
+        else { SortColumn = column; SortAscending = true; }
+    }
+
+    private RenderFragment RenderSortIcon(string column) => __builder =>
+    {
+        if (SortColumn == column)
+        {
+            if (SortAscending)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m5 15 7-7 7 7"/></svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m19 9-7 7-7-7"/></svg>
+            }
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-line-strong opacity-40 group-hover:opacity-100 transition-opacity"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        }
+    };
+
+    private List<Employee> filteredEmployees
+    {
+        get
+        {
+            var q = allEmployees
+                .Where(e => employeeStatusFilter == "All" ? !e.IsTeamAccount : 
+                            employeeStatusFilter == "Active" ? (e.IsActive && !e.IsTeamAccount) : 
+                            employeeStatusFilter == "Inactive" ? (!e.IsActive && !e.IsTeamAccount) : 
+                            employeeStatusFilter == "Teams" ? e.IsTeamAccount : true)
+                .Where(e => string.IsNullOrWhiteSpace(searchTerm) || 
+                            e.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                            (e.EmployeeId != null && e.EmployeeId.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+                            (e.Designation != null && e.Designation.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
+
+            return (SortColumn switch
+            {
+                "Employee" => SortAscending ? q.OrderBy(e => e.Name) : q.OrderByDescending(e => e.Name),
+                "Email" => SortAscending ? q.OrderBy(e => e.Email ?? string.Empty) : q.OrderByDescending(e => e.Email ?? string.Empty),
+                "Assets" => SortAscending 
+                    ? q.OrderBy(e => employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Systems + employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Components) 
+                    : q.OrderByDescending(e => employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Systems + employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Components),
+                _ => q.OrderBy(e => e.Name)
+            }).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        allDevices = await DeviceService.GetDevicesAsync();
+        allEmployees = await EmployeeService.GetEmployeesAsync(false);
+        var activeEmployees = await EmployeeService.GetEmployeesAsync(true);
+        allEmployees.AddRange(activeEmployees);
+        allEmployees = allEmployees.GroupBy(e => e.Id).Select(g => g.First()).ToList();
+
+        foreach (var device in allDevices)
+        {
+            if (string.IsNullOrEmpty(device.UserName) && string.IsNullOrEmpty(device.EmployeeId)) continue;
+            
+            var emp = allEmployees.FirstOrDefault(e => 
+                (!string.IsNullOrEmpty(device.EmployeeId) && string.Equals(e.EmployeeId, device.EmployeeId, StringComparison.OrdinalIgnoreCase)) || 
+                (!string.IsNullOrEmpty(device.UserName) && string.Equals(e.Name, device.UserName, StringComparison.OrdinalIgnoreCase))
+            );
+            if (emp == null) continue;
+
+            var key = emp.Id;
+            
+            if (!employeeAssets.ContainsKey(key))
+            {
+                employeeAssets[key] = new EmployeeAssets();
+            }
+            
+            if (device.IsComponent)
+            {
+                employeeAssets[key].Components++;
+            }
+            else
+            {
+                var cat = device.Category?.ToLower() ?? "";
+                if (cat.Contains("laptop") || cat.Contains("desktop") || cat.Contains("server") || cat.Contains("macbook") || cat.Contains("mobile") || cat.Contains("phone") || cat.Contains("tablet"))
+                {
+                    employeeAssets[key].Systems++;
+                }
+                else
+                {
+                    employeeAssets[key].Peripherals++;
+                }
+            }
+        }
+    }
+
+    private async Task OpenAddModal()
+    {
+        var nextId = await EmployeeService.GetNextEmployeeIdAsync();
+        editModel = new Employee { EmployeeId = nextId, IsActive = true, Department = "Engineering", JoiningDate = null, About = "" };
+        isEdit = false;
+        showAddEditModal = true;
+    }
+
+    private void OpenEditModal(Employee emp)
+    {
+        editModel = new Employee
+        {
+            Id = emp.Id,
+            Name = emp.Name,
+            EmployeeId = emp.EmployeeId,
+            Email = emp.Email,
+            Contact = emp.Contact,
+            Designation = emp.Designation,
+            Department = emp.Department,
+            JoiningDate = emp.JoiningDate.HasValue && emp.JoiningDate.Value.Year > 1900 ? emp.JoiningDate : null,
+            IsActive = emp.IsActive,
+            IsTeamAccount = emp.IsTeamAccount,
+            Location = emp.Location,
+            Team = emp.Team,
+            Manager = emp.Manager,
+            BloodGroup = emp.BloodGroup,
+            ProfileImageUrl = emp.ProfileImageUrl,
+            LinkedInUrl = emp.LinkedInUrl,
+            About = emp.About
+        };
+        isEdit = true;
+        showAddEditModal = true;
+    }
+
+    private void CloseModal() => showAddEditModal = false;
+
+    private async Task SaveEmployee(Employee model)
+    {
+        if (model.JoiningDate.HasValue && model.JoiningDate.Value.Year <= 1900)
+        {
+            model.JoiningDate = null;
+        }
+
+        if (isEdit)
+        {
+            await EmployeeService.UpdateEmployeeAsync(model);
+        }
+        else
+        {
+            model.Id = model.EmployeeId ?? Guid.NewGuid().ToString();
+            await EmployeeService.AddEmployeeAsync(model);
+        }
+        showAddEditModal = false;
+        await OnInitializedAsync(); // Refresh list
+    }
+
+    private void NavigateToEmployee(string id)
+    {
+        Navigation.NavigateTo($"/employee/{id}");
+    }
+
+    private void OpenDeleteModal(Employee emp)
+    {
+        deleteTarget = emp;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal() { showDeleteModal = false; deleteTarget = null; }
+
+    private async Task ConfirmDelete()
+    {
+        if (deleteTarget == null) return;
+        await EmployeeService.DeleteEmployeeAsync(deleteTarget.Id);
+        showDeleteModal = false;
+        deleteTarget = null;
+        await RefreshData();
+    }
+
+    private List<Device> GetHeldAssets(Employee emp)
+    {
+        return allDevices.Where(d =>
+            d.Status == AssetManagement.Core.Enums.DeviceStatus.InUse &&
+            ((!string.IsNullOrEmpty(emp.EmployeeId) && d.EmployeeId == emp.EmployeeId) ||
+             (!string.IsNullOrEmpty(emp.Name) && d.UserName == emp.Name))
+        ).ToList();
+    }
+
+    private async Task RefreshData()
+    {
+        allEmployees = await EmployeeService.GetEmployeesAsync(false);
+        var inactive = await EmployeeService.GetEmployeesAsync(true);
+        allEmployees.AddRange(inactive);
+        allEmployees = allEmployees.GroupBy(e => e.Id).Select(g => g.First()).ToList();
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "??";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        
+        // Remove common prefixes
+        var prefixesToRemove = new[] { "md.", "md", "mohammad", "mohammed", "mr.", "mrs.", "ms.", "syed" };
+        while (parts.Count > 1 && prefixesToRemove.Contains(parts[0].ToLowerInvariant()))
+        {
+            parts.RemoveAt(0);
+        }
+
+        if (parts.Count == 0) return "??";
+        if (parts.Count == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+    
+    private string GetDepartment(Employee emp)
+    {
+        var desig = emp.Designation?.ToLower() ?? "";
+        if (desig.Contains("finance") || desig.Contains("accounts")) return "Finance";
+        if (desig.Contains("hr") || desig.Contains("admin")) return "HR & Admin";
+        if (desig.Contains("sales")) return "Sales";
+        if (desig.Contains("marketing") || desig.Contains("content")) return "Marketing";
+        if (desig.Contains("product") || desig.Contains("business analyst")) return "Product";
+        if (desig.Contains("qa") || desig.Contains("sqa") || desig.Contains("quality")) return "Quality";
+        if (desig.Contains("delivery") || desig.Contains("project")) return "Delivery";
+        if (desig.Contains("operation")) return "Operations";
+        return "Engineering";
+    }
+}
+
+

@@ -1,0 +1,171 @@
+@using AssetManagement.Web.Models
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="relative w-full @CssClass @(isOpen ? "z-[60]" : "z-10")">
+    <!-- Overlay to close dropdown -->
+    @if (isOpen)
+    {
+        <div class="fixed inset-0 z-40" @onclick="CloseDropdown"></div>
+    }
+
+    <!-- Input field -->
+    <div class="relative z-50">
+        <input type="text"
+               class="@InputClass"
+               placeholder="@Placeholder"
+               value="@DisplayValue"
+               @oninput="OnInput"
+               @onfocus="OpenDropdown"
+               @onclick="OpenDropdown"
+               @onkeydown="OnKeyDown"
+               autocomplete="off" />
+               
+        <!-- Dropdown arrow icon -->
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" @onclick="ToggleDropdown">
+            <svg class="h-4 w-4 text-txt-mid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Dropdown list -->
+    @if (isOpen)
+    {
+        <ul class="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-line bg-elevated py-1 shadow-lg shadow-black/5">
+            @if (FilteredOptions.Any())
+            {
+                <!-- Added a None/Clear option if needed -->
+                @if (AllowClear && !string.IsNullOrWhiteSpace(Value))
+                {
+                    <li class="cursor-pointer px-3 py-2 text-sm text-txt-mid hover:bg-canvas hover:text-red-600"
+                        @onclick="ClearSelection">
+                        <span class="italic">Clear selection</span>
+                    </li>
+                    <li class="border-b border-line-soft my-1"></li>
+                }
+
+                @foreach (var opt in FilteredOptions)
+                {
+                    <li class="cursor-pointer px-3 py-2 text-sm text-txt-hi hover:bg-canvas hover:text-accent-600 @(Value == opt.Value ? "bg-accent-50 text-accent-700 font-medium" : "")"
+                        @onclick="() => SelectOption(opt)">
+                        @opt.Text
+                    </li>
+                }
+            }
+            else
+            {
+                <li class="px-3 py-2 text-sm text-txt-lo">No results found</li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    
+    [Parameter] public List<SelectOption> Options { get; set; } = new();
+    [Parameter] public string Placeholder { get; set; } = "Select...";
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+    [Parameter] public string InputClass { get; set; } = "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500";
+    [Parameter] public bool AllowClear { get; set; } = false;
+
+    [Parameter] public bool AllowCustomValues { get; set; } = true;
+
+    private bool isOpen = false;
+    private string searchTerm = string.Empty;
+
+    // Display the option text if found, or the raw Value if not found in options (e.g. custom or legacy), or empty
+    private string SelectedText => Options.FirstOrDefault(o => o.Value == Value)?.Text ?? (!string.IsNullOrWhiteSpace(Value) ? Value : string.Empty);
+
+    // Display the search term if they are typing, otherwise show the selected text
+    private string DisplayValue => isOpen && !string.IsNullOrEmpty(searchTerm) ? searchTerm : SelectedText;
+
+    private IEnumerable<SelectOption> FilteredOptions => 
+        string.IsNullOrWhiteSpace(searchTerm) 
+            ? Options 
+            : Options.Where(o => o.Text.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    private void OpenDropdown()
+    {
+        if (!isOpen)
+        {
+            isOpen = true;
+            searchTerm = string.Empty; 
+        }
+    }
+
+    private void ToggleDropdown()
+    {
+        if (isOpen) CloseDropdown();
+        else OpenDropdown();
+    }
+
+    private async Task CloseDropdown()
+    {
+        // If user typed something before closing, try to resolve it
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var match = Options.FirstOrDefault(o => o.Text.Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
+                     ?? Options.FirstOrDefault(o => o.Value.Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
+                     ?? FilteredOptions.FirstOrDefault();
+
+            if (match != null)
+            {
+                Value = match.Value;
+                await ValueChanged.InvokeAsync(Value);
+            }
+            else if (AllowCustomValues)
+            {
+                Value = searchTerm.Trim();
+                await ValueChanged.InvokeAsync(Value);
+            }
+        }
+
+        isOpen = false;
+        searchTerm = string.Empty;
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        if (!isOpen) isOpen = true;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            var match = FilteredOptions.FirstOrDefault();
+            if (match != null)
+            {
+                await SelectOption(match);
+            }
+            else
+            {
+                await CloseDropdown();
+            }
+        }
+        else if (e.Key == "Escape")
+        {
+            isOpen = false;
+            searchTerm = string.Empty;
+        }
+    }
+
+    private async Task SelectOption(SelectOption option)
+    {
+        Value = option.Value;
+        searchTerm = string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+        isOpen = false;
+    }
+
+    private async Task ClearSelection()
+    {
+        Value = string.Empty;
+        searchTerm = string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+        isOpen = false;
+    }
+}

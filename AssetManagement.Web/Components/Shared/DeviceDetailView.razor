@@ -1,0 +1,2048 @@
+
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject DeviceService DeviceService
+@inject AssetManagement.Core.Interfaces.ISettingsService SettingsService
+@inject EmployeeService EmployeeService
+@inject HandoverService HandoverService
+@inject RepairService RepairService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@inject IWebHostEnvironment Env
+
+@if (device == null)
+{
+    <div class="flex h-full items-center justify-center p-12 text-txt-mid">
+        @if (isLoading)
+        {
+            <span>Loading details...</span>
+        }
+        else
+        {
+            <span>Device not found.</span>
+        }
+    </div>
+}
+else
+{
+    <div class="@(IsInline ? "py-1" : "mx-auto max-w-[1440px] px-6 pb-6 pt-7 lg:px-9")">
+        @if (!IsInline)
+        {
+            <PageHeader Title="@GetDeviceDisplayName(device)" 
+                Description="@($"{device.DeviceTypeDisplay} \u00B7 {device.Category} \u00B7 {device.Processor} \u00B7 {device.Ram} \u00B7 {device.Ssd}")"
+                ShowBackButton="true">
+                <Actions>
+                    @if (device.Status == DeviceStatus.InUse)
+                    {
+                        <button type="button" @onclick="OpenTransferModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#4f46e5] px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors duration-150 hover:bg-[#4338ca]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            Transfer / Return
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="OpenAllocateModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#4f46e5] px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors duration-150 hover:bg-[#4338ca]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 9-6-6-6 6"/><path d="M12 3v14"/><path d="M5 21h14"/></svg>
+                            Allocate
+                        </button>
+                    }
+                    <button type="button" @onclick="OpenRepairModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-txt-mid transition-colors hover:border-line-strong hover:text-txt-hi">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m15.7 18.4-.7.7a3.5 3.5 0 0 1-4.9-4.9l7-7a2.8 2.8 0 0 1 4 4l-7 7Z"/><path d="M7 11V5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5V11"/></svg>
+                        Send to repair
+                    </button>
+                    @if (!device.IsComponent)
+                    {
+                        <button type="button" @onclick="OpenInstallComponentModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-txt-mid transition-colors hover:border-line-strong hover:text-txt-hi">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            Install component
+                        </button>
+                    }
+                    <button type="button" @onclick="OpenEditModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-txt-mid transition-colors hover:border-line-strong hover:text-txt-hi">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        Edit
+                    </button>
+                    <button type="button" @onclick="OpenDeleteDeviceModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-danger-border bg-danger-soft px-3 py-2 text-sm font-medium text-danger-500 transition-colors hover:bg-danger-50 hover:border-danger-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        Delete
+                    </button>
+                </Actions>
+                <ChildContent>
+                    <div class="mt-5 flex flex-wrap items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5 rounded-md select-all cursor-text bg-blue-100 px-2.5 py-1 text-xs font-mono font-medium text-blue-800 ring-1 ring-inset ring-blue-300">
+                            @(device.AssetTag ?? device.Id)
+                        </span>
+                        <span class="inline-flex items-center gap-2 whitespace-nowrap rounded-md select-all cursor-text bg-purple-100 px-2.5 py-1 text-[11px] font-medium text-purple-800 ring-1 ring-inset ring-purple-300">
+                            @device.DeviceTypeDisplay
+                        </span>
+                        <StatusBadge Status="device.Status" />
+                        @if (device.HasWarranty && device.WarrantyEndDate.HasValue)
+                        {
+                            var daysLeft = (device.WarrantyEndDate.Value - DateTime.Now).TotalDays;
+                            if (daysLeft > 0)
+                            {
+                                <span class="text-xs">
+                                    <span class="font-medium text-ok-600">In warranty</span> <span class="text-txt-lo">@((int)daysLeft)d left</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-xs">
+                                    <span class="font-medium text-danger-500">Expired</span> <span class="text-txt-lo">ended @device.WarrantyEndDate.Value.ToString("dd MMM yyyy")</span>
+                                </span>
+                            }
+                        }
+                    </div>
+                </ChildContent>
+            </PageHeader>
+        }
+        else
+        {
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-2 bg-surface p-3 rounded-xl shadow-sm border border-line">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="inline-flex items-center gap-1.5 rounded-md select-all cursor-text bg-blue-100 px-2.5 py-1 text-xs font-mono font-medium text-blue-800 ring-1 ring-inset ring-blue-300">
+                        @(device.AssetTag ?? device.Id)
+                    </span>
+                    <span class="inline-flex items-center gap-2 whitespace-nowrap rounded-md select-all cursor-text bg-purple-100 px-2.5 py-1 text-[11px] font-medium text-purple-800 ring-1 ring-inset ring-purple-300">
+                        @device.DeviceTypeDisplay
+                    </span>
+                    <StatusBadge Status="device.Status" />
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    @if (device.Status == DeviceStatus.InUse)
+                    {
+                        <button type="button" @onclick="OpenTransferModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#4f46e5] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition-colors duration-150 hover:bg-[#4338ca]">
+                            Transfer / Return
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="OpenAllocateModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#4f46e5] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition-colors duration-150 hover:bg-[#4338ca]">
+                            Allocate
+                        </button>
+                    }
+                    @if (!string.IsNullOrEmpty(device.InvoiceFilePath))
+                    {
+                        <button type="button" @onclick="() => OpenEditInvoiceViewer()" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            View Invoice(s)
+                        </button>
+                    }
+                    <button type="button" @onclick="OpenRepairModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-2.5 py-1.5 text-xs font-medium text-txt-mid hover:text-txt-hi">
+                        Send to repair
+                    </button>
+                    @if (!device.IsComponent)
+                    {
+                        <button type="button" @onclick="OpenInstallComponentModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-2.5 py-1.5 text-xs font-medium text-txt-mid hover:text-txt-hi">
+                            Install component
+                        </button>
+                    }
+                    <button type="button" @onclick="OpenEditModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-2.5 py-1.5 text-xs font-medium text-txt-mid hover:text-txt-hi">
+                        Edit
+                    </button>
+                    <button type="button" @onclick="OpenDeleteDeviceModal" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-danger-border bg-danger-soft px-2.5 py-1.5 text-xs font-medium text-danger-500 hover:bg-danger-50">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (IsInline)
+        {
+            <div class="flex flex-row items-stretch gap-6 mt-2 w-full">
+                <!-- Left Column (Wider) -->
+                <div class="flex flex-col" style="flex: 7;">
+                    @ItemRecordCard
+                </div>
+                
+                <!-- Right Column (Narrower) -->
+                <div class="flex flex-col gap-2" style="flex: 5;">
+                    @CurrentCustodyCard
+                    @AssetTagCard
+                    @MovementHistoryCard
+                </div>
+            </div>
+            
+            @if (childComponents.Any())
+            {
+                <div class="w-full mt-6">
+                    @ComponentsFittedCard
+                </div>
+            }
+        }
+        else
+        {
+            <div class="mt-8 flex flex-col gap-10 lg:flex-row lg:justify-between">
+                <div class="w-full space-y-12 max-w-4xl order-2 lg:order-1">
+                    @ItemRecordCard
+                    @if (childComponents.Any())
+                    {
+                        @ComponentsFittedCard
+                    }
+                    @MovementHistoryCard
+                </div>
+                <div class="w-full lg:w-[320px] shrink-0 space-y-6 order-1 lg:order-2">
+                    @AssetTagCard
+                    @CurrentCustodyCard
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool isCopyingImage = false;
+    private bool copySuccess = false;
+
+    private async Task CopyItemRecordAsText(string deviceId)
+    {
+        try {
+            await JS.InvokeVoidAsync("copyElementAsText", $"item-record-{deviceId}");
+        } catch { }
+    }
+
+    private async Task CopyItemRecordAsImage(string deviceId)
+    {
+        if (isCopyingImage) return;
+        isCopyingImage = true;
+        StateHasChanged();
+        try {
+            await JS.InvokeVoidAsync("copyElementAsImage", $"item-record-{deviceId}");
+            copySuccess = true;
+            StateHasChanged();
+            _ = Task.Delay(2500).ContinueWith(_ => {
+                copySuccess = false;
+                InvokeAsync(StateHasChanged);
+            });
+        } catch (Exception ex) {
+            Console.WriteLine($"Error capturing image: {ex.Message}");
+        } finally {
+            isCopyingImage = false;
+            StateHasChanged();
+        }
+    }
+
+    private RenderFragment ItemRecordCard => __builder =>
+    {
+        <section id="@($"item-record-{device.Id}")" class="@(IsInline ? "rounded-xl border border-line bg-surface p-3 shadow-sm h-full flex flex-col" : "rounded-2xl border border-line bg-surface p-6 shadow-sm")">
+            <div class="flex items-center justify-between @(IsInline ? "mb-2 shrink-0" : "mb-5")">
+                <h2 class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo mb-0">Item Record</h2>
+                <button type="button" 
+                        data-html2canvas-ignore="true" 
+                        @onclick="() => CopyItemRecordAsImage(device.Id)" 
+                        title="Copy Item Record as image to clipboard" 
+                        class="inline-flex items-center gap-1.5 rounded-md border border-line bg-canvas/70 hover:bg-elevated px-2.5 py-1 text-xs font-medium text-txt-mid hover:text-txt-hi transition-all shadow-2xs hover:border-line-strong active:scale-95 cursor-pointer">
+                    @if (isCopyingImage)
+                    {
+                        <svg class="animate-spin h-3.5 w-3.5 text-accent-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span class="text-[11px]">Capturing...</span>
+                    }
+                    else if (copySuccess)
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span class="text-emerald-600 font-semibold text-[11px]">Copied!</span>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                        <span class="text-[11px]">Copy Image</span>
+                    }
+                </button>
+            </div>
+            <div class="@(IsInline ? "flex flex-col gap-[2px] text-[12px] pr-2 flex-1" : "grid grid-cols-1 gap-y-4 gap-x-8 sm:grid-cols-2 text-[13px]")">
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft shrink-0" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Asset ID</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-blue-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-blue-800 border border-blue-300">@(device.AssetTag ?? device.Id)</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Serial number</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-elevated px-2.5 py-0.5 text-[11px] font-mono font-medium text-txt-hi border border-gray-300 uppercase">@device.Serial</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Category</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-purple-100 px-2.5 py-0.5 text-[11px] font-medium text-purple-800 border border-purple-300">@device.Category</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Brand</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-sky-100 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 border border-sky-300">@(string.IsNullOrWhiteSpace(device.Brand) ? "N/A" : device.Brand)</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Item model</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-indigo-100 px-2.5 py-0.5 text-[11px] font-medium text-indigo-800 border border-indigo-300">@GetCleanItemModel(device)</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Specification</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-cyan-100 px-2.5 py-0.5 text-[11px] font-medium text-cyan-800 border border-cyan-300">@(string.Join(" \u00B7 ", new[] { device.Processor, device.Ram, device.Ssd, device.Hdd }.Where(s => !string.IsNullOrWhiteSpace(s))))</span>
+                </div>
+                @if (device.Category != null && device.Category.Equals("Desktop", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(device.MonitorDisplay))
+                {
+                    <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                        <span class="text-txt-mid">Monitor</span>
+                        <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-orange-100 px-2.5 py-0.5 text-[11px] font-medium text-orange-800 border border-orange-300">@device.MonitorDisplay</span>
+                    </div>
+                }
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Condition</span>
+                    @{ var cond = string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition; }
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text px-2.5 py-0.5 text-[11px] font-medium border @(cond == "Good" ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-orange-100 text-orange-800 border-orange-300")">@cond</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Supplier</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-orange-100 px-2.5 py-0.5 text-[11px] font-medium text-orange-800 border border-orange-300">@((string.IsNullOrEmpty(device.From) || !string.IsNullOrEmpty(device.To)) ? "N/A" : device.From)</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Owner / Company</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-indigo-100 px-2.5 py-0.5 text-[11px] font-medium text-indigo-800 border border-indigo-300">@device.OwnerCompany</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Office Location</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-sky-100 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 border border-sky-300">@(string.IsNullOrWhiteSpace(device.Location) ? "Unassigned Location" : device.Location)</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Purchase date</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-pink-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-pink-800 border border-pink-300">@(device.ProcurementDate?.ToString("dd MMM yyyy") ?? "N/A")</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <span class="text-txt-mid">Purchase cost</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-lime-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-lime-800 border border-lime-300">@(device.AssetAmount?.ToString("C", new System.Globalization.CultureInfo("bn-BD")) ?? "N/A")</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "pb-3 border-b border-line-soft sm:border-b-0")">
+                    <span class="text-txt-mid">Warranty period</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-amber-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-amber-800 border border-amber-300">@(device.HasWarranty ? $"{device.WarrantyMonths} months" : "N/A")</span>
+                </div>
+                <div class="flex items-center justify-between @(IsInline ? "py-0.5" : "pb-3")">
+                    <span class="text-txt-mid">Warranty end</span>
+                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text bg-rose-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-rose-800 border border-rose-300">@(device.WarrantyEndDate?.ToString("dd MMM yyyy") ?? "N/A")</span>
+                </div>
+            </div>
+        </section>
+    };
+
+    private RenderFragment ComponentsFittedCard => __builder =>
+    {
+        <section class="@(IsInline ? "rounded-xl border border-line bg-surface p-4 shadow-sm h-full" : "")">
+            <h2 class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo @(IsInline ? "mb-3" : "mb-5")">Components Fitted (@childComponents.Count())</h2>
+            @if (childComponents.Any())
+            {
+                <div class="space-y-3">
+                    @foreach (var component in childComponents)
+                    {
+                        <div class="flex items-center justify-between @(IsInline ? "p-3 bg-canvas/50 rounded-lg" : "p-4 bg-surface rounded-xl border border-line shadow-sm hover:border-line-strong") transition-colors">
+                            <div class="cursor-pointer" @onclick="() => NavigateToComponent(component.Id)">
+                                <div class="text-[11px] font-mono font-medium text-purple-600 mb-1">@(component.AssetTag ?? component.Id.ToString())</div>
+                                <div class="text-[13px] font-medium text-txt-hi">@component.Brand @component.DeviceName</div>
+                                <div class="text-[11px] text-txt-mid mt-0.5">
+                                    @component.Category @(!string.IsNullOrWhiteSpace(component.Processor) || !string.IsNullOrWhiteSpace(component.Ram) || !string.IsNullOrWhiteSpace(component.Ssd) || !string.IsNullOrWhiteSpace(component.Hdd) ? $"- {component.Processor} {component.Ram} {component.Ssd} {component.Hdd}".Trim() : "")
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                @if (component.HasWarranty && component.WarrantyEndDate.HasValue)
+                                {
+                                    var daysLeft = (component.WarrantyEndDate.Value - DateTime.Now).TotalDays;
+                                    if (daysLeft > 0)
+                                    {
+                                        <span class="text-[11px] font-medium text-accent-600">In warranty @((int)daysLeft)d</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-[11px] font-medium text-danger-500">Expired @((int)daysLeft)d</span>
+                                    }
+                                }
+                                
+                                <button type="button" @onclick="() => UninstallComponent(component.Id)" class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid hover:text-txt-hi transition-colors focus:outline-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo"><path d="m18.84 12.25 1.72-1.71h-.01a5.001 5.001 0 0 0-7.07-7.07l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a5.001 5.001 0 0 0 7.07 7.07l1.71-1.71"/><line x1="8" x2="16" y1="12" y2="12"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-[12px] text-txt-mid">No individually tracked components are fitted to this system yet.</p>
+            }
+        </section>
+    };
+
+    private RenderFragment MovementHistoryCard => __builder =>
+    {
+        var totalEvents = (handovers?.Count() ?? 0) + (string.IsNullOrEmpty(device.From) ? 0 : 1);
+        <section class="@(IsInline ? "rounded-xl border border-line bg-surface p-3 shadow-sm" : "")">
+            <div class="flex items-center justify-between @(IsInline ? "mb-2 shrink-0" : "mb-5")">
+                <h2 class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Movement History (@totalEvents)</h2>
+                @if (IsInline && totalEvents > 1)
+                {
+                    <button type="button" @onclick="() => IsMovementHistoryExpanded = !IsMovementHistoryExpanded" class="p-0.5 text-txt-mid hover:text-txt-hi transition-colors rounded hover:bg-elevated">
+                        @if (IsMovementHistoryExpanded)
+                        {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                        }
+                        else
+                        {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        }
+                    </button>
+                }
+            </div>
+            <div class="relative border-l border-line ml-1.5 pl-5 space-y-3 pb-1 @(IsInline ? "pr-2" : "")">
+                @{
+                    int renderedCount = 0;
+                    bool shouldShow(int index) => !IsInline || IsMovementHistoryExpanded || index == 0;
+                }
+                @if (handovers != null && handovers.Any())
+                {
+                    @foreach (var handover in handovers)
+                    {
+                        if (shouldShow(renderedCount))
+                        {
+                            <div class="relative">
+                                <span class="absolute -left-[29px] top-1.5 h-2 w-2 rounded-full bg-accent-500 ring-4 ring-surface"></span>
+                                <div class="text-[12px] font-medium text-txt-hi">Allocated out</div>
+                                <div class="text-[12px] text-txt-mid mt-0.5">@(handover.From ?? "IT inventory") &rarr; @(handover.To ?? "User")</div>
+                                <div class="text-[10px] font-mono text-txt-lo mt-1 uppercase">@handover.Released</div>
+                            </div>
+                        }
+                        renderedCount++;
+                    }
+                }
+
+                @if (shouldShow(renderedCount))
+                {
+                    <div class="relative">
+                        <span class="absolute -left-[29px] top-1.5 h-2 w-2 rounded-full bg-line-strong ring-4 ring-surface"></span>
+                        <div class="text-[12px] font-medium text-txt-mid">Purchased in</div>
+                        <div class="text-[12px] text-txt-mid mt-0.5">@(device.From ?? "Vendor") &rarr; IT inventory</div>
+                        <div class="text-[10px] font-mono text-txt-lo mt-1 uppercase">@(device.ProcurementDate?.ToString("dd MMM yyyy") ?? "N/A")</div>
+                    </div>
+                }
+            </div>
+        </section>
+    };
+
+    private RenderFragment CurrentCustodyCard => __builder =>
+    {
+        <div class="@(IsInline ? "rounded-xl border border-line bg-surface p-3 shadow-sm relative overflow-hidden" : "rounded-2xl border border-line bg-surface p-5 shadow-sm relative overflow-hidden")">
+            
+            <div class="relative z-10">
+                <h2 class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo mb-2">Current Custody</h2>
+            
+            <div class="@(IsInline ? "mb-2" : "mb-5")">
+                @if (device.Status == DeviceStatus.InRepair)
+                {
+                    var activeRepair = repairs?.FirstOrDefault(r => r.Status != "Completed");
+                    <div class="mb-1.5">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            Physical Custody: Repair Vendor
+                        </span>
+                    </div>
+                    <div class="text-[13px] font-semibold text-txt-hi">@(activeRepair?.VendorName ?? "External Service Center")</div>
+                    <div class="text-[11px] text-txt-mid mt-0.5">Assigned to: @(string.IsNullOrEmpty(device.UserName) ? "IT inventory" : device.UserName) (Under active repair)</div>
+                }
+                else
+                {
+                    <div class="text-[13px] font-semibold text-txt-hi">@(string.IsNullOrEmpty(device.UserName) ? "IT inventory" : device.UserName)</div>
+                    <div class="text-[11px] text-txt-mid mt-0.5">@(string.IsNullOrEmpty(device.Designation) ? "In store" : device.Designation)</div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(device.UserName))
+            {
+                <div class="space-y-1">
+                    @if (device.Status == DeviceStatus.InRepair)
+                    {
+                        var curRepair = repairs?.FirstOrDefault(r => r.Status != "Completed");
+                        @if (curRepair != null)
+                        {
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="text-txt-mid">Repair issue</span>
+                                <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200 truncate max-w-[160px]" title="@curRepair.IssueDescription">@curRepair.IssueDescription</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="text-txt-mid">Sent date</span>
+                                <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-mono font-medium text-amber-800 ring-1 ring-inset ring-amber-200">@curRepair.SentDate</span>
+                            </div>
+                        }
+                    }
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-txt-mid">Employee ID</span>
+                        <span class="inline-flex items-center rounded-md select-all cursor-text bg-indigo-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-indigo-800 ring-1 ring-inset ring-indigo-300 uppercase">@device.EmployeeId</span>
+                    </div>
+                    <div class="flex items-start justify-between text-[11px] gap-4">
+                        <span class="text-txt-mid shrink-0">Mail</span>
+                        <a href="mailto:@device.Email" class="inline-flex items-center rounded-md select-all cursor-text bg-sky-100 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 ring-1 ring-inset ring-sky-300 hover:bg-sky-200 transition-colors break-all text-right">@device.Email</a>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-txt-mid">Phone</span>
+                        @if (!string.IsNullOrEmpty(device.Contact))
+                        {
+                            <a href="tel:@device.Contact" class="inline-flex items-center rounded-md select-all cursor-text bg-fuchsia-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-fuchsia-800 ring-1 ring-inset ring-fuchsia-300 hover:bg-fuchsia-200 transition-colors truncate max-w-[120px]">@device.Contact</a>
+                        }
+                        else
+                        {
+                            <span class="inline-flex items-center rounded-md select-all cursor-text bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-800 ring-1 ring-inset ring-gray-300">N/A</span>
+                        }
+                    </div>
+                    @if (device.Status != DeviceStatus.InRepair)
+                    {
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-txt-mid">Issue date</span>
+                            @{
+                                var activeHandover = handovers?.FirstOrDefault(h => h.ReturnDate == null);
+                                var issueDateText = activeHandover?.Released ?? device.Released ?? device.ReceivedDate;
+                            }
+                            @if (!string.IsNullOrEmpty(issueDateText))
+                            {
+                                <span class="inline-flex items-center rounded-md select-all cursor-text bg-teal-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-teal-800 ring-1 ring-inset ring-teal-300">@issueDateText</span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex items-center rounded-md select-all cursor-text bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-800 ring-1 ring-inset ring-gray-300">N/A</span>
+                            }
+                        </div>
+                    }
+                </div>
+                
+                var emp = employees?.FirstOrDefault(e => e.Name == device.UserName || e.EmployeeId == device.EmployeeId);
+                if (emp != null && !HideEmployeeProfileLink)
+                {
+                    <div class="mt-3 pt-2.5 border-t border-line-soft">
+                        <a href="/employee/@emp.Id" class="group flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-150 hover:bg-accent-600 hover:shadow active:scale-[0.99]">
+                            <span>View employee profile</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:translate-x-0.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+                }
+            }
+            </div>
+        </div>
+    };
+
+    private RenderFragment AssetTagCard => __builder =>
+    {
+        <div class="@(IsInline ? "rounded-xl border border-line bg-surface p-3 shadow-sm" : "rounded-2xl border border-line bg-surface p-5 shadow-sm")">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Company Asset QR</h2>
+                <span class="inline-flex items-center gap-1.5 rounded-md select-all cursor-text bg-blue-100 px-2 py-0.5 text-[10px] font-mono font-medium text-blue-800 ring-1 ring-inset ring-blue-300">
+                    @(device.AssetTag ?? device.Id)
+                </span>
+            </div>
+            
+            <div class="flex items-start gap-4">
+                <div class="@(IsInline ? "h-16 w-16" : "h-24 w-24") shrink-0 bg-surface ring-1 ring-line-soft">
+                    <img src="@GetDeviceQrImageUrl(device)" alt="QR Code" class="w-full h-full object-contain" />
+                </div>
+                <div class="flex-1">
+                    <p class="mt-1 font-mono text-[11px] font-bold text-txt-hi">QR Payload: @(device.AssetTag ?? device.Id)</p>
+                    <p class="mt-1 text-[10px] text-txt-mid leading-relaxed">Open /scan on your phone to scan and open the full record.</p>
+                    <p class="mt-1 font-mono text-[9px] text-txt-lo uppercase tracking-wider">SN: @device.Serial</p>
+                </div>
+            </div>
+        </div>
+    };
+
+}
+
+@if (showEditModal && device != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-xl">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-txt-hi">Edit device</h2>
+                <button type="button" @onclick="CloseEditModal" class="text-txt-lo hover:text-txt-hi">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            
+            <EditForm Model="device" OnValidSubmit="SaveDevice">
+                <DataAnnotationsValidator />
+                <div class="mt-2 space-y-7">
+                    <!-- General Information -->
+                    <div class="mb-10">
+                        <h3 class="inline-flex items-center rounded bg-blue-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-blue-600 mb-1 border border-blue-100 shadow-sm">General Information</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1rem; row-gap: 0.25rem;">
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Item Kind</label>
+                                <select @bind="editItemKind" @bind:after="OnEditItemKindChanged" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200">
+                                    <option value="System">System</option>
+                                    <option value="Component">Component</option>
+                                    <option value="Peripheral">Peripheral</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Category</label>
+                                <InputSelect @bind-Value="device.Category" @bind-Value:after="OnCategoryChanged" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200">
+                                    @if (availableCategories != null)
+                                    {
+                                        @foreach (var category in availableCategories)
+                                        {
+                                            <option value="@category.Name">@category.Name (@category.Type)</option>
+                                        }
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Brand</label>
+                                <InputText @bind-Value="device.Brand" placeholder="e.g. A4TECH, Dell, Lenovo" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Item Model</label>
+                                <InputText @bind-Value="device.DeviceName" placeholder="e.g. FB10CS, ThinkPad E14" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Asset ID / Tag</label>
+                                <InputText @bind-Value="device.AssetTag" placeholder="e.g. PSL-MOU-011" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Serial Number</label>
+                                <InputText @bind-Value="device.Serial" placeholder="e.g. 24XBA02" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Supplier</label>
+                                <InputText @bind-Value="device.From" placeholder="e.g. Global Brand, Star Tech" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Condition</label>
+                                <InputSelect @bind-Value="device.Condition" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200">
+                                    <option value="">-- Select Condition --</option>
+                                    <option value="New">New</option>
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                    <option value="Faulty">Faulty</option>
+                                </InputSelect>
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Status</label>
+                                <InputSelect @bind-Value="device.Status" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200">
+                                    @foreach (var status in Enum.GetValues(typeof(DeviceStatus)))
+                                    {
+                                        <option value="@status">@status</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 1rem; row-gap: 0.25rem;" class="mt-2">
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Owner / Company <span class="text-danger-500">*</span></label>
+                                <InputSelect @bind-Value="device.OwnerCompany" @bind-Value:after="OnOwnerCompanyChanged" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200">
+                                    <option value="">-- Select Owner Company --</option>
+                                    @foreach (var company in availableOwnerCompanies)
+                                    {
+                                        <option value="@company.Name">@company.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Office / Location</label>
+                                <InputSelect @bind-Value="device.Location" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200">
+                                    <option value="">-- Select Location --</option>
+                                    @foreach (var loc in availableLocations)
+                                    {
+                                        <option value="@loc.Name">@loc.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Purchase Date</label>
+                                <InputDate @bind-Value="device.ProcurementDate" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Purchase Cost (BDT)</label>
+                                <InputNumber @bind-Value="device.AssetAmount" placeholder="0.00" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Warranty (Months)</label>
+                                <InputNumber @bind-Value="device.WarrantyMonths" @bind-Value:after="OnWarrantyMonthsChanged" placeholder="e.g. 12" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div class="flex items-center">
+                                <label class="flex items-center gap-2 mt-4 text-[11px] font-semibold uppercase tracking-widest text-txt-lo cursor-pointer">
+                                    <InputCheckbox @bind-Value="device.HasWarranty" class="rounded text-accent-500 focus:ring-accent-500 h-4 w-4 border-line" />
+                                    Device has warranty
+                                </label>
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">MAC Address</label>
+                                <InputText @bind-Value="device.MacAddress" placeholder="e.g. 00:1B:44:11:3A:B7" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">IMEI</label>
+                                <InputText @bind-Value="device.Imei" placeholder="e.g. 352099001761482" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Specifications -->
+                    <div class="mb-10">
+                        <h3 class="inline-flex items-center rounded bg-emerald-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1 border border-emerald-100 shadow-sm">Specifications</h3>
+                        
+                        <!-- Removed native datalists to fix styling issues -->
+
+                        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 1rem; row-gap: 0.25rem;" class="items-end">
+                            <div class="flex flex-col justify-end h-full">
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo leading-tight">@Label1</label>
+                                <InputText @bind-Value="device.Processor" placeholder="@Placeholder1" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div class="flex flex-col justify-end h-full">
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo leading-tight">@Label2</label>
+                                <InputText @bind-Value="RamString" placeholder="@Placeholder2" @bind-Value:after="StateHasChanged" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div class="flex flex-col justify-end h-full">
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo leading-tight">@Label3</label>
+                                <InputText @bind-Value="SsdString" placeholder="@Placeholder3" @bind-Value:after="StateHasChanged" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            @if (device.DeviceTypeDisplay == "System" || device.DeviceTypeDisplay == "Component" || !string.IsNullOrEmpty(device.Hdd))
+                            {
+                                <div class="flex flex-col justify-end h-full">
+                                    <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo leading-tight">@Label4</label>
+                                    <InputText @bind-Value="HddString" placeholder="@Placeholder4" @bind-Value:after="StateHasChanged" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                                </div>
+                            }
+                            @if (device.Category != null && device.Category.Equals("Desktop", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <div class="col-span-1 sm:col-span-2 mt-2 flex flex-col justify-end h-full">
+                                    <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo leading-tight">Monitor Display / Specifications</label>
+                                    <InputText @bind-Value="device.MonitorDisplay" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" placeholder="Dell 24 inch, Serial: XYZ..." />
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Assignment -->
+                    <div class="mb-10">
+                        <h3 class="inline-flex items-center rounded bg-purple-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-purple-600 mb-1 border border-purple-100 shadow-sm">Assignment Details</h3>
+                        <div class="mb-2">
+                            <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Auto-fill from Employee (Search)</label>
+                            <div class="relative">
+                                <input type="text" autocomplete="off" @bind="searchTermEdit" @bind:event="oninput" @onfocus="() => showEditDropdown = true" @onblur="HideEditDropdown" placeholder="Search by name or ID..." class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                                @if (showEditDropdown)
+                                {
+                                    <div class="absolute z-50 w-full mt-1 bg-surface border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                        @if (FilteredEditEmployees.Any())
+                                        {
+                                            @foreach (var emp in FilteredEditEmployees)
+                                            {
+                                                <div @onmousedown="() => SelectEditEmployee(emp)" class="px-3 py-2 text-sm text-txt-hi hover:bg-elevated cursor-pointer border-b border-line-soft last:border-0 transition-colors">
+                                                    @emp.Name (@emp.EmployeeId)
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div class="px-3 py-2 text-sm text-txt-mid italic">No employees found...</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1rem; row-gap: 0.25rem;">
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">User Name</label>
+                                <InputText @bind-Value="device.UserName" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Employee ID</label>
+                                <InputText @bind-Value="device.EmployeeId" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Designation</label>
+                                <InputText @bind-Value="device.Designation" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Email</label>
+                                <InputText @bind-Value="device.Email" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Contact</label>
+                                <InputText @bind-Value="device.Contact" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Movement Record -->
+                    <div class="mb-10">
+                        <h3 class="inline-flex items-center rounded bg-orange-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-orange-600 mb-1 border border-orange-100 shadow-sm">Movement Record</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1rem; row-gap: 0.25rem;">
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Received Date</label>
+                                <InputText type="date" @bind-Value="device.ReceivedDate" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Return Date</label>
+                                <InputText type="date" @bind-Value="device.ReturnDate" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Condition</label>
+                                <InputSelect @bind-Value="device.Condition" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200">
+                                    <option value="">-- Select Condition --</option>
+                                    <option value="New">New</option>
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                    <option value="Faulty">Faulty</option>
+                                </InputSelect>
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Released</label>
+                                <InputText type="date" @bind-Value="device.Released" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Handover From</label>
+                                <InputText @bind-Value="device.From" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div>
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Handover To</label>
+                                <InputText @bind-Value="device.To" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Note</label>
+                                <InputTextArea @bind-Value="device.Note" rows="2" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Purchase Invoice -->
+                    <div>
+                        <h3 class="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-700 mb-1 border border-amber-100 shadow-sm">Purchase Invoice / Bill</h3>
+                        @if (!string.IsNullOrEmpty(device.InvoiceFilePath))
+                        {
+                            var invoicePaths = device.InvoiceFilePath.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                            <div class="flex flex-wrap items-center gap-4">
+                                @foreach (var path in invoicePaths)
+                                {
+                                    var isPdf = path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+                                    var fileName = System.IO.Path.GetFileName(path);
+                                    <div class="flex items-center gap-3 bg-elevated/50 p-2 rounded-lg border border-line-soft">
+                                        <button type="button" @onclick="() => { showEditInvoiceViewer = true; currentViewerPath = device.InvoiceFilePath; }" 
+                                                class="group relative shrink-0 overflow-hidden rounded-lg border border-line-soft bg-elevated hover:border-accent-border hover:shadow-md transition-all" style="width: 50px; height: 50px; min-width: 50px; display: block; padding: 0;">
+                                            @if (isPdf)
+                                            {
+                                                <div class="flex h-full w-full flex-col items-center justify-center gap-0.5">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                    <span class="text-[8px] font-bold text-red-500">PDF</span>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <img src="@path" alt="Invoice" style="width: 100%; height: 100%; object-fit: cover;" />
+                                            }
+                                            <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </div>
+                                        </button>
+                                        <div class="flex flex-col gap-1 flex-1 min-w-0">
+                                            <span class="text-[11px] text-txt-hi truncate max-w-[120px]">@fileName</span>
+                                            <button type="button" @onclick="() => RemoveInvoicePath(path)"
+                                                    class="text-[10px] text-red-500 hover:text-red-600 text-left transition-colors">
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <label class="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-line-soft bg-elevated/30 px-3 py-2 transition-colors hover:border-accent-border hover:bg-elevated">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-txt-lo"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                <span class="text-[11px] text-txt-mid">Add another invoice</span>
+                                <InputFile OnChange="HandleEditInvoiceUpload" multiple accept=".jpg,.jpeg,.png,.pdf" class="sr-only" />
+                            </label>
+                        }
+                        else
+                        {
+                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-line-soft bg-elevated/50 px-4 py-3.5 transition-colors hover:border-accent-border hover:bg-elevated">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-txt-lo"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                <span class="text-[12px] text-txt-mid">Click to upload invoice(s) <span class="text-txt-lo">(JPG, PNG or PDF)</span></span>
+                                <InputFile OnChange="HandleEditInvoiceUpload" multiple accept=".jpg,.jpeg,.png,.pdf" class="sr-only" />
+                            </label>
+                        }
+                    </div>
+
+                    <div class="pt-4 mt-6 border-t border-line-soft flex justify-end gap-3">
+                        <button type="button" @onclick="CloseEditModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                        <button type="submit" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-600 transition-colors">Save changes</button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<InvoiceViewerModal @bind-IsOpen="showEditInvoiceViewer" FilePath="@currentViewerPath" />
+
+@if (showTransferModal && device != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full rounded-xl border border-line bg-surface p-6 shadow-xl" style="max-width: 32rem;">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-txt-hi">@(device.Status == DeviceStatus.InUse ? "Transfer Device" : "Assign Device")</h2>
+                <button type="button" @onclick="CloseTransferModal" class="text-txt-lo hover:text-txt-hi">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                @if (!string.IsNullOrEmpty(device?.UserName))
+                {
+                    <div class="mb-4 flex items-start gap-3 rounded-lg border border-warn-200 bg-warn-50 px-3 py-2">
+                        <div class="pt-0.5 shrink-0">
+                            <input type="checkbox" id="markOldUserLeft" @bind="markOldUserLeft" class="h-4 w-4 rounded border-warn-300 text-warn-600 focus:ring-warn-500" />
+                        </div>
+                        <label for="markOldUserLeft" class="text-sm font-medium text-warn-800 flex-1 leading-snug">
+                            Mark previous user <span class="font-bold">@device.UserName</span> as left the job (Move to Ex-Employees)
+                        </label>
+                    </div>
+                }
+
+                @if (device.Status == DeviceStatus.InUse)
+                {
+                    <div>
+                        <label class="block text-sm font-medium text-txt-hi mb-2">What happened to the current user (@device.UserName)?</label>
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-txt-mid">Action</label>
+                            <select @bind="transferAction" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                                <option value="TransferToUser">Transfer device to a new user</option>
+                                <option value="ReturnToStore">Unassign (Return to store)</option>
+                            </select>
+                        </div>
+                    </div>
+                }
+
+                @if (transferAction == "TransferToUser")
+                {
+                    <div class="@(device.Status == DeviceStatus.InUse ? "pt-4 border-t border-line-soft" : "")">
+                        <h3 class="text-sm font-semibold text-txt-hi mb-3">@(device.Status == DeviceStatus.InUse ? "New Assignment Details" : "Assignment Details")</h3>
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-txt-mid">Search Employee</label>
+                            <div class="relative">
+                                <input type="text" autocomplete="off" @bind="searchTermTransfer" @bind:event="oninput" @onfocus="() => showTransferDropdown = true" @onblur="HideTransferDropdown" placeholder="Search by name or ID..." class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                                @if (showTransferDropdown)
+                                {
+                                    <div class="absolute z-50 w-full mt-1 bg-surface border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                        @if (FilteredTransferEmployees.Any())
+                                        {
+                                            @foreach (var emp in FilteredTransferEmployees)
+                                            {
+                                                <div @onmousedown="() => SelectTransferEmployee(emp)" class="px-3 py-2 text-sm text-txt-hi hover:bg-elevated cursor-pointer border-b border-line-soft last:border-0 transition-colors">
+                                                    @emp.Name (@emp.EmployeeId)
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div class="px-3 py-2 text-sm text-txt-mid italic">No employees found...</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label class="block text-xs font-medium text-txt-mid">User Name</label>
+                                <input type="text" @bind="newAssignmentData.UserName" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-txt-mid">Employee ID</label>
+                                <input type="text" @bind="newAssignmentData.EmployeeId" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (transferAction == "ReturnToStore")
+                {
+                    <div class="pt-4 border-t border-line-soft">
+                        <p class="text-[13px] text-txt-mid">The device will be unassigned from @device.UserName and moved to the store. Their employee record will remain active.</p>
+                    </div>
+                }
+
+                <div class="pt-4 border-t border-line-soft flex justify-end gap-3">
+                    <button type="button" @onclick="CloseTransferModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                    <button type="button" @onclick="SubmitTransfer" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-600 transition-colors">@(device.Status == DeviceStatus.InUse ? "Confirm Transfer" : "Confirm Assignment")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showEditHandoverModal && editingHandover != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full rounded-xl border border-line bg-surface p-6 shadow-xl" style="max-width: 450px;">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-lg font-semibold text-txt-hi">Edit Handover Record</h2>
+                <button type="button" @onclick="CloseEditHandoverModal" class="text-txt-lo hover:text-txt-hi">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            
+            <EditForm Model="editingHandover" OnValidSubmit="SaveHandover">
+                <div class="space-y-4">
+                    <div class="relative">
+                        <label class="block text-xs font-medium text-txt-mid">From</label>
+                        <input type="text" autocomplete="off" @bind="editingHandover.From" @bind:event="oninput" @onfocus="() => showFromDropdown = true" @onblur="HideFromDropdown" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="Search employee..." />
+                        @if (showFromDropdown)
+                        {
+                            <div class="absolute z-50 w-full mt-1 bg-surface border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                @if (GetFilteredEmployees(editingHandover.From).Any())
+                                {
+                                    @foreach (var emp in GetFilteredEmployees(editingHandover.From))
+                                    {
+                                        <div @onclick="() => { editingHandover.From = emp.Name; showFromDropdown = false; }" class="cursor-pointer px-3 py-2 text-sm text-txt-hi hover:bg-elevated">
+                                            <div class="font-medium">@emp.Name</div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="px-3 py-2 text-sm text-txt-mid">No employees found.</div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="relative">
+                        <label class="block text-xs font-medium text-txt-mid">To</label>
+                        <input type="text" autocomplete="off" @bind="editingHandover.To" @bind:event="oninput" @onfocus="() => showToDropdown = true" @onblur="HideToDropdown" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="Search employee..." />
+                        @if (showToDropdown)
+                        {
+                            <div class="absolute z-50 w-full mt-1 bg-surface border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                @if (GetFilteredEmployees(editingHandover.To).Any())
+                                {
+                                    @foreach (var emp in GetFilteredEmployees(editingHandover.To))
+                                    {
+                                        <div @onclick="() => { editingHandover.To = emp.Name; showToDropdown = false; }" class="cursor-pointer px-3 py-2 text-sm text-txt-hi hover:bg-elevated">
+                                            <div class="font-medium">@emp.Name</div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="px-3 py-2 text-sm text-txt-mid">No employees found.</div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Released (Date)</label>
+                            <input type="date" @bind="editReleasedDate" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Return Date</label>
+                            <input type="date" @bind="editReturnDate" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-txt-mid">Condition</label>
+                        <InputText @bind-Value="editingHandover.Condition" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" @onclick="CloseEditHandoverModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                    <button type="submit" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-600 transition-colors">Save changes</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (showDeleteHandoverModal && deletingHandover != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full rounded-xl border border-line bg-surface p-6 shadow-xl" style="max-width: 400px;">
+            <h2 class="text-lg font-semibold text-txt-hi">Delete Handover Record?</h2>
+            <p class="mt-2 text-sm text-txt-mid">Are you sure you want to delete the handover record from <strong>@deletingHandover.From</strong> to <strong>@deletingHandover.To</strong>? This action cannot be undone.</p>
+            
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" @onclick="CloseDeleteHandoverModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                <button type="button" @onclick="ConfirmDeleteHandover" class="rounded-lg bg-danger-500 px-4 py-2 text-sm font-medium text-white hover:bg-danger-600 transition-colors">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showRepairModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full rounded-xl border border-line bg-surface p-6 shadow-xl" style="max-width: 500px;">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-lg font-semibold text-txt-hi">@(isEditingRepair ? "Edit Repair Record" : "Send Device to Repair")</h2>
+                <button type="button" @onclick="CloseRepairModal" class="text-txt-lo hover:text-txt-hi">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            
+            <EditForm Model="editingRepair" OnValidSubmit="SaveRepair">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-txt-mid">Vendor / Service Center</label>
+                        <InputText @bind-Value="editingRepair.VendorName" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. Apple Care, Official Service" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-txt-mid">Issue Description</label>
+                        <InputTextArea @bind-Value="editingRepair.IssueDescription" rows="2" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="Describe the problem..." />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Sent Date</label>
+                            <InputText type="date" @bind-Value="editingRepair.SentDate" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Expected Return Date</label>
+                            <InputText type="date" @bind-Value="editingRepair.ExpectedReturnDate" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Actual Return Date</label>
+                            <InputText type="date" @bind-Value="editingRepair.ActualReturnDate" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Status</label>
+                            <InputSelect @bind-Value="editingRepair.Status" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                                <option value="In Repair">In Repair</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Completed">Completed</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Cost ($ / BDT)</label>
+                            <InputNumber @bind-Value="editingRepair.Cost" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="0.00" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-txt-mid">Remarks</label>
+                            <InputText @bind-Value="editingRepair.Remarks" class="w-full rounded-lg border border-line bg-elevated px-2 py-1 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="Optional notes" />
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" @onclick="CloseRepairModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                    <button type="submit" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-600 transition-colors">Save Repair</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (showDeleteRepairModal && deletingRepair != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full rounded-xl border border-line bg-surface p-6 shadow-xl" style="max-width: 400px;">
+            <h2 class="text-lg font-semibold text-txt-hi">Delete Repair Record?</h2>
+            <p class="mt-2 text-sm text-txt-mid">Are you sure you want to delete the repair record for vendor <strong>@deletingRepair.VendorName</strong>? This action cannot be undone.</p>
+            
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" @onclick="CloseDeleteRepairModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                <button type="button" @onclick="ConfirmDeleteRepair" class="rounded-lg bg-danger-500 px-4 py-2 text-sm font-medium text-white hover:bg-danger-600 transition-colors">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showInstallComponentModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full max-w-[480px] rounded-2xl border border-line bg-surface p-6 shadow-xl">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <h2 class="text-[15px] font-semibold text-txt-hi">Install a component</h2>
+                    <p class="mt-1 text-[13px] text-txt-mid leading-relaxed pr-6">Fit a stocked component or peripheral into a system. The component inherits the system's current holder and keeps its own warranty clock.</p>
+                </div>
+                <button type="button" @onclick="CloseInstallComponentModal" class="rounded-lg p-1 text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors mt-[-4px] mr-[-4px]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-semibold uppercase tracking-wider text-txt-lo mb-2">Component in stock</label>
+                    <div class="relative">
+                        <select @bind="selectedComponentIdToInstall" class="block w-full appearance-none rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                            <option value="">Select a component...</option>
+                            @foreach (var comp in availableComponentsToInstall)
+                            {
+                                <option value="@comp.Id">@comp.AssetTag &mdash; @comp.Brand @comp.DeviceName</option>
+                            }
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-txt-mid">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-[11px] font-semibold uppercase tracking-wider text-txt-lo mb-2">Install into system</label>
+                    <div class="relative">
+                        <select disabled class="block w-full appearance-none rounded-lg border border-line bg-elevated px-3 py-2 text-[13px] text-txt-hi opacity-80">
+                            <option>@(device?.AssetTag ?? device?.Id) &mdash; @device?.Brand @device?.DeviceName (@device?.UserName)</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-txt-mid">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-line-soft">
+                <button type="button" @onclick="CloseInstallComponentModal" class="rounded-lg border border-line bg-surface px-4 py-2 text-[13px] font-medium text-txt-hi hover:bg-elevated transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="InstallSelectedComponent" disabled="@string.IsNullOrEmpty(selectedComponentIdToInstall)" class="rounded-lg bg-[#4f46e5] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#4338ca] transition-colors disabled:opacity-50">
+                    Install component
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDeleteDeviceModal && device != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 whitespace-normal text-left">
+        <div class="w-full max-w-[480px] rounded-2xl border border-line bg-surface p-6 shadow-xl">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <h2 class="text-[15px] font-semibold text-txt-hi">Delete Asset Permanently</h2>
+                    <p class="mt-1 text-[13px] text-txt-mid leading-relaxed pr-6">Use this to permanently delete the asset. This action removes the asset and its history completely from the database. It should only be used for correcting duplicate or erroneous entries.</p>
+                </div>
+                <button type="button" @onclick="CloseDeleteDeviceModal" class="rounded-lg p-1 text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors mt-[-4px] mr-[-4px]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-semibold uppercase tracking-wider text-txt-lo mb-2">Item</label>
+                    <div class="relative">
+                        <select disabled class="block w-full appearance-none rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-txt-hi opacity-90">
+                            <option>@(device.AssetTag ?? device.Id) &mdash; @device.Brand @device.DeviceName (@device.Category)</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-txt-mid">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-[11px] font-semibold uppercase tracking-wider text-txt-lo mb-2">Reason</label>
+                    <input type="text" class="block w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="Motherboard dead, not economical to repair..." />
+                </div>
+
+                @if (!string.IsNullOrEmpty(deleteErrorMessage))
+                {
+                    <div class="p-3 rounded-lg bg-danger-50 border border-danger-200 text-xs text-danger-700">
+                        @deleteErrorMessage
+                    </div>
+                }
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-line-soft">
+                <button type="button" @onclick="CloseDeleteDeviceModal" disabled="@isDeletingDevice" class="rounded-lg px-4 py-2 text-[13px] font-medium text-txt-hi hover:bg-elevated transition-colors border border-line disabled:opacity-50">Cancel</button>
+                <button type="button" @onclick="ConfirmDeleteDevice" disabled="@isDeletingDevice" class="rounded-lg bg-danger-50 text-danger-600 px-4 py-2 text-[13px] font-medium hover:bg-danger-100 transition-colors border border-danger-border disabled:opacity-50 inline-flex items-center gap-2">
+                    @if (isDeletingDevice)
+                    {
+                        <svg class="animate-spin h-3.5 w-3.5 text-danger-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>Deleting...</span>
+                    }
+                    else
+                    {
+                        <span>Delete Asset</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+<AssetManagement.Web.Components.Shared.AllocateDeviceModal @bind-IsOpen="showAllocateModal" OnAllocated="OnDeviceAllocated" AvailableDevices="availableDeviceList" ActiveEmployees="employees" />
+
+@code {
+    private string Label1 => device?.DeviceTypeDisplay == "System" ? "Processor" : (device?.DeviceTypeDisplay == "Component" ? "Component Type" : (device?.Category == "Monitor" ? "Panel/Display Type" : "Interface/Type"));
+    private string Placeholder1 => device?.DeviceTypeDisplay == "System" ? "Intel i5 (13th Gen)" : (device?.DeviceTypeDisplay == "Component" ? "DDR4 / NVMe" : (device?.Category == "Monitor" ? "IPS / LED" : "USB / Wireless"));
+
+    private string Label2 => device?.DeviceTypeDisplay == "System" ? "RAM" : (device?.DeviceTypeDisplay == "Component" ? "Capacity/Speed" : (device?.Category == "Monitor" ? "Size (e.g. 24\\\")" : "Key Spec (e.g. Layout)"));
+    private string Placeholder2 => device?.DeviceTypeDisplay == "System" ? "16GB" : (device?.DeviceTypeDisplay == "Component" ? "16GB 3200MHz" : (device?.Category == "Monitor" ? "24\\\"" : "Mechanical / 1000 DPI"));
+
+    private string Label3 => device?.DeviceTypeDisplay == "System" ? "SSD" : (device?.DeviceTypeDisplay == "Component" ? "Form Factor" : (device?.Category == "Monitor" ? "Resolution/Refresh" : "Color/Material"));
+    private string Placeholder3 => device?.DeviceTypeDisplay == "System" ? "512GB" : (device?.DeviceTypeDisplay == "Component" ? "M.2 / 2.5\\\"" : (device?.Category == "Monitor" ? "1080p / 75Hz" : "Black / ABS"));
+
+    private string Label4 => device?.DeviceTypeDisplay == "System" ? "HDD" : (device?.DeviceTypeDisplay == "Component" ? "Generation/Extra" : (device?.Category == "Monitor" ? "Mounting" : "Weight/Extra"));
+    private string Placeholder4 => device?.DeviceTypeDisplay == "System" ? "1TB" : (device?.DeviceTypeDisplay == "Component" ? "Gen4 / RGB" : (device?.Category == "Monitor" ? "VESA" : "Extra"));
+
+    [Parameter]
+    public string DeviceId { get; set; }
+
+    [Parameter]
+    public bool IsInline { get; set; } = false;
+
+    [Parameter]
+    public bool HideEmployeeProfileLink { get; set; } = false;
+
+    [Parameter]
+    public EventCallback OnStateChanged { get; set; }
+
+    private Device? device;
+    private IEnumerable<AssetManagement.Core.Entities.DeviceCategoryModel> availableCategories = new List<AssetManagement.Core.Entities.DeviceCategoryModel>();
+    private IEnumerable<AssetManagement.Core.Entities.OwnerCompany> availableOwnerCompanies = new List<AssetManagement.Core.Entities.OwnerCompany>();
+    private IEnumerable<AssetManagement.Core.Entities.Location> availableLocations = new List<AssetManagement.Core.Entities.Location>();
+    private List<Employee>? employees;
+    private List<Handover>? handovers;
+    private List<RepairRecord>? repairs;
+    private bool isLoading = true;
+    private bool showAllocateModal = false;
+    private List<Device> availableDeviceList = new();
+    
+    private void OpenAllocateModal()
+    {
+        availableDeviceList = new List<Device> { device };
+        showAllocateModal = true;
+    }
+    
+    private async Task OnDeviceAllocated(List<Handover> handovers)
+    {
+        foreach (var handover in handovers)
+        {
+            if (!string.IsNullOrEmpty(handover.DeviceId))
+            {
+                var emp = employees?.FirstOrDefault(e => e.Name == handover.To);
+                var isTeam = emp?.IsTeamAccount == true || handover.Condition?.Contains("Common") == true || handover.Condition?.Contains("Team") == true || handover.To.Contains("Team") || handover.To.Contains("Pool") || handover.To.Contains("Room") || handover.To.Contains("Lab");
+
+                var newAssignmentData = new Device
+                {
+                    UserName = handover.To,
+                    EmployeeId = emp?.EmployeeId ?? (isTeam ? "TEAM" : null),
+                    Email = emp?.Email ?? "",
+                    Contact = emp?.Contact ?? "",
+                    Designation = emp?.Designation ?? (isTeam ? "Team / Common Use" : "Staff")
+                };
+                await DeviceService.TransferDeviceAsync(handover.DeviceId, "TransferToUser", newAssignmentData);
+            }
+        }
+        showAllocateModal = false;
+        await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+    }
+    private bool showEditModal = false;
+    private bool showTransferModal = false;
+    private string transferAction = "TransferToUser";
+    private Device newAssignmentData = new Device();
+    
+    private string searchTermEdit = "";
+    private string searchTermTransfer = "";
+    private bool showEditDropdown = false;
+    private bool showTransferDropdown = false;
+
+    private IEnumerable<Employee> FilteredEditEmployees => 
+        string.IsNullOrWhiteSpace(searchTermEdit) 
+            ? employees ?? new List<Employee>()
+            : employees?.Where(e => e.Name.Contains(searchTermEdit, StringComparison.OrdinalIgnoreCase) || 
+                                    (e.EmployeeId != null && e.EmployeeId.Contains(searchTermEdit, StringComparison.OrdinalIgnoreCase))) ?? new List<Employee>();
+                                    
+    private List<Device> childComponents = new();
+    private List<Device> availableComponentsToInstall = new();
+    private bool showInstallComponentModal = false;
+    private string selectedComponentIdToInstall = "";
+    
+    private string searchComponentTerm = "";
+    private bool showComponentDropdown = false;
+    
+    private IEnumerable<Device> FilteredComponentsToInstall => 
+        string.IsNullOrWhiteSpace(searchComponentTerm) 
+            ? availableComponentsToInstall
+            : availableComponentsToInstall.Where(c => 
+                (c.Brand != null && c.Brand.Contains(searchComponentTerm, StringComparison.OrdinalIgnoreCase)) ||
+                (c.DeviceName != null && c.DeviceName.Contains(searchComponentTerm, StringComparison.OrdinalIgnoreCase)) ||
+                (c.AssetTag != null && c.AssetTag.Contains(searchComponentTerm, StringComparison.OrdinalIgnoreCase)) ||
+                (c.Serial != null && c.Serial.Contains(searchComponentTerm, StringComparison.OrdinalIgnoreCase)));
+
+    private void SelectComponentToInstall(Device comp)
+    {
+        selectedComponentIdToInstall = comp.Id;
+        searchComponentTerm = ""; // Clear search since we show the selected item in a box below
+        showComponentDropdown = false;
+    }
+    
+    private async Task HideComponentDropdown()
+    {
+        await Task.Delay(150);
+        showComponentDropdown = false;
+    }
+
+    private IEnumerable<Employee> FilteredTransferEmployees => 
+        string.IsNullOrWhiteSpace(searchTermTransfer) 
+            ? employees ?? new List<Employee>()
+            : employees?.Where(e => e.Name.Contains(searchTermTransfer, StringComparison.OrdinalIgnoreCase) || 
+                                    (e.EmployeeId != null && e.EmployeeId.Contains(searchTermTransfer, StringComparison.OrdinalIgnoreCase))) ?? new List<Employee>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        if (!string.IsNullOrEmpty(DeviceId))
+        {
+            device = await DeviceService.GetDeviceByIdAsync(DeviceId);
+            availableCategories = await SettingsService.GetCategoriesAsync();
+            availableOwnerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+            availableLocations = await SettingsService.GetLocationsAsync();
+            var defaultCompany = availableOwnerCompanies.FirstOrDefault(c => c.Name.Contains("Prime", StringComparison.OrdinalIgnoreCase))?.Name 
+                ?? availableOwnerCompanies.FirstOrDefault()?.Name 
+                ?? "PrimeTech Solutions Ltd.";
+            if (device != null)
+            {
+                if (string.IsNullOrWhiteSpace(device.OwnerCompany) || device.OwnerCompany.Equals("PTSL", StringComparison.OrdinalIgnoreCase))
+                {
+                    device.OwnerCompany = defaultCompany;
+                }
+                var compPrefix = availableOwnerCompanies.FirstOrDefault(c => c.Name == device.OwnerCompany)?.Prefix?.Trim() 
+                    ?? (device.OwnerCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase) ? "PSL" : "");
+                if (!string.IsNullOrEmpty(compPrefix) && !string.IsNullOrEmpty(device.AssetTag) && !device.AssetTag.StartsWith($"{compPrefix}-", StringComparison.OrdinalIgnoreCase))
+                {
+                    device.AssetTag = $"{compPrefix}-{device.AssetTag}";
+                }
+            }
+            handovers = (await HandoverService.GetHandoversAsync())
+                .Where(h => h.DeviceId == DeviceId)
+                .OrderByDescending(h => h.ReturnDate)
+                .ToList();
+            repairs = (await RepairService.GetRepairsAsync())
+                .Where(r => r.DeviceId == DeviceId)
+                .OrderByDescending(r => r.SentDate)
+                .ToList();
+            childComponents = await DeviceService.GetChildComponentsAsync(DeviceId);
+            var allDevices = await DeviceService.GetDevicesAsync();
+            var systemCategories = availableCategories.Where(c => c.Type == "System").Select(c => c.Name).ToHashSet();
+            availableComponentsToInstall = allDevices
+                .Where(d => d.Id != DeviceId && string.IsNullOrEmpty(d.ParentDeviceId) && d.Status == DeviceStatus.InStore && !systemCategories.Contains(d.Category))
+                .ToList();
+        }
+        employees = await EmployeeService.GetEmployeesAsync();
+        isLoading = false;
+    }
+
+    private void SelectEditEmployee(Employee emp)
+    {
+        searchTermEdit = $"{emp.Name} ({emp.EmployeeId})";
+        showEditDropdown = false;
+        if (device != null)
+        {
+            device.UserName = emp.Name;
+            device.EmployeeId = emp.EmployeeId;
+            device.Designation = emp.Designation;
+            device.Email = emp.Email;
+            device.Contact = emp.Contact;
+        }
+    }
+
+    private void SelectTransferEmployee(Employee emp)
+    {
+        searchTermTransfer = $"{emp.Name} ({emp.EmployeeId})";
+        showTransferDropdown = false;
+        newAssignmentData.UserName = emp.Name;
+        newAssignmentData.EmployeeId = emp.EmployeeId;
+        newAssignmentData.Designation = emp.Designation;
+        newAssignmentData.Email = emp.Email;
+        newAssignmentData.Contact = emp.Contact;
+    }
+
+    private async Task HideEditDropdown()
+    {
+        await Task.Delay(150);
+        showEditDropdown = false;
+    }
+
+    private async Task HideTransferDropdown()
+    {
+        await Task.Delay(150);
+        showTransferDropdown = false;
+    }
+
+    private string originalDeviceJson = "";
+    private string editItemKind = "System";
+
+    private void OnEditItemKindChanged()
+    {
+        if (device != null)
+        {
+            device.IsComponent = (editItemKind == "Component");
+            StateHasChanged();
+        }
+    }
+
+    private void OnWarrantyMonthsChanged()
+    {
+        if (device != null && device.WarrantyMonths.HasValue && device.WarrantyMonths.Value > 0)
+        {
+            device.HasWarranty = true;
+        }
+    }
+
+    private string GetCleanItemModel(Device d)
+    {
+        if (string.IsNullOrWhiteSpace(d.DeviceName)) return "N/A";
+        var model = d.DeviceName.Trim();
+        if (!string.IsNullOrWhiteSpace(d.Brand))
+        {
+            var brand = d.Brand.Trim();
+            if (model.StartsWith(brand, StringComparison.OrdinalIgnoreCase))
+            {
+                var stripped = model.Substring(brand.Length).TrimStart(' ', '-', ':', '/');
+                if (!string.IsNullOrWhiteSpace(stripped)) return stripped;
+            }
+        }
+        return model;
+    }
+
+    private string GetDeviceDisplayName(Device d)
+    {
+        if (string.IsNullOrWhiteSpace(d.Brand)) return string.IsNullOrWhiteSpace(d.DeviceName) ? "Unknown Asset" : d.DeviceName;
+        if (string.IsNullOrWhiteSpace(d.DeviceName)) return d.Brand;
+        if (d.DeviceName.Trim().StartsWith(d.Brand.Trim(), StringComparison.OrdinalIgnoreCase))
+            return d.DeviceName.Trim();
+        return $"{d.Brand} {d.DeviceName}".Trim();
+    }
+
+    private void OpenEditModal()
+    {
+        if (device != null)
+        {
+            editItemKind = device.IsComponent ? "Component" : (device.DeviceTypeDisplay == "System" ? "System" : "Peripheral");
+            var defaultCompany = availableOwnerCompanies.FirstOrDefault(c => c.Name.Contains("Prime", StringComparison.OrdinalIgnoreCase))?.Name 
+                ?? availableOwnerCompanies.FirstOrDefault()?.Name 
+                ?? "PrimeTech Solutions Ltd.";
+            if (string.IsNullOrWhiteSpace(device.OwnerCompany) || device.OwnerCompany.Equals("PTSL", StringComparison.OrdinalIgnoreCase))
+            {
+                device.OwnerCompany = defaultCompany;
+            }
+            var compPrefix = availableOwnerCompanies.FirstOrDefault(c => c.Name == device.OwnerCompany)?.Prefix?.Trim() 
+                ?? (device.OwnerCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase) ? "PSL" : "");
+            if (!string.IsNullOrEmpty(compPrefix) && !string.IsNullOrEmpty(device.AssetTag) && !device.AssetTag.StartsWith($"{compPrefix}-", StringComparison.OrdinalIgnoreCase))
+            {
+                device.AssetTag = $"{compPrefix}-{device.AssetTag}";
+            }
+            originalDeviceJson = System.Text.Json.JsonSerializer.Serialize(device, new System.Text.Json.JsonSerializerOptions { ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles });
+        }
+        showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        if (device != null && !string.IsNullOrEmpty(originalDeviceJson))
+        {
+            var original = System.Text.Json.JsonSerializer.Deserialize<AssetManagement.Core.Entities.Device>(originalDeviceJson, new System.Text.Json.JsonSerializerOptions { ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles });
+            if (original != null)
+            {
+                device.Brand = original.Brand;
+                device.DeviceName = original.DeviceName;
+                device.AssetTag = original.AssetTag;
+                device.Serial = original.Serial;
+                device.Category = original.Category;
+                device.AssetAmount = original.AssetAmount;
+                device.Status = original.Status;
+                device.OwnerCompany = original.OwnerCompany;
+                device.Location = original.Location;
+                device.ProcurementDate = original.ProcurementDate;
+                device.HasWarranty = original.HasWarranty;
+                device.WarrantyMonths = original.WarrantyMonths;
+                device.Processor = original.Processor;
+                device.Ram = original.Ram;
+                device.Ssd = original.Ssd;
+                device.Hdd = original.Hdd;
+                device.MonitorDisplay = original.MonitorDisplay;
+                device.Imei = original.Imei;
+                device.MacAddress = original.MacAddress;
+                device.From = original.From;
+                device.To = original.To;
+                device.Condition = original.Condition;
+                device.ReceivedDate = original.ReceivedDate;
+                device.ReturnDate = original.ReturnDate;
+                device.Released = original.Released;
+                device.Note = original.Note;
+                device.InvoiceFilePath = original.InvoiceFilePath;
+                device.UserName = original.UserName;
+                device.EmployeeId = original.EmployeeId;
+                device.Designation = original.Designation;
+                device.Email = original.Email;
+                device.Contact = original.Contact;
+                device.IsComponent = original.IsComponent;
+            }
+        }
+        showEditModal = false;
+        originalDeviceJson = "";
+    }
+    
+    private void OpenTransferModal() 
+    {
+        transferAction = "TransferToUser";
+        newAssignmentData = new Device();
+        markOldUserLeft = false;
+        showTransferModal = true;
+    }
+    
+    private void CloseTransferModal() => showTransferModal = false;
+
+    private bool IsMovementHistoryExpanded = false;
+
+    private bool showEditHandoverModal = false;
+    private Handover? editingHandover;
+    private DateTime? editReleasedDate;
+    private DateTime? editReturnDate;
+    
+    private bool showDeleteHandoverModal = false;
+    private Handover? deletingHandover;
+
+    private void OpenEditHandoverModal(Handover handover)
+    {
+        editingHandover = new Handover
+        {
+            Id = handover.Id,
+            DeviceId = handover.DeviceId,
+            From = handover.From,
+            To = handover.To,
+            Released = handover.Released,
+            ReturnDate = handover.ReturnDate,
+            Condition = handover.Condition
+        };
+
+        if (DateTime.TryParse(handover.Released, out var rd)) editReleasedDate = rd;
+        else editReleasedDate = null;
+
+        if (DateTime.TryParse(handover.ReturnDate, out var rtd)) editReturnDate = rtd;
+        else editReturnDate = null;
+
+        showEditHandoverModal = true;
+    }
+
+    private void CloseEditHandoverModal()
+    {
+        showEditHandoverModal = false;
+        editingHandover = null;
+        showFromDropdown = false;
+        showToDropdown = false;
+    }
+
+    private bool showFromDropdown = false;
+    private bool showToDropdown = false;
+
+    private async Task HideFromDropdown()
+    {
+        await Task.Delay(150);
+        showFromDropdown = false;
+    }
+
+    private async Task HideToDropdown()
+    {
+        await Task.Delay(150);
+        showToDropdown = false;
+    }
+
+    private IEnumerable<Employee> GetFilteredEmployees(string? term)
+    {
+        if (employees == null) return Enumerable.Empty<Employee>();
+        if (string.IsNullOrWhiteSpace(term)) return employees.Take(5);
+        return employees.Where(e => e.Name != null && e.Name.Contains(term, StringComparison.OrdinalIgnoreCase)).Take(5);
+    }
+
+    private async Task SaveHandover()
+    {
+        if (editingHandover != null)
+        {
+            editingHandover.Released = editReleasedDate?.ToString("yyyy-MM-dd");
+            editingHandover.ReturnDate = editReturnDate?.ToString("yyyy-MM-dd");
+            
+            await HandoverService.UpdateHandoverAsync(editingHandover);
+            await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+        }
+        CloseEditHandoverModal();
+    }
+
+    private void OpenDeleteHandoverModal(Handover handover)
+    {
+        deletingHandover = handover;
+        showDeleteHandoverModal = true;
+    }
+
+    private void CloseDeleteHandoverModal()
+    {
+        showDeleteHandoverModal = false;
+        deletingHandover = null;
+    }
+
+    private async Task ConfirmDeleteHandover()
+    {
+        if (deletingHandover != null)
+        {
+            await HandoverService.DeleteHandoverAsync(deletingHandover.Id);
+            await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+        }
+        CloseDeleteHandoverModal();
+    }
+
+    private bool markOldUserLeft = false;
+
+    private async Task SubmitTransfer()
+    {
+        if (device == null) return;
+        
+        string oldUserName = !string.IsNullOrEmpty(device.UserName) 
+            ? device.UserName 
+            : (!string.IsNullOrEmpty(device.From) ? device.From : "IT inventory");
+
+        // If they want to offboard the old user, do it first, excluding this device so it is transferred cleanly
+        if (markOldUserLeft && !string.IsNullOrEmpty(device.UserName))
+        {
+            string? employeeDbId = null;
+            var emp = employees?.FirstOrDefault(e => e.Name == device.UserName);
+            if (emp != null) 
+            {
+                employeeDbId = emp.Id;
+            }
+            else if (!string.IsNullOrEmpty(device.EmployeeId))
+            {
+                employeeDbId = device.EmployeeId;
+            }
+            
+            if (!string.IsNullOrEmpty(employeeDbId))
+            {
+                await EmployeeService.OffboardEmployeeAsync(employeeDbId, device.Id);
+            }
+        }
+
+        // Proceed with the actual device transfer/unassign
+        await DeviceService.TransferDeviceAsync(device.Id, transferAction, newAssignmentData, oldUserName);
+        
+        CloseTransferModal();
+        await OnInitializedAsync();
+        if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+    }
+
+    // Invoice upload for edit form
+    private bool showEditInvoiceViewer = false;
+    private string? currentViewerPath = null;
+
+    private void OpenEditInvoiceViewer()
+    {
+        if (device != null && !string.IsNullOrEmpty(device.InvoiceFilePath))
+        {
+            currentViewerPath = device.InvoiceFilePath;
+            showEditInvoiceViewer = true;
+        }
+    }
+
+    private void RemoveInvoicePath(string pathToRemove)
+    {
+        if (device == null || string.IsNullOrEmpty(device.InvoiceFilePath)) return;
+        var paths = device.InvoiceFilePath.Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
+        paths.Remove(pathToRemove);
+        device.InvoiceFilePath = paths.Any() ? string.Join("|", paths) : null;
+    }
+
+    private async Task HandleEditInvoiceUpload(InputFileChangeEventArgs e)
+    {
+        if (device == null) return;
+        
+        var newPaths = new List<string>();
+        foreach (var file in e.GetMultipleFiles())
+        {
+            var uploadsDir = Path.Combine(Env.WebRootPath, "uploads", "invoices");
+            Directory.CreateDirectory(uploadsDir);
+            var uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.Name)}";
+            var fullPath = Path.Combine(uploadsDir, uniqueName);
+            await using var fs = new FileStream(fullPath, FileMode.Create);
+            await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(fs);
+            newPaths.Add($"/uploads/invoices/{uniqueName}");
+        }
+
+        if (newPaths.Any())
+        {
+            if (string.IsNullOrEmpty(device.InvoiceFilePath))
+            {
+                device.InvoiceFilePath = string.Join("|", newPaths);
+            }
+            else
+            {
+                device.InvoiceFilePath += "|" + string.Join("|", newPaths);
+            }
+        }
+    }
+
+    private async Task SaveDevice()
+    {
+        if (device != null)
+        {
+            await DeviceService.UpdateDeviceAsync(device);
+        }
+        showEditModal = false;
+        originalDeviceJson = "";
+        await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+    }
+
+    private async Task OnCategoryChanged()
+    {
+        string newCategory = device?.Category ?? "Laptop";
+        if (device != null)
+        {
+            
+            // Check if IsComponent should be updated based on new category
+            if (newCategory == "Power Supply" || newCategory == "RAM" || newCategory == "SSD" || newCategory == "HDD")
+            {
+                device.IsComponent = true;
+            }
+            else if (newCategory == "Peripheral")
+            {
+                device.IsComponent = false;
+            }
+            else
+            {
+                device.IsComponent = false; // System
+            }
+
+            device.AssetTag = await DeviceService.GenerateAssetTagAsync(device);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnOwnerCompanyChanged()
+    {
+        string newCompany = device?.OwnerCompany ?? "PrimeTech Solutions Ltd.";
+        if (device != null)
+        {
+            device.AssetTag = await DeviceService.GenerateAssetTagAsync(device);
+            StateHasChanged();
+        }
+    }
+
+    private bool showDeleteDeviceModal = false;
+    private void OpenDeleteDeviceModal() => showDeleteDeviceModal = true;
+    private void CloseDeleteDeviceModal() => showDeleteDeviceModal = false;
+
+    private string? deleteErrorMessage = null;
+    private bool isDeletingDevice = false;
+
+    private async Task ConfirmDeleteDevice()
+    {
+        if (device != null)
+        {
+            try
+            {
+                isDeletingDevice = true;
+                deleteErrorMessage = null;
+                await DeviceService.DeleteDeviceAsync(device.Id);
+                CloseDeleteDeviceModal();
+                if (OnStateChanged.HasDelegate)
+                {
+                    await OnStateChanged.InvokeAsync();
+                }
+                NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+            }
+            catch (Exception ex)
+            {
+                deleteErrorMessage = $"Failed to delete asset: {ex.Message}";
+            }
+            finally
+            {
+                isDeletingDevice = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        var parts = name.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, 1).ToUpper();
+        return (parts[0].Substring(0, 1) + parts[1].Substring(0, 1)).ToUpper();
+    }
+
+    private bool showRepairModal = false;
+    private RepairRecord editingRepair = new();
+    private bool isEditingRepair = false;
+
+    private void OpenRepairModal()
+    {
+        isEditingRepair = false;
+        editingRepair = new RepairRecord
+        {
+            DeviceId = device?.Id ?? "",
+            SentDate = DateTime.Now.ToString("yyyy-MM-dd"),
+            Status = "In Repair"
+        };
+        showRepairModal = true;
+    }
+
+    private void OpenEditRepairModal(RepairRecord record)
+    {
+        isEditingRepair = true;
+        editingRepair = new RepairRecord
+        {
+            Id = record.Id,
+            DeviceId = record.DeviceId,
+            VendorName = record.VendorName,
+            IssueDescription = record.IssueDescription,
+            SentDate = record.SentDate,
+            ExpectedReturnDate = record.ExpectedReturnDate,
+            ActualReturnDate = record.ActualReturnDate,
+            Status = record.Status,
+            Cost = record.Cost,
+            Remarks = record.Remarks
+        };
+        showRepairModal = true;
+    }
+
+    private void CloseRepairModal() => showRepairModal = false;
+
+    private async Task SaveRepair()
+    {
+        if (isEditingRepair)
+        {
+            await RepairService.UpdateRepairAsync(editingRepair);
+            
+            if (editingRepair.Status == "Completed" && device?.Status == DeviceStatus.InRepair)
+            {
+                device.Status = DeviceStatus.InStore;
+                await DeviceService.UpdateDeviceAsync(device);
+            }
+        }
+        else
+        {
+            await RepairService.AddRepairAsync(editingRepair);
+            if (device != null)
+            {
+                device.Status = DeviceStatus.InRepair;
+                device.Condition = "Under Repair";
+                await DeviceService.UpdateDeviceAsync(device);
+            }
+        }
+        showEditRepairModal = false;
+        await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+    }
+
+    private bool showEditRepairModal = false;
+
+    private void OpenInstallComponentModal()
+    {
+        showInstallComponentModal = true;
+    }
+
+    private void CloseInstallComponentModal()
+    {
+        showInstallComponentModal = false;
+        selectedComponentIdToInstall = "";
+        searchComponentTerm = "";
+    }
+    
+    private void NavigateToComponent(string componentId)
+    {
+        CloseInstallComponentModal();
+        NavigationManager.NavigateTo($"/devices/{componentId}", forceLoad: true);
+    }
+
+    private async Task InstallSelectedComponent()
+    {
+        if (!string.IsNullOrEmpty(selectedComponentIdToInstall) && !string.IsNullOrEmpty(DeviceId))
+        {
+            await DeviceService.InstallComponentAsync(selectedComponentIdToInstall, DeviceId);
+            CloseInstallComponentModal();
+            await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+        }
+    }
+
+    private async Task UninstallComponent(string componentId)
+    {
+        await DeviceService.UninstallComponentAsync(componentId);
+        await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+    }
+
+    private bool showDeleteRepairModal = false;
+    private RepairRecord? deletingRepair;
+
+    private void OpenDeleteRepairModal(RepairRecord record)
+    {
+        deletingRepair = record;
+        showDeleteRepairModal = true;
+    }
+
+    private void CloseDeleteRepairModal() => showDeleteRepairModal = false;
+
+    private async Task ConfirmDeleteRepair()
+    {
+        if (deletingRepair != null)
+        {
+            await RepairService.DeleteRepairAsync(deletingRepair.Id);
+            await OnInitializedAsync(); if (OnStateChanged.HasDelegate) await OnStateChanged.InvokeAsync();
+        }
+        CloseDeleteRepairModal();
+    }
+
+    private string RamString
+    {
+        get => device.Ram ?? "";
+        set => device.Ram = FormatStorage(value);
+    }
+
+    private string SsdString
+    {
+        get => device.Ssd ?? "";
+        set => device.Ssd = FormatStorage(value);
+    }
+
+    private string HddString
+    {
+        get => device.Hdd ?? "";
+        set => device.Hdd = FormatStorage(value);
+    }
+
+    private string FormatStorage(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return input;
+        var trimmed = input.Trim();
+        if (trimmed.All(c => char.IsDigit(c) || c == '.'))
+        {
+            return trimmed + " GB";
+        }
+        return input;
+    }
+
+    private readonly Dictionary<string, string> _deviceQrCache = new();
+
+    private string GetDeviceQrImageUrl(Device d)
+    {
+        if (string.IsNullOrEmpty(d.Id)) return string.Empty;
+        
+        if (!_deviceQrCache.TryGetValue(d.Id, out var token))
+        {
+            token = AssetManagement.Web.Helpers.SecurityHelper.GenerateSecureRandomToken();
+            var hash = AssetManagement.Web.Helpers.SecurityHelper.HashToken(token);
+            d.QrTokenHash = hash;
+            d.QrTokenCreatedAt = DateTime.UtcNow;
+            d.QrTokenRevokedAt = null;
+            d.QrTokenVersion++;
+            _ = DeviceService.UpdateDeviceAsync(d);
+            _deviceQrCache[d.Id] = token;
+        }
+        var deepLink = AssetManagement.Web.Helpers.NetworkHelper.ToScannableUri(NavigationManager.BaseUri, "/a/" + token);
+        return $"https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=2&data={Uri.EscapeDataString(deepLink)}";
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,358 @@
+@page "/repairs"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Devices.Repair)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@using AssetManagement.Web.Models
+@inject RepairService RepairService
+@inject DeviceService DeviceService
+@inject HandoverService HandoverService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Repair center - PrimeTech Asset Manager</PageTitle>
+
+<div class="bg-surface pb-4 border-b border-line-soft">
+<PageHeader Title="Repair center">
+    <Actions>
+        <button type="button" @onclick='() => OpenCloseRepairModal("")' class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 border border-line-soft bg-surface">
+            Close a repair
+        </button>
+        <button type="button" @onclick="OpenSendToRepairModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            Send to repair
+        </button>
+    </Actions>
+    <ChildContent>
+        <div class="mt-5 flex flex-row gap-3">
+            <div class="flex-1 group relative overflow-hidden rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-900/20 text-left shadow-sm">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-rose-800 dark:text-rose-400">Currently in repair</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-txt-hi">@inRepairCount</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Active tickets</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:text-rose-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex-1 group relative overflow-hidden rounded-xl border border-green-200 bg-green-50 dark:bg-green-900/20 text-left">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-green-800 dark:text-green-400">Repairs completed</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-txt-hi">@completedCount</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Total fixed</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700 dark:text-green-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex-1 group relative overflow-hidden rounded-xl border border-sky-200 bg-sky-50 dark:bg-sky-900/20 text-left">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-sky-800 dark:text-sky-400">Repair movements logged</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-txt-hi">@totalRepairMovements</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Activity history</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:text-sky-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</PageHeader>
+</div>
+
+<section aria-label="Repair queue" class="bg-surface">
+    <h2 class="px-6 pb-2 pt-5 text-[11px] font-medium uppercase tracking-widest text-txt-lo lg:px-9">
+        Repair queue
+    </h2>
+    
+    <div class="flex flex-col gap-4 px-6 pb-6 lg:px-9">
+        @foreach (var repair in activeRepairs)
+        {
+            var device = repair.Device;
+            var isExpanded = expandedRepairIds.Contains(repair.Id);
+            var assetId = string.IsNullOrEmpty(device?.AssetTag) ? device?.Id.ToString() : device?.AssetTag;
+            var kind = GetItemKind(device);
+            var warrantyText = GetWarrantyText(device, out var isExpired, out var isExpiring);
+
+            <div class="flex flex-col">
+                <div class="flex flex-col rounded-xl border border-line bg-surface p-5 shadow-sm @(isExpanded ? "rounded-b-none border-b-0" : "")">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <span class="tnum block font-mono text-[11px] text-accent-400">@assetId</span>
+                            <h3 class="mt-0.5 truncate text-base font-semibold text-txt-hi">@device?.Brand @device?.DeviceName</h3>
+                            <p class="truncate text-xs text-txt-mid">@device?.ProcessorFamily · @device?.Ram · @device?.Ssd · serial @device?.Serial</p>
+                        </div>
+                        <span class="inline-flex items-center rounded-md bg-elevated px-1.5 py-0.5 text-[10px] font-medium tracking-widest text-txt-mid ring-1 ring-inset ring-line-strong">
+                            @kind
+                        </span>
+                    </div>
+                    
+                    <div class="mt-4 grid grid-cols-[auto_1fr_auto_1fr] items-baseline gap-x-3 gap-y-2 text-xs">
+                        <span class="text-txt-lo">Reported issue</span>
+                        <span class="truncate font-medium text-txt-mid">@repair.IssueDescription</span>
+                        <span class="text-txt-lo">Vendor</span>
+                        <span class="truncate font-medium text-txt-hi">@repair.VendorName</span>
+                        
+                        <span class="text-txt-lo">Sent on</span>
+                        <span class="font-medium text-txt-hi">@(DateTime.TryParse(repair.SentDate, out var dt) ? dt.ToString("d MMM yyyy") : repair.SentDate)</span>
+                        <span class="text-txt-lo">Return to</span>
+                        <span class="truncate font-medium text-txt-hi">@(string.IsNullOrEmpty(device?.UserName) ? "IT inventory" : device.UserName)</span>
+                        
+                        @if (!string.IsNullOrEmpty(repair.ExpectedReturnDate))
+                        {
+                            <span class="text-txt-lo">Expected</span>
+                            <span class="font-medium text-warn-500">@(DateTime.TryParse(repair.ExpectedReturnDate, out var dtExp) ? dtExp.ToString("d MMM yyyy") : repair.ExpectedReturnDate)</span>
+                            <span class="text-txt-lo"></span>
+                            <span></span>
+                        }
+                    </div>
+                    
+                    <div class="mt-4 flex items-end justify-between gap-3 pt-4 border-t border-line-soft">
+                        <span class="text-[11px] font-medium @(isExpired ? "text-danger-400" : (isExpiring ? "text-warn-400" : "text-txt-mid"))">
+                            @if (isExpired) { <span class="font-semibold text-danger-500">Expired</span> }
+                            else if (isExpiring) { <span class="font-semibold text-warn-500">Expiring</span> }
+                            @warrantyText
+                        </span>
+                        
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="inline-flex items-center justify-center rounded-lg bg-elevated px-2 py-1.5 text-xs font-semibold text-txt-hi shadow-sm ring-1 ring-inset ring-line transition-colors hover:bg-raised" @onclick="() => ToggleExpanded(repair.Id)" @onclick:stopPropagation>
+                                <span class="mr-1">@(isExpanded ? "Hide specs" : "View specs")</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200 @(isExpanded ? "rotate-180" : "")"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <button type="button" @onclick="() => OpenCloseRepairModal(repair.Id)" @onclick:stopPropagation class="inline-flex items-center justify-center rounded-lg bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                                Close repair
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                @if (isExpanded && device != null)
+                {
+                    <div class="border-x border-b border-line bg-canvas shadow-inner overflow-hidden rounded-b-xl border-t border-t-line-soft">
+                        <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" IsInline="true" HideEmployeeProfileLink="false" />
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+
+<AssetManagement.Web.Components.Shared.RepairDeviceModal 
+    @bind-IsOpen="showSendToRepairModal" 
+    FaultyDevices="eligibleDevices" 
+    OnRepaired="HandleRepairStarted" />
+
+<AssetManagement.Web.Components.Shared.CloseRepairModal 
+    @bind-IsOpen="showCloseRepairModal" 
+    ActiveRepairs="activeRepairs" 
+    PreselectedRepairId="@preselectedRepairId"
+    OnClosed="HandleRepairClosed" />
+
+@code {
+    private bool showSendToRepairModal = false;
+    private bool showCloseRepairModal = false;
+    private string preselectedRepairId = string.Empty;
+    private bool showRepairLog = false;
+    
+    private List<Device> eligibleDevices = new();
+    private List<RepairRecord> repairs = new();
+    private List<RepairRecord> activeRepairs = new();
+    private List<MovementDto> repairMovements = new();
+    
+    private HashSet<string> expandedRepairIds = new();
+
+    private void ToggleExpanded(string repairId)
+    {
+        if (expandedRepairIds.Contains(repairId))
+        {
+            expandedRepairIds.Remove(repairId);
+        }
+        else
+        {
+            expandedRepairIds.Add(repairId);
+        }
+    }
+    
+    private int inRepairCount = 0;
+    private int completedCount = 0;
+    private int totalRepairMovements = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        repairs = await RepairService.GetRepairsAsync();
+        
+        var devices = await DeviceService.GetDevicesAsync();
+        var deviceDict = devices.ToDictionary(d => d.Id);
+        foreach(var r in repairs)
+        {
+            if (deviceDict.TryGetValue(r.DeviceId, out var d))
+            {
+                r.Device = d;
+            }
+        }
+        
+        eligibleDevices = devices.Where(d => d.Status != DeviceStatus.InRepair && d.Status != DeviceStatus.WrittenOff).ToList();
+        
+        inRepairCount = repairs.Count(r => r.Status != "Completed");
+        completedCount = repairs.Count(r => r.Status == "Completed");
+        
+        activeRepairs = repairs.Where(r => r.Status != "Completed").ToList();
+        
+        var movements = new List<MovementDto>();
+        foreach (var r in repairs)
+        {
+            var device = r.Device;
+            var assetId = string.IsNullOrEmpty(device?.AssetTag) ? r.DeviceId.ToString() : device?.AssetTag;
+            var returnTo = string.IsNullOrEmpty(device?.UserName) ? "IT inventory" : device.UserName;
+            
+            movements.Add(new MovementDto
+            {
+                Type = "send-repair",
+                From = "IT inventory",
+                To = r.VendorName ?? "Repair Shop",
+                ItemId = assetId,
+                Note = r.IssueDescription,
+                Date = DateTime.TryParse(r.SentDate, out var dt) ? dt : DateTime.Now
+            });
+            
+            if (!string.IsNullOrEmpty(r.ActualReturnDate) || r.Status == "Completed")
+            {
+                movements.Add(new MovementDto
+                {
+                    Type = "repair-return",
+                    From = r.VendorName ?? "Repair Shop",
+                    To = returnTo,
+                    ItemId = assetId,
+                    Note = (r.Remarks ?? "Returned from repair") + (r.Cost.HasValue ? $" — Cost: ${r.Cost}" : ""),
+                    Date = DateTime.TryParse(r.ActualReturnDate, out var dt2) ? dt2 : DateTime.Now
+                });
+            }
+        }
+        
+        repairMovements = movements.OrderByDescending(m => m.Date).ToList();
+        totalRepairMovements = repairMovements.Count;
+    }
+    
+    private string GetItemKind(Device? device)
+    {
+        if (device == null) return "System";
+        var category = device.Category?.ToLower() ?? "";
+        if (category.Contains("laptop") || category.Contains("desktop") || category.Contains("server") || category.Contains("macbook"))
+            return "System";
+        if (device.IsComponent)
+            return "Component";
+        return "Peripheral";
+    }
+
+    private string GetWarrantyText(Device? device, out bool isExpired, out bool isExpiring)
+    {
+        isExpired = false;
+        isExpiring = false;
+        if (device == null || !device.WarrantyEndDate.HasValue) return "No warranty";
+        
+        var end = device.WarrantyEndDate.Value;
+        if (end < DateTime.Now)
+        {
+            isExpired = true;
+            return $" ended {end.ToString("d MMM yyyy")}";
+        }
+        else
+        {
+            isExpiring = true;
+            return $" {(end - DateTime.Now).Days}d left — claimable";
+        }
+    }
+
+    private void OpenSendToRepairModal()
+    {
+        showSendToRepairModal = true;
+    }
+
+    private void OpenCloseRepairModal(string repairId = "")
+    {
+        preselectedRepairId = repairId;
+        showCloseRepairModal = true;
+    }
+
+    private async Task HandleRepairStarted(RepairRecord record)
+    {
+        record.SentDate = DateTime.Now.ToString("dd MMM yyyy");
+        await RepairService.AddRepairAsync(record);
+        
+        var device = await DeviceService.GetDeviceByIdAsync(record.DeviceId);
+        if (device != null)
+        {
+            device.Status = DeviceStatus.InRepair;
+            await DeviceService.UpdateDeviceAsync(device);
+        }
+        
+        await OnInitializedAsync();
+    }
+
+    private async Task HandleRepairClosed(AssetManagement.Web.Components.Shared.CloseRepairModal.CloseRepairModel model)
+    {
+        var record = repairs.FirstOrDefault(r => r.Id == model.RepairRecordId);
+        if (record == null) return;
+        
+        record.Status = "Completed";
+        record.ActualReturnDate = model.DeliveryDate.HasValue ? model.DeliveryDate.Value.ToString("dd MMM yyyy") : DateTime.Now.ToString("dd MMM yyyy");
+        record.Remarks = model.RepairNote;
+        record.Cost = model.Cost;
+        
+        await RepairService.UpdateRepairAsync(record);
+        
+        var device = await DeviceService.GetDeviceByIdAsync(record.DeviceId);
+        if (device != null)
+        {
+            if (model.Outcome == "return-employee")
+            {
+                device.Status = DeviceStatus.InUse;
+                await HandoverService.AddHandoverAsync(new Handover
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DeviceId = device.Id,
+                    From = record.VendorName,
+                    To = device.UserName ?? "IT inventory",
+                    Released = model.DeliveryDate.HasValue ? model.DeliveryDate.Value.ToString("dd MMM yyyy") : DateTime.Now.ToString("dd MMM yyyy")
+                });
+            }
+            else if (model.Outcome == "return-inventory")
+            {
+                device.Status = DeviceStatus.InStore;
+                device.UserName = null;
+                device.Email = null;
+                device.EmployeeId = null;
+                await HandoverService.AddHandoverAsync(new Handover
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DeviceId = device.Id,
+                    From = record.VendorName,
+                    To = "IT inventory",
+                    ReturnDate = model.DeliveryDate.HasValue ? model.DeliveryDate.Value.ToString("dd MMM yyyy") : DateTime.Now.ToString("dd MMM yyyy")
+                });
+            }
+            else if (model.Outcome == "obsolete")
+            {
+                device.Status = DeviceStatus.WrittenOff;
+            }
+            
+            await DeviceService.UpdateDeviceAsync(device);
+        }
+        
+        await OnInitializedAsync();
+    }
+}
+
+
+
+
+

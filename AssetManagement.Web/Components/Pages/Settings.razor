@@ -1,0 +1,1939 @@
+@page "/settings"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Settings.View)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Interfaces
+@using AssetManagement.Core.Security
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@inject ISettingsService SettingsService
+@inject IJSRuntime JS
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject SweetAlertService Swal
+
+<PageTitle>Settings - PrimeTech IT Assets</PageTitle>
+
+<PageHeader Title="Settings" />
+
+<div class="px-6 py-6 lg:px-9 bg-canvas min-h-screen">
+    <div class="flex flex-col lg:flex-row gap-8 max-w-[1400px]">
+        <!-- Sidebar Navigation -->
+        <div class="w-full lg:w-72 shrink-0 flex flex-col gap-6 bg-surface p-5 rounded-2xl border border-line-soft shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] h-auto lg:h-[calc(100vh-120px)] lg:sticky top-24 overflow-y-auto custom-scrollbar">
+            
+            <div>
+                <h2 class="text-[10px] font-bold text-txt-lo/70 uppercase tracking-widest mb-3 px-3">Assets & Inventory</h2>
+                <div class="flex flex-col gap-1">
+                    <button @onclick='@(() => activeTab = "Brands")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Brands" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Brands" ? "text-accent-500" : "text-txt-lo")"><path d="M12 2L2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+                        Brands
+                    </button>
+                    <button @onclick='@(() => activeTab = "Categories")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Categories" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Categories" ? "text-accent-500" : "text-txt-lo")"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                        Categories
+                    </button>
+                    <button @onclick='@(() => activeTab = "OwnerCompanies")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "OwnerCompanies" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "OwnerCompanies" ? "text-accent-500" : "text-txt-lo")"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/></svg>
+                        Owner Companies
+                    </button>
+                    <button @onclick='@(() => activeTab = "Locations")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Locations" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Locations" ? "text-accent-500" : "text-txt-lo")"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Locations
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-[10px] font-bold text-txt-lo/70 uppercase tracking-widest mb-3 px-3">Organization</h2>
+                <div class="flex flex-col gap-1">
+                    <button @onclick='@(() => activeTab = "Designations")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Designations" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Designations" ? "text-accent-500" : "text-txt-lo")"><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="12" cy="7" r="4"/><path d="M12 14c-4.4 0-8 2-8 6v1h16v-1c0-4-3.6-6-8-6Z"/></svg>
+                        Designations
+                    </button>
+                    <button @onclick='@(() => activeTab = "Departments")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Departments" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Departments" ? "text-accent-500" : "text-txt-lo")"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></svg>
+                        Departments
+                    </button>
+                    <button @onclick='@(() => activeTab = "Teams")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Teams" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Teams" ? "text-accent-500" : "text-txt-lo")"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Teams
+                    </button>
+                    <button @onclick='@(() => activeTab = "ProjectManagers")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "ProjectManagers" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "ProjectManagers" ? "text-accent-500" : "text-txt-lo")"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Project Managers
+                    </button>
+                    <button @onclick='@(() => activeTab = "BloodGroups")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "BloodGroups" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "BloodGroups" ? "text-accent-500" : "text-txt-lo")"><path d="M7.4 12.3c-.6.6-1.5.6-2.1 0-.6-.6-.6-1.5 0-2.1l7.6-7.6c.3-.3.8-.3 1.1 0l7.6 7.6c.6.6.6 1.5 0 2.1-.6.6-1.5.6-2.1 0L12 5.1l-4.6 7.2Z"/><path d="M12 17a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
+                        Blood Groups
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-[10px] font-bold text-txt-lo/70 uppercase tracking-widest mb-3 px-3">Access & Security</h2>
+                <div class="flex flex-col gap-1">
+                    <button @onclick='@(() => activeTab = "Users")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Users" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Users" ? "text-accent-500" : "text-txt-lo")"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Users
+                    </button>
+                    <button @onclick='@(() => activeTab = "Roles")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Roles" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Roles" ? "text-accent-500" : "text-txt-lo")"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg>
+                        Roles
+                    </button>
+                    <button @onclick='@(() => activeTab = "Permissions")' class='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 @(activeTab == "Permissions" ? "bg-accent-500/10 text-accent-600 shadow-sm ring-1 ring-accent-500/20" : "text-txt-mid hover:bg-elevated hover:text-txt-hi")'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(activeTab == "Permissions" ? "text-accent-500" : "text-txt-lo")"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                        Role Permissions
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Bottom spacer to prevent cut-off -->
+            <div class="h-4 shrink-0"></div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 w-full min-w-0">
+
+        @if (activeTab == "Brands")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newBrandName" @bind:event="oninput" @onkeyup="@(e => { if(e.Key == "Enter") AddBrand(); })" placeholder="New brand name" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddBrand" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="brandSearch" @bind:event="oninput" placeholder="Search brands..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Brand Name</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (brands == null)
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredBrands.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No brands found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var brand in FilteredBrands)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingBrandId == brand.Id)
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editBrandName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditBrand(brand)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditBrand" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@brand.Name</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditBrand(brand)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteBrandModal(brand.Id)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Categories")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newCategoryName" @bind:event="oninput" @onkeyup="@(e => { if(e.Key == "Enter") AddCategory(); })" placeholder="New category" class="w-[150px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <select @bind="newCategoryType" class="bg-transparent text-sm text-txt-hi border-l border-line-soft pl-2 pr-1 py-1 focus:outline-none">
+                            <option value="System">System</option>
+                            <option value="Component">Component</option>
+                            <option value="Peripheral">Peripheral</option>
+                        </select>
+                        <button @onclick="AddCategory" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="categorySearch" @bind:event="oninput" placeholder="Search categories..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Category Name</th>
+                                <th class="px-5 py-2.5 font-semibold">Type</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (categories == null)
+                            {
+                                <tr><td colspan="3" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredCategories.Any())
+                            {
+                                <tr><td colspan="3" class="px-5 py-6 text-center text-txt-lo">No categories found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var category in FilteredCategories)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingCategoryId == category.Id)
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editCategoryName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2">
+                                                <select @bind="editCategoryType" class="rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none">
+                                                    <option value="System">System</option>
+                                                    <option value="Component">Component</option>
+                                                    <option value="Peripheral">Peripheral</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditCategory(category)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditCategory" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@category.Name</td>
+                                            <td class="px-5 py-2">
+                                                @if (!string.IsNullOrEmpty(category.Type))
+                                                {
+                                                    <span class="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent-600 border border-accent-border/50">@category.Type</span>
+                                                }
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditCategory(category)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteCategoryModal(category.Id)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Designations")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newDesignationName" @bind:event="oninput" @onkeyup="@(e => { if(e.Key == "Enter") AddDesignation(); })" placeholder="New designation" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddDesignation" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="designationSearch" @bind:event="oninput" placeholder="Search designations..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Designation Name</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (designations == null)
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredDesignations.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No designations found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var designation in FilteredDesignations)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingDesignationId == designation.Id)
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editDesignationName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditDesignation(designation)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditDesignation" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@designation.Name</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditDesignation(designation)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteDesignationModal(designation.Id)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Departments")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newDepartmentName" @bind:event="oninput" @onkeyup="@(e => { if(e.Key == "Enter") AddDepartment(); })" placeholder="New department" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddDepartment" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="departmentSearch" @bind:event="oninput" placeholder="Search departments..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Department Name</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (departments == null)
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredDepartments.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No departments found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var department in FilteredDepartments)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingDepartmentId == department.Id)
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editDepartmentName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditDepartment(department)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditDepartment" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@department.Name</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditDepartment(department)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteDepartmentModal(department.Id)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "ProjectManagers")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newProjectManagerName" @bind:event="oninput" @onkeyup="@(e => { if(e.Key == "Enter") AddProjectManager(); })" placeholder="New project manager" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddProjectManager" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="projectManagerSearch" @bind:event="oninput" placeholder="Search PMs..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Manager Name</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (projectManagers == null)
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredProjectManagers.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No project managers found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var pm in FilteredProjectManagers)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingProjectManagerId == pm.Id.ToString())
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editProjectManagerName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditProjectManager(pm)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditProjectManager" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@pm.Name</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditProjectManager(pm)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteProjectManagerModal(pm.Id.ToString())" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Teams")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newTeamName" @bind:event="oninput" placeholder="New team name" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2 border-r border-line-soft" />
+                        <select @bind="newTeamPMId" class="w-[180px] bg-transparent text-sm text-txt-hi focus:outline-none pl-2">
+                            <option value="">-- Assign PM --</option>
+                            @if(projectManagers != null)
+                            {
+                                @foreach (var pm in projectManagers)
+                                {
+                                    <option value="@pm.Id">@pm.Name</option>
+                                }
+                            }
+                        </select>
+                        <button @onclick="AddTeam" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="teamSearch" @bind:event="oninput" placeholder="Search teams..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold w-1/2">Team Name</th>
+                                <th class="px-5 py-2.5 font-semibold">Project Manager</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (teams == null)
+                            {
+                                <tr><td colspan="3" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredTeams.Any())
+                            {
+                                <tr><td colspan="3" class="px-5 py-6 text-center text-txt-lo">No teams found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var tm in FilteredTeams)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingTeamId == tm.Id.ToString())
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editTeamName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2">
+                                                <select @bind="editTeamPMId" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none">
+                                                    <option value="">-- Assign PM --</option>
+                                                    @if(projectManagers != null)
+                                                    {
+                                                        @foreach (var pm in projectManagers)
+                                                        {
+                                                            <option value="@pm.Id">@pm.Name</option>
+                                                        }
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditTeam(tm)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditTeam" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@tm.Name</td>
+                                            <td class="px-5 py-2 text-txt-mid">@(tm.ProjectManager?.Name ?? "Unassigned")</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditTeam(tm)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteTeamModal(tm.Id.ToString())" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Locations")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newLocationName" @bind:event="oninput" @onkeyup='@(e => { if(e.Key == "Enter") AddLocation(); })' placeholder="New location" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddLocation" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="locationSearch" @bind:event="oninput" placeholder="Search locations..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Location Name</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (locations == null)
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredLocations.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No locations found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var loc in FilteredLocations)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingLocationId == loc.Id)
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editLocationName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditLocation(loc)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditLocation" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@loc.Name</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditLocation(loc)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteLocationModal(loc.Id)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "BloodGroups")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newBloodGroupName" @bind:event="oninput" @onkeyup='@(e => { if(e.Key == "Enter") AddBloodGroup(); })' placeholder="New blood group" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddBloodGroup" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="bloodGroupSearch" @bind:event="oninput" placeholder="Search blood groups..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Blood Group</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (bloodGroups == null)
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredBloodGroups.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No blood groups found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var bg in FilteredBloodGroups)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingBloodGroupId == bg.Id)
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editBloodGroupName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditBloodGroup(bg)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditBloodGroup" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@bg.Name</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditBloodGroup(bg)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteBloodGroupModal(bg.Id)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        else if (activeTab == "OwnerCompanies")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newOwnerCompanyName" @bind:event="oninput" placeholder="New owner company" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2 border-r border-line-soft" />
+                        <input type="text" @bind="newOwnerCompanyPrefix" @bind:event="oninput" @onkeyup="@(e => { if(e.Key == "Enter") AddOwnerCompany(); })" placeholder="Prefix (e.g. PT)" class="w-[120px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddOwnerCompany" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="ownerCompanySearch" @bind:event="oninput" placeholder="Search companies..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold w-1/2">Company Name</th>
+                                <th class="px-5 py-2.5 font-semibold">Prefix</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (ownerCompanies == null)
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredOwnerCompanies.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No owner companies found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var oc in FilteredOwnerCompanies)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingOwnerCompanyId == oc.Id.ToString())
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editOwnerCompanyName" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editOwnerCompanyPrefix" placeholder="Prefix" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditOwnerCompany(oc)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditOwnerCompany" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@oc.Name</td>
+                                            <td class="px-5 py-2 text-txt-mid">@oc.Prefix</td>
+                                            <td class="px-5 py-2 text-right">
+                                                <button @onclick="() => StartEditOwnerCompany(oc)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <button @onclick="() => ShowDeleteOwnerCompanyModal(oc.Id.ToString())" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Users")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-5xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <button @onclick="ShowAddUserModal" class="rounded-md bg-accent-500 px-3 py-1.5 text-sm font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                        New User
+                    </button>
+                    <div class="relative w-[250px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" @bind="userSearch" @bind:event="oninput" placeholder="Search users..." class="w-full rounded-lg border border-line-soft bg-elevated pl-8 pr-3 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Username/Email</th>
+                                <th class="px-5 py-2.5 font-semibold">Full Name</th>
+                                <th class="px-5 py-2.5 font-semibold">Role</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (users == null)
+                            {
+                                <tr><td colspan="4" class="px-5 py-6 text-center text-txt-mid">Loading...</td></tr>
+                            }
+                            else if (!FilteredUsers.Any())
+                            {
+                                <tr><td colspan="4" class="px-5 py-6 text-center text-txt-lo">No users found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var user in FilteredUsers)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        <td class="px-5 py-2 font-medium text-txt-hi">@user.Email</td>
+                                        <td class="px-5 py-2 text-txt-mid">@user.FullName</td>
+                                        <td class="px-5 py-2">
+                                            <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">@GetUserRole(user.Id)</span>
+                                        </td>
+                                        <td class="px-5 py-2 text-right">
+                                            <button @onclick="() => StartEditUser(user)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit Role">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                            </button>
+                                            <button @onclick="() => ShowDeleteUserModal(user)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete User">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Roles")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-line-soft focus-within:border-accent-border focus-within:ring-1 focus-within:ring-accent-500 transition-all">
+                        <input type="text" @bind="newRoleName" @bind:event="oninput" @onkeyup="@(e => { if(e.Key == "Enter") AddRole(); })" placeholder="New role name" class="w-[200px] bg-transparent text-sm text-txt-hi focus:outline-none placeholder:text-txt-lo pl-2" />
+                        <button @onclick="AddRole" class="rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">Add</button>
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated text-txt-mid border-b border-line-soft sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-2.5 font-semibold">Role Name</th>
+                                <th class="px-5 py-2.5 font-semibold text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @if (!allRoles.Any())
+                            {
+                                <tr><td colspan="2" class="px-5 py-6 text-center text-txt-lo">No roles found.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var role in allRoles)
+                                {
+                                    <tr class="hover:bg-elevated transition-colors group">
+                                        @if (editingRoleName == role)
+                                        {
+                                            <td class="px-5 py-2">
+                                                <input type="text" @bind="editRoleNameInput" class="w-full rounded border border-accent-500 bg-transparent px-2 py-1 text-sm text-txt-hi focus:outline-none" />
+                                            </td>
+                                            <td class="px-5 py-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button @onclick="() => SaveEditRole(role)" class="rounded bg-accent-500 px-2 py-1 text-[11px] font-medium text-accent-on hover:bg-accent-600 transition-colors">Save</button>
+                                                    <button @onclick="CancelEditRole" class="rounded bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid border border-line-soft hover:text-txt-hi transition-colors">Cancel</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="px-5 py-2 font-medium text-txt-hi">@role</td>
+                                            <td class="px-5 py-2 text-right">
+                                                @if (role != "Admin") // Admin role should not be edited or deleted
+                                                {
+                                                    <button @onclick="() => StartEditRole(role)" class="inline-flex h-7 w-7 items-center justify-center rounded text-accent-500 hover:bg-accent-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100 mr-1" title="Edit">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                    </button>
+                                                    <button @onclick="() => ShowDeleteRoleModal(role)" class="inline-flex h-7 w-7 items-center justify-center rounded text-danger-500 hover:bg-danger-500/10 opacity-70 group-hover:opacity-100 transition-all focus:opacity-100" title="Delete">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                    </button>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (activeTab == "Permissions")
+        {
+            <div class="rounded-2xl border border-line-soft bg-surface shadow-sm overflow-hidden flex flex-col max-w-4xl lg:h-[calc(100vh-120px)]">
+                <div class="p-4 border-b border-line-soft bg-surface flex justify-between items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-4">
+                        <label class="text-sm font-medium text-txt-mid">Select Role:</label>
+                        <select value="@selectedPermissionRole" @onchange="OnPermissionRoleChanged" class="rounded-lg border border-line-soft bg-elevated px-3 py-1.5 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                            @foreach (var role in allRoles)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                        <button @onclick="LoadRolePermissions" class="rounded-md bg-elevated px-3 py-1.5 text-xs font-semibold text-txt-hi border border-line-soft shadow-sm hover:bg-line-soft transition-colors">Load</button>
+                    </div>
+                    <button @onclick="SaveRolePermissions" disabled="@(!permissionsLoaded)" class="rounded-md bg-accent-500 px-4 py-1.5 text-sm font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Save Permissions</button>
+                </div>
+                
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                    <div class="p-6">
+                        @if (!permissionsLoaded)
+                        {
+                            <div class="text-center py-8 text-txt-mid text-sm">Select a role and click Load to configure permissions.</div>
+                        }
+                        else
+                        {
+                            @if (!string.IsNullOrEmpty(permissionsMessage))
+                            {
+                                <div class="mb-4 p-3 rounded-lg bg-green-50 text-green-700 text-sm">@permissionsMessage</div>
+                            }
+                            
+                            <div class="mb-4 flex justify-end gap-2 border-b border-line-soft pb-4">
+                                <button @onclick="SelectAllPermissions" class="rounded text-sm font-medium text-accent-600 hover:text-accent-700">Select All</button>
+                                <span class="text-txt-mid">|</span>
+                                <button @onclick="UnselectAllPermissions" class="rounded text-sm font-medium text-accent-600 hover:text-accent-700">Unselect All</button>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                @{
+                                    var groupedPermissions = availablePermissions
+                                        .GroupBy(p => p.Split('.')[1])
+                                        .OrderBy(g => g.Key);
+                                }
+                                
+                                @foreach (var group in groupedPermissions)
+                                {
+                                    <div class="bg-elevated p-4 rounded-xl border border-line-soft shadow-sm">
+                                        <h4 class="font-semibold text-txt-hi mb-3 pb-2 border-b border-line-soft">@group.Key</h4>
+                                        <div class="space-y-2">
+                                            @foreach (var perm in group)
+                                            {
+                                                var currentPerm = perm;
+                                                <label class="flex items-center gap-3 cursor-pointer group/lbl">
+                                                    <input type="checkbox" @bind="permissionSelections[currentPerm]" class="h-4 w-4 rounded border-gray-300 text-accent-500 focus:ring-accent-500 cursor-pointer transition-all" />
+                                                    <span class="text-sm text-txt-mid group-hover/lbl:text-txt-hi transition-colors">@currentPerm.Split('.').Last()</span>
+                                                </label>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        </div>
+    </div>
+</div>
+
+@if (showAddUserModal || showEditUserModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-line">
+            <h3 class="mb-4 text-lg font-bold text-txt-hi">@(showAddUserModal ? "Add New User" : "Edit User Role")</h3>
+            <div class="space-y-4">
+                @if (showAddUserModal)
+                {
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-txt-mid">Email / Username *</label>
+                        <input type="email" @bind="newUserModel.Email" class="w-full rounded-lg border border-line-soft bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-txt-mid">Full Name</label>
+                        <input type="text" @bind="newUserModel.FullName" class="w-full rounded-lg border border-line-soft bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-txt-mid">Temporary Password *</label>
+                        <input type="password" @bind="newUserModel.Password" class="w-full rounded-lg border border-line-soft bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-txt-mid">Email / Username *</label>
+                        <input type="email" @bind="editUserModel.Email" class="w-full rounded-lg border border-line-soft bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-txt-mid">Full Name</label>
+                        <input type="text" @bind="editUserModel.FullName" class="w-full rounded-lg border border-line-soft bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-txt-mid">Reset Password (leave blank to keep current)</label>
+                        <input type="password" @bind="editUserModel.Password" class="w-full rounded-lg border border-line-soft bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+                }
+                
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-txt-mid">Role</label>
+                    <select @bind="selectedRole" class="w-full rounded-lg border border-line-soft bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                        @foreach (var role in allRoles)
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(userErrorMessage))
+            {
+                <p class="mt-3 text-sm text-red-500">@userErrorMessage</p>
+            }
+
+            <div class="mt-6 flex justify-end gap-3">
+                <button @onclick="CloseUserModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors border border-line-soft">Cancel</button>
+                <button @onclick="SaveUser" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-accent-on shadow-sm hover:bg-accent-600 transition-colors">@(showAddUserModal ? "Create User" : "Save Changes")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showConfirmModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+        <div class="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl ring-1 ring-line-strong">
+            <h3 class="text-lg font-semibold text-txt-hi">Confirm Delete</h3>
+            <p class="mt-2 text-sm text-txt-mid">@confirmModalMessage</p>
+            <div class="mt-6 flex justify-end gap-3">
+                <button @onclick="CloseConfirmModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                <button @onclick="ConfirmDelete" class="rounded-lg bg-danger-500 px-4 py-2 text-sm font-medium text-danger-on hover:bg-danger-600 transition-colors">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string activeTab = "Brands";
+    private IEnumerable<Brand>? brands;
+    private IEnumerable<DeviceCategoryModel>? categories;
+    private IEnumerable<Designation>? designations;
+    private IEnumerable<Department>? departments;
+    private IEnumerable<ProjectManager>? projectManagers;
+    private IEnumerable<OwnerCompany>? ownerCompanies;
+    private IEnumerable<Team>? teams;
+
+    private IEnumerable<Location>? locations;
+    private IEnumerable<BloodGroup>? bloodGroups;
+
+    // Location fields
+    private string newLocationName = "";
+    private string locationSearch = "";
+    private string? editingLocationId;
+    private string editLocationName = "";
+
+    // BloodGroup fields
+    private string newBloodGroupName = "";
+    private string bloodGroupSearch = "";
+    private string? editingBloodGroupId;
+    private string editBloodGroupName = "";
+
+    private IEnumerable<Location> FilteredLocations => 
+        locations?.Where(l => string.IsNullOrWhiteSpace(locationSearch) || l.Name.Contains(locationSearch, StringComparison.OrdinalIgnoreCase)) ?? Array.Empty<Location>();
+
+    private IEnumerable<BloodGroup> FilteredBloodGroups => 
+        bloodGroups?.Where(b => string.IsNullOrWhiteSpace(bloodGroupSearch) || b.Name.Contains(bloodGroupSearch, StringComparison.OrdinalIgnoreCase)) ?? Array.Empty<BloodGroup>();
+
+
+    private string newBrandName = "";
+    private string newCategoryName = "";
+    private string newCategoryType = "System";
+    private string newDesignationName = "";
+    private string newDepartmentName = "";
+    private string newProjectManagerName = "";
+    private string newTeamName = "";
+    private int? newTeamPMId;
+    private string _newOwnerCompanyName = "";
+    private string newOwnerCompanyName 
+    {
+        get => _newOwnerCompanyName;
+        set 
+        {
+            _newOwnerCompanyName = value;
+            if (!_isPrefixManuallyEdited)
+            {
+                _newOwnerCompanyPrefix = GeneratePrefix(value);
+            }
+        }
+    }
+
+    private string _newOwnerCompanyPrefix = "";
+    private bool _isPrefixManuallyEdited = false;
+    private string newOwnerCompanyPrefix 
+    {
+        get => _newOwnerCompanyPrefix;
+        set 
+        {
+            _newOwnerCompanyPrefix = value;
+            _isPrefixManuallyEdited = true;
+        }
+    }
+
+    private string GeneratePrefix(string companyName)
+    {
+        if (string.IsNullOrWhiteSpace(companyName)) return "";
+        
+        var words = companyName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (words.Length >= 3)
+        {
+            return $"{words[0][0]}{words[1][0]}{words[2][0]}".ToUpper();
+        }
+        else if (words.Length > 1)
+        {
+            return string.Join("", words.Select(w => w[0])).ToUpper();
+        }
+        else
+        {
+            var word = words[0];
+            var upperChars = new string(word.Where(char.IsUpper).ToArray());
+            if (upperChars.Length >= 2)
+            {
+                return upperChars;
+            }
+            return word.Substring(0, Math.Min(3, word.Length)).ToUpper();
+        }
+    }
+
+    private string brandSearch = "";
+    private string categorySearch = "";
+    private string designationSearch = "";
+    private string departmentSearch = "";
+    private string projectManagerSearch = "";
+    private string ownerCompanySearch = "";
+    private List<ApplicationUser> users;
+    private List<string> allRoles = new();
+    private string newRoleName = "";
+    private string? editingRoleName = null;
+    private string editRoleNameInput = "";
+    private Dictionary<string, string> userRoles = new();
+    private string userSearch = "";
+    
+    // User Modals
+    private bool showAddUserModal = false;
+    private bool showEditUserModal = false;
+    private string userErrorMessage = "";
+    private string selectedRole = "Employee";
+    private UserFormModel newUserModel = new();
+    private UserFormModel editUserModel = new();
+    
+    private IEnumerable<ApplicationUser> FilteredUsers
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(userSearch)) return users ?? new List<ApplicationUser>();
+            return users.Where(u => 
+                (u.Email?.Contains(userSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.FullName?.Contains(userSearch, StringComparison.OrdinalIgnoreCase) ?? false)
+            );
+        }
+    }
+    
+    class UserFormModel
+    {
+        public string Id { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+    
+    // Role Permissions
+    private string selectedPermissionRole = "Admin";
+    private bool permissionsLoaded = false;
+    private string permissionsMessage = "";
+    private List<string> availablePermissions = Permissions.GetAllPermissions();
+    private Dictionary<string, bool> permissionSelections = new();
+
+    private string? editingBrandId = null;
+    private string editBrandName = "";
+
+    private string? editingCategoryId = null;
+    private string editCategoryName = "";
+    private string editCategoryType = "System";
+
+    private string? editingDesignationId = null;
+    private string editDesignationName = "";
+
+    private string? editingDepartmentId = null;
+    private string editDepartmentName = "";
+
+    private IEnumerable<Brand> FilteredBrands => 
+        string.IsNullOrWhiteSpace(brandSearch)
+            ? brands ?? Enumerable.Empty<Brand>()
+            : (brands?.Where(b => b.Name.Contains(brandSearch, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<Brand>());
+
+    private IEnumerable<DeviceCategoryModel> FilteredCategories => 
+        string.IsNullOrWhiteSpace(categorySearch)
+            ? categories ?? Enumerable.Empty<DeviceCategoryModel>()
+            : (categories?.Where(c => c.Name.Contains(categorySearch, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<DeviceCategoryModel>());
+
+    private IEnumerable<Designation> FilteredDesignations => 
+        string.IsNullOrWhiteSpace(designationSearch)
+            ? designations ?? Enumerable.Empty<Designation>()
+            : (designations?.Where(d => d.Name.Contains(designationSearch, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<Designation>());
+
+    private IEnumerable<Department> FilteredDepartments => 
+        string.IsNullOrWhiteSpace(departmentSearch)
+            ? departments ?? Enumerable.Empty<Department>()
+            : (departments?.Where(d => d.Name.Contains(departmentSearch, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<Department>());
+
+    private IEnumerable<ProjectManager> FilteredProjectManagers => 
+        string.IsNullOrWhiteSpace(projectManagerSearch)
+            ? projectManagers ?? Enumerable.Empty<ProjectManager>()
+            : (projectManagers?.Where(pm => pm.Name.Contains(projectManagerSearch, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<ProjectManager>());
+
+    private IEnumerable<OwnerCompany> FilteredOwnerCompanies => 
+        string.IsNullOrWhiteSpace(ownerCompanySearch)
+            ? ownerCompanies ?? Enumerable.Empty<OwnerCompany>()
+            : (ownerCompanies?.Where(oc => oc.Name.Contains(ownerCompanySearch, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<OwnerCompany>());
+
+    private string teamSearch = "";
+    private string? editingTeamId = null;
+    private string editTeamName = "";
+    private int? editTeamPMId;
+
+    private IEnumerable<Team> FilteredTeams => 
+        string.IsNullOrWhiteSpace(teamSearch)
+            ? teams ?? Enumerable.Empty<Team>()
+            : (teams?.Where(t => t.Name.Contains(teamSearch, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<Team>());
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+        await LoadRolesAsync();
+        await LoadUsers();
+    }
+
+    private async Task LoadRolesAsync()
+    {
+        allRoles = RoleManager.Roles.Select(r => r.Name ?? "").ToList();
+        if (allRoles.Count > 0 && string.IsNullOrEmpty(selectedPermissionRole))
+        {
+            selectedPermissionRole = allRoles.First();
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        users = UserManager.Users.ToList();
+        userRoles.Clear();
+        foreach (var user in users)
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            userRoles[user.Id] = roles.FirstOrDefault() ?? "None";
+        }
+    }
+    
+    private string GetUserRole(string userId)
+    {
+        return userRoles.TryGetValue(userId, out var role) ? role : "None";
+    }
+
+    private void ShowAddUserModal()
+    {
+        showAddUserModal = true;
+        newUserModel = new UserFormModel();
+        selectedRole = "Employee";
+        userErrorMessage = "";
+    }
+
+    private async Task LoadDataAsync()
+    {
+        brands = await SettingsService.GetBrandsAsync();
+        categories = await SettingsService.GetCategoriesAsync();
+        designations = await SettingsService.GetDesignationsAsync();
+        departments = await SettingsService.GetDepartmentsAsync();
+        projectManagers = await SettingsService.GetProjectManagersAsync();
+        ownerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+        await LoadTeams();
+    }
+
+    private async Task LoadTeams()
+    {
+        
+        teams = await SettingsService.GetTeamsAsync();
+        locations = await SettingsService.GetLocationsAsync();
+        bloodGroups = await SettingsService.GetBloodGroupsAsync();
+
+    }
+
+    private async Task AddBrand()
+    {
+        if (string.IsNullOrWhiteSpace(newBrandName)) return;
+        await SettingsService.AddBrandAsync(newBrandName);
+        newBrandName = "";
+        brands = await SettingsService.GetBrandsAsync();
+    }
+
+    private void ShowDeleteBrandModal(string id)
+    {
+        itemToDeleteId = id;
+        deleteActionType = "Brand";
+        confirmModalMessage = "Are you sure you want to delete this brand?";
+        showConfirmModal = true;
+    }
+
+    private async Task AddCategory()
+    {
+        if (string.IsNullOrWhiteSpace(newCategoryName)) return;
+        await SettingsService.AddCategoryAsync(newCategoryName, newCategoryType);
+        newCategoryName = "";
+        newCategoryType = "System";
+        categories = await SettingsService.GetCategoriesAsync();
+    }
+
+    private void ShowDeleteCategoryModal(string id)
+    {
+        itemToDeleteId = id;
+        deleteActionType = "Category";
+        confirmModalMessage = "Are you sure you want to delete this category?";
+        showConfirmModal = true;
+    }
+
+    private async Task AddDesignation()
+    {
+        if (string.IsNullOrWhiteSpace(newDesignationName)) return;
+        await SettingsService.AddDesignationAsync(newDesignationName);
+        newDesignationName = "";
+        designations = await SettingsService.GetDesignationsAsync();
+    }
+
+    private void ShowDeleteDesignationModal(string id)
+    {
+        itemToDeleteId = id;
+        deleteActionType = "Designation";
+        confirmModalMessage = "Are you sure you want to delete this designation?";
+        showConfirmModal = true;
+    }
+
+    private string? editingProjectManagerId = null;
+    private string editProjectManagerName = "";
+
+    private void StartEditProjectManager(ProjectManager pm)
+    {
+        editingProjectManagerId = pm.Id.ToString();
+        editProjectManagerName = pm.Name;
+    }
+
+    private void CancelEditProjectManager()
+    {
+        editingProjectManagerId = null;
+        editProjectManagerName = "";
+    }
+
+    private async Task SaveEditProjectManager(ProjectManager pm)
+    {
+        if (string.IsNullOrWhiteSpace(editProjectManagerName)) return;
+        pm.Name = editProjectManagerName.Trim();
+        await SettingsService.UpdateProjectManagerAsync(pm);
+        editingProjectManagerId = null;
+        projectManagers = await SettingsService.GetProjectManagersAsync();
+    }
+
+    private async Task AddProjectManager()
+    {
+        if (string.IsNullOrWhiteSpace(newProjectManagerName)) return;
+        await SettingsService.AddProjectManagerAsync(newProjectManagerName);
+        newProjectManagerName = "";
+        projectManagers = await SettingsService.GetProjectManagersAsync();
+    }
+
+    private void ShowDeleteProjectManagerModal(string id)
+    {
+        itemToDeleteId = id;
+        deleteActionType = "ProjectManager";
+        confirmModalMessage = "Are you sure you want to delete this project manager?";
+        showConfirmModal = true;
+    }
+
+    private async Task AddTeam()
+    {
+        if (string.IsNullOrWhiteSpace(newTeamName)) return;
+        await SettingsService.AddTeamAsync(newTeamName, newTeamPMId);
+        newTeamName = "";
+        newTeamPMId = null;
+        await LoadTeams();
+    }
+
+    private void StartEditTeam(Team tm)
+    {
+        editingTeamId = tm.Id.ToString();
+        editTeamName = tm.Name;
+        editTeamPMId = tm.ProjectManagerId;
+    }
+
+    private void CancelEditTeam()
+    {
+        editingTeamId = null;
+        editTeamName = "";
+        editTeamPMId = null;
+    }
+
+    private async Task SaveEditTeam(Team tm)
+    {
+        if (string.IsNullOrWhiteSpace(editTeamName)) return;
+        tm.Name = editTeamName.Trim();
+        tm.ProjectManagerId = editTeamPMId;
+        await SettingsService.UpdateTeamAsync(tm);
+        editingTeamId = null;
+        await LoadTeams();
+    }
+
+    private void ShowDeleteTeamModal(string id)
+    {
+        itemToDeleteId = id;
+        deleteActionType = "Team";
+        confirmModalMessage = "Are you sure you want to delete this team?";
+        showConfirmModal = true;
+    }
+
+    private string? editingOwnerCompanyId = null;
+    private string editOwnerCompanyName = "";
+    private string editOwnerCompanyPrefix = "";
+
+    private void StartEditOwnerCompany(OwnerCompany oc)
+    {
+        editingOwnerCompanyId = oc.Id.ToString();
+        editOwnerCompanyName = oc.Name;
+        editOwnerCompanyPrefix = oc.Prefix ?? "";
+    }
+
+    private void CancelEditOwnerCompany()
+    {
+        editingOwnerCompanyId = null;
+        editOwnerCompanyName = "";
+        editOwnerCompanyPrefix = "";
+    }
+
+    private async Task SaveEditOwnerCompany(OwnerCompany oc)
+    {
+        if (string.IsNullOrWhiteSpace(editOwnerCompanyName)) return;
+        oc.Name = editOwnerCompanyName.Trim();
+        oc.Prefix = string.IsNullOrWhiteSpace(editOwnerCompanyPrefix) ? null : editOwnerCompanyPrefix.Trim();
+        await SettingsService.UpdateOwnerCompanyAsync(oc);
+        editingOwnerCompanyId = null;
+        ownerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+    }
+
+    
+    // --- Location CRUD using SweetAlert2 ---
+    private async Task AddLocation()
+    {
+        if (string.IsNullOrWhiteSpace(newLocationName)) return;
+        await SettingsService.AddLocationAsync(newLocationName.Trim());
+        newLocationName = "";
+        locations = await SettingsService.GetLocationsAsync();
+        await Swal.FireAsync("Added!", "Location added successfully.", SweetAlertIcon.Success);
+    }
+    private void StartEditLocation(Location loc)
+    {
+        editingLocationId = loc.Id;
+        editLocationName = loc.Name;
+    }
+    private void CancelEditLocation()
+    {
+        editingLocationId = null;
+        editLocationName = "";
+    }
+    private async Task SaveEditLocation(Location loc)
+    {
+        if (string.IsNullOrWhiteSpace(editLocationName)) return;
+        loc.Name = editLocationName.Trim();
+        await SettingsService.UpdateLocationAsync(loc);
+        editingLocationId = null;
+        locations = await SettingsService.GetLocationsAsync();
+        await Swal.FireAsync("Updated!", "Location updated successfully.", SweetAlertIcon.Success);
+    }
+    private async Task ShowDeleteLocationModal(string id)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Are you sure?",
+            Text = "You won't be able to revert this!",
+            Icon = SweetAlertIcon.Warning,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, delete it!"
+        });
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            await SettingsService.DeleteLocationAsync(id);
+            locations = await SettingsService.GetLocationsAsync();
+            await Swal.FireAsync("Deleted!", "Location has been deleted.", SweetAlertIcon.Success);
+        }
+    }
+
+    // --- BloodGroup CRUD using SweetAlert2 ---
+    private async Task AddBloodGroup()
+    {
+        if (string.IsNullOrWhiteSpace(newBloodGroupName)) return;
+        await SettingsService.AddBloodGroupAsync(newBloodGroupName.Trim());
+        newBloodGroupName = "";
+        bloodGroups = await SettingsService.GetBloodGroupsAsync();
+        await Swal.FireAsync("Added!", "Blood group added successfully.", SweetAlertIcon.Success);
+    }
+    private void StartEditBloodGroup(BloodGroup bg)
+    {
+        editingBloodGroupId = bg.Id;
+        editBloodGroupName = bg.Name;
+    }
+    private void CancelEditBloodGroup()
+    {
+        editingBloodGroupId = null;
+        editBloodGroupName = "";
+    }
+    private async Task SaveEditBloodGroup(BloodGroup bg)
+    {
+        if (string.IsNullOrWhiteSpace(editBloodGroupName)) return;
+        bg.Name = editBloodGroupName.Trim();
+        await SettingsService.UpdateBloodGroupAsync(bg);
+        editingBloodGroupId = null;
+        bloodGroups = await SettingsService.GetBloodGroupsAsync();
+        await Swal.FireAsync("Updated!", "Blood group updated successfully.", SweetAlertIcon.Success);
+    }
+    private async Task ShowDeleteBloodGroupModal(string id)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Are you sure?",
+            Text = "You won't be able to revert this!",
+            Icon = SweetAlertIcon.Warning,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, delete it!"
+        });
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            await SettingsService.DeleteBloodGroupAsync(id);
+            bloodGroups = await SettingsService.GetBloodGroupsAsync();
+            await Swal.FireAsync("Deleted!", "Blood group has been deleted.", SweetAlertIcon.Success);
+        }
+    }
+
+    private async Task AddOwnerCompany()
+    {
+        if (string.IsNullOrWhiteSpace(newOwnerCompanyName)) return;
+        await SettingsService.AddOwnerCompanyAsync(newOwnerCompanyName, newOwnerCompanyPrefix);
+        newOwnerCompanyName = "";
+        newOwnerCompanyPrefix = "";
+        _isPrefixManuallyEdited = false;
+        ownerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+    }
+
+    private void ShowDeleteOwnerCompanyModal(string id)
+    {
+        itemToDeleteId = id;
+        deleteActionType = "OwnerCompany";
+        confirmModalMessage = "Are you sure you want to delete this owner company?";
+        showConfirmModal = true;
+    }
+
+    private bool showConfirmModal = false;
+    private string confirmModalMessage = "";
+    private string itemToDeleteId = "";
+    private string deleteActionType = "";
+    
+    private async Task AddRole()
+    {
+        if (string.IsNullOrWhiteSpace(newRoleName)) return;
+        if (!await RoleManager.RoleExistsAsync(newRoleName))
+        {
+            await RoleManager.CreateAsync(new IdentityRole(newRoleName));
+            await LoadRolesAsync();
+        }
+        newRoleName = "";
+    }
+
+    private void StartEditRole(string role)
+    {
+        editingRoleName = role;
+        editRoleNameInput = role;
+    }
+
+    private void CancelEditRole()
+    {
+        editingRoleName = null;
+        editRoleNameInput = "";
+    }
+
+    private async Task SaveEditRole(string oldRoleName)
+    {
+        if (string.IsNullOrWhiteSpace(editRoleNameInput) || oldRoleName == editRoleNameInput)
+        {
+            CancelEditRole();
+            return;
+        }
+
+        var role = await RoleManager.FindByNameAsync(oldRoleName);
+        if (role != null)
+        {
+            role.Name = editRoleNameInput;
+            await RoleManager.UpdateAsync(role);
+            await LoadRolesAsync();
+        }
+        CancelEditRole();
+    }
+
+    private void ShowDeleteRoleModal(string roleName)
+    {
+        itemToDeleteId = roleName;
+        deleteActionType = "Role";
+        confirmModalMessage = $"Are you sure you want to delete the role '{roleName}'?";
+        showConfirmModal = true;
+    }
+
+    private void CloseConfirmModal()
+    {
+        showConfirmModal = false;
+        itemToDeleteId = "";
+        deleteActionType = "";
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deleteActionType == "Brand")
+        {
+            await SettingsService.DeleteBrandAsync(itemToDeleteId);
+            brands = await SettingsService.GetBrandsAsync();
+        }
+        else if (deleteActionType == "Category")
+        {
+            await SettingsService.DeleteCategoryAsync(itemToDeleteId);
+            categories = await SettingsService.GetCategoriesAsync();
+        }
+        else if (deleteActionType == "Designation")
+        {
+            await SettingsService.DeleteDesignationAsync(itemToDeleteId);
+            designations = await SettingsService.GetDesignationsAsync();
+        }
+        else if (deleteActionType == "Department")
+        {
+            await SettingsService.DeleteDepartmentAsync(itemToDeleteId);
+            departments = await SettingsService.GetDepartmentsAsync();
+        }
+        else if (deleteActionType == "ProjectManager")
+        {
+            await SettingsService.DeleteProjectManagerAsync(itemToDeleteId);
+            projectManagers = await SettingsService.GetProjectManagersAsync();
+        }
+        else if (deleteActionType == "OwnerCompany")
+        {
+            await SettingsService.DeleteOwnerCompanyAsync(itemToDeleteId);
+            ownerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+        }
+        else if (deleteActionType == "Team")
+        {
+            if (int.TryParse(itemToDeleteId, out int parsedId))
+            {
+                await SettingsService.DeleteTeamAsync(parsedId);
+                await LoadTeams();
+            }
+        }
+        else if (deleteActionType == "User")
+        {
+            var user = await UserManager.FindByIdAsync(itemToDeleteId);
+            if (user != null)
+            {
+                await UserManager.DeleteAsync(user);
+                await LoadUsers();
+            }
+        }
+        else if (deleteActionType == "Role")
+        {
+            var role = await RoleManager.FindByNameAsync(itemToDeleteId);
+            if (role != null && role.Name != "Admin")
+            {
+                await RoleManager.DeleteAsync(role);
+                await LoadRolesAsync();
+            }
+        }
+        CloseConfirmModal();
+    }
+
+    private void StartEditBrand(Brand brand)
+    {
+        editingBrandId = brand.Id;
+        editBrandName = brand.Name;
+    }
+
+    private async Task SaveEditBrand(Brand brand)
+    {
+        if (string.IsNullOrWhiteSpace(editBrandName)) return;
+        brand.Name = editBrandName.Trim();
+        await SettingsService.UpdateBrandAsync(brand);
+        editingBrandId = null;
+        brands = await SettingsService.GetBrandsAsync();
+    }
+
+    private void CancelEditBrand() => editingBrandId = null;
+
+    private void StartEditCategory(DeviceCategoryModel category)
+    {
+        editingCategoryId = category.Id;
+        editCategoryName = category.Name;
+        editCategoryType = category.Type ?? "System";
+    }
+
+    private async Task SaveEditCategory(DeviceCategoryModel category)
+    {
+        if (string.IsNullOrWhiteSpace(editCategoryName)) return;
+        category.Name = editCategoryName.Trim();
+        category.Type = editCategoryType;
+        await SettingsService.UpdateCategoryAsync(category);
+        editingCategoryId = null;
+        categories = await SettingsService.GetCategoriesAsync();
+    }
+
+    private void CancelEditCategory() => editingCategoryId = null;
+
+    private void StartEditDesignation(Designation designation)
+    {
+        editingDesignationId = designation.Id;
+        editDesignationName = designation.Name;
+    }
+
+    private async Task SaveEditDesignation(Designation designation)
+    {
+        if (string.IsNullOrWhiteSpace(editDesignationName)) return;
+        designation.Name = editDesignationName.Trim();
+        await SettingsService.UpdateDesignationAsync(designation);
+        editingDesignationId = null;
+        designations = await SettingsService.GetDesignationsAsync();
+    }
+
+    private void CancelEditDesignation() => editingDesignationId = null;
+
+    // Departments
+    private async Task AddDepartment()
+    {
+        if (string.IsNullOrWhiteSpace(newDepartmentName)) return;
+        await SettingsService.AddDepartmentAsync(newDepartmentName);
+        newDepartmentName = "";
+        departments = await SettingsService.GetDepartmentsAsync();
+    }
+
+    private void ShowDeleteDepartmentModal(string id)
+    {
+        itemToDeleteId = id;
+        deleteActionType = "Department";
+        confirmModalMessage = "Are you sure you want to delete this department?";
+        showConfirmModal = true;
+    }
+
+    private void StartEditDepartment(Department department)
+    {
+        editingDepartmentId = department.Id;
+        editDepartmentName = department.Name;
+    }
+
+    private async Task SaveEditDepartment(Department department)
+    {
+        if (string.IsNullOrWhiteSpace(editDepartmentName)) return;
+        department.Name = editDepartmentName.Trim();
+        await SettingsService.UpdateDepartmentAsync(department);
+        editingDepartmentId = null;
+        departments = await SettingsService.GetDepartmentsAsync();
+    }
+    
+    private void CancelEditDepartment() => editingDepartmentId = null;
+
+    // User Management Methods
+    private void StartEditUser(ApplicationUser user)
+    {
+        editUserModel = new UserFormModel
+        {
+            Id = user.Id,
+            Email = user.Email ?? "",
+            FullName = user.FullName ?? ""
+        };
+        selectedRole = GetUserRole(user.Id);
+        if (selectedRole == "None") selectedRole = "Employee";
+        showEditUserModal = true;
+        userErrorMessage = "";
+    }
+    
+    private void ShowDeleteUserModal(ApplicationUser user)
+    {
+        itemToDeleteId = user.Id;
+        deleteActionType = "User";
+        confirmModalMessage = $"Are you sure you want to delete user {user.Email}?";
+        showConfirmModal = true;
+    }
+    
+    private void CloseUserModal()
+    {
+        showAddUserModal = false;
+        showEditUserModal = false;
+        newUserModel = new UserFormModel();
+    }
+    
+    private async Task SaveUser()
+    {
+        userErrorMessage = "";
+        
+        if (showAddUserModal)
+        {
+            if (string.IsNullOrWhiteSpace(newUserModel.Email) || string.IsNullOrWhiteSpace(newUserModel.Password))
+            {
+                userErrorMessage = "Email and Password are required.";
+                return;
+            }
+            
+            var user = new ApplicationUser
+            {
+                UserName = newUserModel.Email,
+                Email = newUserModel.Email,
+                FullName = newUserModel.FullName
+            };
+            
+            var result = await UserManager.CreateAsync(user, newUserModel.Password);
+            if (result.Succeeded)
+            {
+                await UserManager.AddToRoleAsync(user, selectedRole);
+                CloseUserModal();
+                await LoadUsers();
+            }
+            else
+            {
+                userErrorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
+            }
+        }
+        else if (showEditUserModal)
+        {
+            var user = await UserManager.FindByIdAsync(editUserModel.Id);
+            if (user != null)
+            {
+                user.Email = editUserModel.Email;
+                user.UserName = editUserModel.Email;
+                user.FullName = editUserModel.FullName;
+                
+                var updateResult = await UserManager.UpdateAsync(user);
+                
+                if (updateResult.Succeeded)
+                {
+                    if (!string.IsNullOrWhiteSpace(editUserModel.Password))
+                    {
+                        var token = await UserManager.GeneratePasswordResetTokenAsync(user);
+                        var passResult = await UserManager.ResetPasswordAsync(user, token, editUserModel.Password);
+                        if (!passResult.Succeeded)
+                        {
+                            userErrorMessage = "User updated, but password reset failed: " + string.Join(", ", passResult.Errors.Select(e => e.Description));
+                            return;
+                        }
+                    }
+
+                    var currentRoles = await UserManager.GetRolesAsync(user);
+                    await UserManager.RemoveFromRolesAsync(user, currentRoles);
+                    await UserManager.AddToRoleAsync(user, selectedRole);
+                    
+                    // Force refresh user session to apply new role
+                    await UserManager.UpdateSecurityStampAsync(user);
+                    
+                    CloseUserModal();
+                    await LoadUsers();
+                }
+                else
+                {
+                    userErrorMessage = string.Join(", ", updateResult.Errors.Select(e => e.Description));
+                }
+            }
+        }
+    }
+    
+    private string loadedPermissionRole = "";
+
+    // Role Permissions Methods
+    private async Task OnPermissionRoleChanged(ChangeEventArgs e)
+    {
+        selectedPermissionRole = e.Value?.ToString() ?? "";
+        await LoadRolePermissions();
+    }
+
+    private async Task LoadRolePermissions()
+    {
+        permissionsMessage = "";
+        permissionSelections.Clear();
+        foreach (var perm in availablePermissions)
+        {
+            permissionSelections[perm] = false;
+        }
+        
+        var role = await RoleManager.FindByNameAsync(selectedPermissionRole);
+        if (role != null)
+        {
+            var claims = await RoleManager.GetClaimsAsync(role);
+            var rolePerms = claims.Where(c => c.Type == "Permission").Select(c => c.Value).ToList();
+            
+            foreach (var perm in rolePerms)
+            {
+                if (permissionSelections.ContainsKey(perm))
+                {
+                    permissionSelections[perm] = true;
+                }
+            }
+            loadedPermissionRole = selectedPermissionRole;
+            permissionsLoaded = true;
+        }
+        else
+        {
+            loadedPermissionRole = "";
+            permissionsLoaded = false;
+        }
+    }
+    
+    private void SelectAllPermissions()
+    {
+        foreach (var key in permissionSelections.Keys.ToList())
+        {
+            permissionSelections[key] = true;
+        }
+    }
+    
+    private void UnselectAllPermissions()
+    {
+        foreach (var key in permissionSelections.Keys.ToList())
+        {
+            permissionSelections[key] = false;
+        }
+    }
+    
+    private async Task SaveRolePermissions()
+    {
+        if (string.IsNullOrEmpty(loadedPermissionRole)) return;
+
+        var role = await RoleManager.FindByNameAsync(loadedPermissionRole);
+        if (role != null)
+        {
+            var existingClaims = await RoleManager.GetClaimsAsync(role);
+            var existingPermissionClaims = existingClaims.Where(c => c.Type == "Permission").ToList();
+            
+            // Remove old permissions
+            foreach (var claim in existingPermissionClaims)
+            {
+                await RoleManager.RemoveClaimAsync(role, claim);
+            }
+            
+            // Add new permissions
+            foreach (var perm in permissionSelections.Where(x => x.Value).Select(x => x.Key))
+            {
+                await RoleManager.AddClaimAsync(role, new Claim("Permission", perm));
+            }
+            
+            // Force refresh of permissions for users in this role
+            var usersInRole = await UserManager.GetUsersInRoleAsync(role.Name);
+            foreach (var user in usersInRole)
+            {
+                await UserManager.UpdateSecurityStampAsync(user);
+            }
+            
+            permissionsMessage = $"Permissions updated successfully for role '{loadedPermissionRole}'.";
+        }
+    }
+}

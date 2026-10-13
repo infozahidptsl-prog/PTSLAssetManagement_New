@@ -1,0 +1,221 @@
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Interfaces
+@inject ISettingsService SettingsService
+
+@if (Show)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <!-- Use CSS Grid for 100% reliable layout without flexbox height collapse issues -->
+        <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-surface border border-line-soft shadow-xl" style="max-height: 90vh; display: grid; grid-template-rows: auto 1fr auto;">
+            
+            <!-- Header (Row 1: auto) -->
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-3">
+                <div>
+                    <h2 class="text-base font-semibold text-txt-hi">@(IsEdit ? "Edit employee" : "Add employee")</h2>
+                    <p class="mt-1 text-sm text-txt-mid">
+                        @(IsEdit ? "Update staff record details. Changes do not affect asset custody or history." : "Add a staff record so assets can be issued to them. The next staff number is assigned automatically.")
+                    </p>
+                </div>
+                <button type="button" @onclick="CloseAsync" class="ml-4 rounded-lg p-2 text-txt-lo hover:bg-elevated hover:text-txt-hi focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Content (Row 2: 1fr - Takes remaining space and scrolls) -->
+            <div class="overflow-y-auto px-6 py-4">
+                <div class="space-y-4">
+
+                    <!-- Employee ID Card -->
+                    <div class="rounded-xl border border-line-soft bg-elevated px-4 py-3">
+                        <label class="mb-1 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Employee ID</label>
+                        <input type="text" @bind="Model.EmployeeId" @bind:event="oninput" placeholder="e.g. PTSL236" class="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+
+                    <!-- Team Account Toggle -->
+                    <div class="mb-4 mt-2 flex items-center justify-between rounded-xl border border-line-soft bg-elevated px-4 py-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-txt-hi">Is this a Team Account?</h3>
+                            <p class="text-[11px] text-txt-mid mt-0.5">Check this if this profile represents a team (e.g. "Local Team").</p>
+                        </div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" @bind="Model.IsTeamAccount" style="width: 16px; height: 16px; accent-color: #6366f1; cursor: pointer;" />
+                            <span class="text-xs font-semibold text-txt-mid">Yes</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Full Name</label>
+                            <input type="text" @bind="Model.Name" placeholder="Md. Ariful Islam" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Designation</label>
+                            <AssetManagement.Web.Components.Shared.SearchableSelect @bind-Value="Model.Designation" 
+                                Options="DesignationOptions" 
+                                Placeholder="Select Designation..." 
+                                AllowClear="true" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Mail ID</label>
+                            <input type="email" @bind="Model.Email" placeholder="name@primetechbd.com" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Contact Number</label>
+                            <input type="text" @bind="Model.Contact" placeholder="+880 1XXX-XXXXXX" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Department</label>
+                            <AssetManagement.Web.Components.Shared.SearchableSelect @bind-Value="Model.Department" 
+                                Options="DepartmentOptions" 
+                                Placeholder="Select Department..." 
+                                AllowClear="true" />
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Joining Date</label>
+                                @if (Model.JoiningDate.HasValue)
+                                {
+                                    <button type="button" @onclick="() => Model.JoiningDate = null" class="text-[10px] font-semibold text-rose-500 hover:text-rose-600 transition-colors">Clear</button>
+                                }
+                            </div>
+                            <input type="date" @bind="Model.JoiningDate" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                            <span class="mt-1 block text-[10px] text-txt-lo">Optional — leave blank if not known yet</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Location</label>
+                            <AssetManagement.Web.Components.Shared.SearchableSelect @bind-Value="Model.Location" 
+                                Options="LocationOptions" 
+                                Placeholder="Select Location..." 
+                                AllowClear="true" />
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Team</label>
+                            <AssetManagement.Web.Components.Shared.SearchableSelect @bind-Value="Model.Team" 
+                                Options="TeamOptions" 
+                                Placeholder="Select Team..." 
+                                AllowClear="true" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Manager</label>
+                            <AssetManagement.Web.Components.Shared.SearchableSelect @bind-Value="Model.Manager" 
+                                Options="ManagerOptions" 
+                                Placeholder="Select Manager..." 
+                                AllowClear="true" />
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Blood Group</label>
+                            <AssetManagement.Web.Components.Shared.SearchableSelect @bind-Value="Model.BloodGroup" 
+                                Options="BloodGroupOptions" 
+                                Placeholder="Select Blood Group..." 
+                                AllowClear="true" />
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">LinkedIn URL</label>
+                        <input type="url" @bind="Model.LinkedInUrl" placeholder="https://linkedin.com/in/username" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                    </div>
+
+                    <div>
+                        <div class="flex items-baseline justify-between mb-1.5">
+                            <label class="block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">About / Server Details</label>
+                            <span class="text-[9px] text-txt-mid">You can put IP, Users, etc. here</span>
+                        </div>
+                        <textarea @bind="Model.About" rows="5" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. Server IP: 192.168.1.100&#10;Access: Admins only"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-[10px] font-semibold tracking-wider text-txt-lo uppercase">Employment Status</label>
+                        <select @bind="IsActiveStr" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                            <option value="true">Active</option>
+                            <option value="false">Left the job</option>
+                        </select>
+                        <p class="mt-2 text-[11px] leading-relaxed text-txt-mid">Marking someone as left keeps their history, and the returns screen will prompt you to take their assets back.</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex shrink-0 items-center justify-end gap-3 rounded-b-2xl border-t border-line-soft bg-canvas px-6 py-3">
+                <button type="button" @onclick="CloseAsync" class="rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-txt-hi hover:bg-elevated focus:outline-none">Cancel</button>
+                <button type="button" @onclick="SaveAsync" class="rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-600 focus:outline-none">
+                    @(IsEdit ? "Save details" : "Add employee")
+                </button>
+            </div>
+            
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public Employee Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<Employee> OnSave { get; set; }
+
+    private IEnumerable<Department>? departments;
+    private IEnumerable<ProjectManager>? projectManagers;
+    private IEnumerable<Designation>? designations;
+    private IEnumerable<Team>? teams;
+    private IEnumerable<Location>? locations;
+    private IEnumerable<BloodGroup>? bloodGroups;
+
+    protected override async Task OnInitializedAsync()
+    {
+        departments = await SettingsService.GetDepartmentsAsync();
+        projectManagers = await SettingsService.GetProjectManagersAsync();
+        designations = await SettingsService.GetDesignationsAsync();
+        teams = await SettingsService.GetTeamsAsync();
+        locations = await SettingsService.GetLocationsAsync();
+        bloodGroups = await SettingsService.GetBloodGroupsAsync();
+    }
+
+    private List<AssetManagement.Web.Models.SelectOption> DesignationOptions =>
+        designations?.Select(d => new AssetManagement.Web.Models.SelectOption { Value = d.Name, Text = d.Name }).ToList() ?? new();
+
+    private List<AssetManagement.Web.Models.SelectOption> DepartmentOptions =>
+        departments?.Select(d => new AssetManagement.Web.Models.SelectOption { Value = d.Name, Text = d.Name }).ToList() ?? new();
+
+    private List<AssetManagement.Web.Models.SelectOption> ManagerOptions =>
+        projectManagers?.Select(m => new AssetManagement.Web.Models.SelectOption { Value = m.Name, Text = m.Name }).ToList() ?? new();
+
+    private List<AssetManagement.Web.Models.SelectOption> TeamOptions =>
+        teams?.Select(t => new AssetManagement.Web.Models.SelectOption { Value = t.Name, Text = t.Name }).ToList() ?? new();
+
+    private List<AssetManagement.Web.Models.SelectOption> LocationOptions =>
+        locations?.Select(l => new AssetManagement.Web.Models.SelectOption { Value = l.Name, Text = l.Name }).ToList() ?? new();
+
+    private List<AssetManagement.Web.Models.SelectOption> BloodGroupOptions =>
+        bloodGroups?.Select(b => new AssetManagement.Web.Models.SelectOption { Value = b.Name, Text = b.Name }).ToList() ?? new();
+
+    private string IsActiveStr
+    {
+        get => Model.IsActive ? "true" : "false";
+        set => Model.IsActive = value == "true";
+    }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+    private Task SaveAsync()
+    {
+        if (Model.JoiningDate.HasValue && Model.JoiningDate.Value.Year <= 1900)
+        {
+            Model.JoiningDate = null;
+        }
+        return OnSave.InvokeAsync(Model);
+    }
+}
+

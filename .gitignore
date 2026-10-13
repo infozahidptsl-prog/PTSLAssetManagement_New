@@ -1,0 +1,49 @@
+## Build and compile outputs
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.log
+
+## Database and sensitive data protection keys
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+**/Keys/*.xml
+
+## Node / NPM
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+## Visual Studio & IDE files
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+## Test results and temp files
+[Tt]est[Rr]esults/
+*.tmp
+debug*.txt
+tags.txt
+ocr_output.txt
+user_doc_ocr.txt
+scratch_*.cs
+*.pyc
+__pycache__/
+
+## OS metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## Backup folders
+backup/

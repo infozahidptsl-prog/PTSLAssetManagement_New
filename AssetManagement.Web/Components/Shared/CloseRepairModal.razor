@@ -1,0 +1,156 @@
+@using AssetManagement.Core.Entities
+
+<Modal IsOpen="IsOpen" IsOpenChanged="HandleModalOpenChanged" 
+       Title="Close a repair" 
+       Description="Record what the repair shop came back with and where the item goes next.">
+       
+    <EditForm Model="@model" OnValidSubmit="HandleSubmit" class="space-y-6">
+        <DataAnnotationsValidator />
+
+        <div class="space-y-2">
+            <label for="repair-item" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Item in the repair shop
+            </label>
+            <select id="repair-item" @bind="model.RepairRecordId" class="@InputClass" required>
+                <option value="">Select an item…</option>
+                @foreach (var r in ActiveRepairs)
+                {
+                    var device = r.Device;
+                    var assetId = string.IsNullOrEmpty(device?.AssetTag) ? device?.Id.ToString() : device?.AssetTag;
+                    <option value="@r.Id">@assetId — @device?.Brand (@r.VendorName)</option>
+                }
+            </select>
+        </div>
+
+        <div class="space-y-3">
+            <fieldset>
+                <legend class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                    Outcome
+                </legend>
+                <div class="mt-2 space-y-2">
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(model.Outcome == "return-employee" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-elevated hover:border-line")" @onclick='() => model.Outcome = "return-employee"'>
+                        <input type="radio" name="outcome" value="return-employee" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" checked="@(model.Outcome == "return-employee")" />
+                        <span>
+                            <span class="block text-sm font-medium text-txt-hi">Fixed — return to the same employee</span>
+                            <span class="block text-xs text-txt-mid">No previous holder recorded for this item</span>
+                        </span>
+                    </label>
+
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(model.Outcome == "return-inventory" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-elevated hover:border-line")" @onclick='() => model.Outcome = "return-inventory"'>
+                        <input type="radio" name="outcome" value="return-inventory" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" checked="@(model.Outcome == "return-inventory")" />
+                        <span>
+                            <span class="block text-sm font-medium text-txt-hi">Fixed — return to inventory</span>
+                            <span class="block text-xs text-txt-mid">Stocked as a spare, ready for the next allocation.</span>
+                        </span>
+                    </label>
+
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(model.Outcome == "obsolete" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-elevated hover:border-line")" @onclick='() => model.Outcome = "obsolete"'>
+                        <input type="radio" name="outcome" value="obsolete" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" checked="@(model.Outcome == "obsolete")" />
+                        <span>
+                            <span class="block text-sm font-medium text-txt-hi">Cannot be fixed — declare obsolete</span>
+                            <span class="block text-xs text-txt-mid">Damage is beyond repair, so the item is written off.</span>
+                        </span>
+                    </label>
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+                <label for="repair-delivery" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                    Delivery Date
+                </label>
+                <InputDate id="repair-delivery" @bind-Value="model.DeliveryDate" class="@InputClass" />
+            </div>
+            
+            <div class="space-y-2">
+                <label for="repair-cost" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                    Repair cost (Optional)
+                </label>
+                <InputNumber id="repair-cost" @bind-Value="model.Cost" placeholder="0.00" class="@InputClass" />
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label for="repair-note" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Repair note
+            </label>
+            <InputText id="repair-note" @bind-Value="model.RepairNote" placeholder="Parts replaced, invoice reference, warranty claim..." class="@InputClass" />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-1">
+            <button type="button" @onclick="CloseAsync" class="@ButtonGhost">
+                Cancel
+            </button>
+            <button type="submit" class="@ButtonPrimary" disabled="@string.IsNullOrEmpty(model.RepairRecordId)">
+                Save outcome
+            </button>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<CloseRepairModel> OnClosed { get; set; }
+
+    [Parameter]
+    public List<RepairRecord> ActiveRepairs { get; set; } = new();
+    
+    [Parameter]
+    public string PreselectedRepairId { get; set; } = string.Empty;
+
+    public class CloseRepairModel
+    {
+        public string RepairRecordId { get; set; } = string.Empty;
+        public string Outcome { get; set; } = "return-inventory";
+        public string? RepairNote { get; set; }
+        public decimal? Cost { get; set; }
+        public DateTime? DeliveryDate { get; set; } = DateTime.Today;
+    }
+
+    private CloseRepairModel model = new();
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !string.IsNullOrEmpty(PreselectedRepairId) && model.RepairRecordId != PreselectedRepairId)
+        {
+            model.RepairRecordId = PreselectedRepairId;
+        }
+    }
+
+    private async Task HandleModalOpenChanged(bool value)
+    {
+        if (!value)
+        {
+            await CloseAsync();
+        }
+        else
+        {
+            IsOpen = true;
+            await IsOpenChanged.InvokeAsync(true);
+        }
+    }
+
+    private string InputClass = "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+    private string ButtonPrimary = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-accent-on transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed";
+    private string ButtonGhost = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+
+    private async Task HandleSubmit()
+    {
+        await OnClosed.InvokeAsync(model);
+        await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+        model = new();
+    }
+}

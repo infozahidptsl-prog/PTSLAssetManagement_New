@@ -1,0 +1,388 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using AssetManagement.Core.Interfaces
+@using System.Text.Json
+@inject IPdfProcessingService PdfProcessor
+@inject IAiDocumentExtractionService AiService
+@inject IOcrService OcrService
+@inject IInvoiceAutomationService LocalInvoiceService
+
+<div class="ai-capture-container">
+
+    <div class="@((!isProcessing && string.IsNullOrEmpty(statusMessage)) ? "" : "hidden")">
+        <!-- Upload Zone -->
+        <div class="rounded-2xl border-2 border-dashed border-line bg-surface hover:bg-elevated transition-colors p-10 text-center">
+            <div class="mb-4 flex justify-center">
+                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-50 text-accent-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-txt-hi mb-1">AI Purchase Document Capture</h3>
+            <p class="text-sm text-txt-mid mb-6">Upload an invoice or purchase document to extract details automatically.</p>
+
+            <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <!-- Primary: File Upload -->
+                <label for="fileUploadDesktop" class="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 bg-accent-600 text-white rounded-xl font-semibold text-sm hover:bg-accent-700 transition-colors shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Image / PDF
+                </label>
+                <InputFile id="fileUploadDesktop" OnChange="HandleFileSelected" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf,.jpg,.jpeg,.png" class="hidden" />
+
+                <!-- Secondary: Camera (optional convenience) -->
+                <label for="fileUploadCamera" class="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 border border-line bg-surface text-txt-hi rounded-xl font-semibold text-sm hover:bg-elevated transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Take Photo
+                </label>
+                <InputFile id="fileUploadCamera" OnChange="HandleFileSelected" accept="image/*" capture="environment" class="hidden" />
+            </div>
+
+            <p class="mt-4 text-xs text-txt-lo">Supported: JPG, JPEG, PNG, PDF &nbsp;·&nbsp; Max 10 MB</p>
+        </div>
+    </div>
+
+    @if (isProcessing)
+    {
+        <div class="rounded-2xl border border-line bg-surface p-8 text-center">
+            <div class="mb-5 flex justify-center">
+                <div class="w-10 h-10 border-4 border-accent-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <h3 class="text-base font-semibold text-txt-hi mb-4">Processing Document...</h3>
+            <div class="bg-elevated p-4 rounded-xl text-left text-sm font-mono inline-block min-w-[280px]">
+                <ul class="space-y-1.5 text-txt-mid">
+                    <li class="flex items-center gap-2">
+                        <span class="@GetStatusDot(validationStatus)"></span>
+                        <span class="text-txt-lo w-24 shrink-0">Validation:</span> @validationStatus
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="@GetStatusDot(docStatus)"></span>
+                        <span class="text-txt-lo w-24 shrink-0">Document:</span> @docStatus
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="@GetStatusDot(ocrStatus)"></span>
+                        <span class="text-txt-lo w-24 shrink-0">OCR:</span> @ocrStatus
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="@GetStatusDot(aiStatus)"></span>
+                        <span class="text-txt-lo w-24 shrink-0">AI Engine:</span> @aiStatus
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="@GetStatusDot(fallbackStatus)"></span>
+                        <span class="text-txt-lo w-24 shrink-0">Fallback:</span> @fallbackStatus
+                    </li>
+                </ul>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(statusMessage) && !isProcessing)
+    {
+        bool isError = statusMessage.StartsWith("ERROR") || statusMessage.StartsWith("FAIL") || statusMessage.StartsWith("INVALID") || statusMessage.StartsWith("UNAVAILABLE");
+        <div class="mt-6 rounded-xl p-5 border @(isError ? "bg-danger-50 border-danger-200 text-danger-700" : "bg-ok-50 border-ok-200 text-ok-700")">
+            <div class="flex items-start gap-3">
+                @if (isError)
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                }
+                else
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                }
+                <div>
+                    <p class="font-semibold text-sm">@statusMessage</p>
+                    @if (statusMessage.Contains("OCR") && statusMessage.Contains("unavailable"))
+                    {
+                        <p class="mt-1 text-xs opacity-80">Image OCR requires Tesseract with <code>eng.traineddata</code> installed. Configure the local OCR dependency and try again.</p>
+                    }
+                    @if (statusMessage.Contains("AI") && statusMessage.Contains("unavailable"))
+                    {
+                        <p class="mt-1 text-xs opacity-80">Qwen2-VL AI requires Ollama running locally. The system attempted PdfPig text-extraction as a fallback.</p>
+                    }
+                </div>
+            </div>
+            @if (isError)
+            {
+                <button type="button" @onclick="Reset" class="mt-4 px-4 py-2 text-sm font-medium border border-danger-300 rounded-lg hover:bg-danger-100 transition-colors">
+                    Try Again
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<AiDocumentExtractionResult> OnExtractionComplete { get; set; }
+
+    private bool isProcessing;
+    private string validationStatus = "Pending";
+    private string docStatus = "Pending";
+    private string ocrStatus = "Pending";
+    private string aiStatus = "Pending";
+    private string fallbackStatus = "Pending";
+    private string statusMessage = "";
+
+    private string GetStatusDot(string status) => status switch
+    {
+        "Pending" => "inline-block w-2 h-2 rounded-full bg-txt-lo shrink-0",
+        "Checking..." or "Processing..." or "Running..." => "inline-block w-2 h-2 rounded-full bg-warn-500 animate-pulse shrink-0",
+        "Passed" or "SUCCESS" or "Completed" or "Attempted" or "Used" or "Skipped" => "inline-block w-2 h-2 rounded-full bg-ok-500 shrink-0",
+        _ when status.Contains("FAIL") || status.Contains("UNAVAILABLE") || status.Contains("MISSING") || status.Contains("ERROR")
+            => "inline-block w-2 h-2 rounded-full bg-danger-500 shrink-0",
+        _ => "inline-block w-2 h-2 rounded-full bg-txt-lo shrink-0"
+    };
+
+    private void Reset()
+    {
+        statusMessage = "";
+        validationStatus = "Pending";
+        docStatus = "Pending";
+        ocrStatus = "Pending";
+        aiStatus = "Pending";
+        fallbackStatus = "Pending";
+        isProcessing = false;
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        isProcessing = true;
+        statusMessage = "";
+        validationStatus = "Checking...";
+        docStatus = "Pending";
+        ocrStatus = "Pending";
+        aiStatus = "Pending";
+        fallbackStatus = "Pending";
+        StateHasChanged();
+
+        try
+        {
+            var file = e.File;
+
+            // ── Validation ──────────────────────────────────────────────────────
+            if (file.Size > 10 * 1024 * 1024)
+            {
+                validationStatus = "Failed";
+                statusMessage = "INVALID: File size exceeds 10 MB limit. Please upload a smaller file.";
+                return;
+            }
+
+            bool isPdf = file.ContentType.Contains("pdf", StringComparison.OrdinalIgnoreCase)
+                      || file.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+            bool isImage = !isPdf && (file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+                         || file.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                         || file.Name.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+                         || file.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase));
+
+            if (!isPdf && !isImage)
+            {
+                validationStatus = "Failed";
+                statusMessage = "INVALID: Unsupported file type. Please upload JPG, JPEG, PNG, or PDF.";
+                return;
+            }
+
+            validationStatus = "Passed";
+            docStatus = "Processing...";
+            StateHasChanged();
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10485760);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            // ── PDF PATH ────────────────────────────────────────────────────────
+            if (isPdf)
+            {
+                docStatus = "Processing...";
+                StateHasChanged();
+
+                // Stage 1: Try full AI/OCR pipeline (Docnet + Tesseract + Ollama)
+                List<PdfPageResult>? pipelineResults = null;
+                try
+                {
+                    pipelineResults = await PdfProcessor.ProcessPdfAsync(memoryStream);
+                }
+                catch (Exception ex)
+                {
+                    aiStatus = $"FAILED: {ex.Message}";
+                }
+
+                if (pipelineResults != null && pipelineResults.Any())
+                {
+                    var page = pipelineResults.First();
+                    ocrStatus = page.OcrStatus;
+                    aiStatus = page.AiStatus;
+                    docStatus = "Completed";
+
+                    bool pipelineOk = page.AiStatus == "SUCCESS" && !string.IsNullOrEmpty(page.ExtractionResultJson);
+                    if (pipelineOk)
+                    {
+                        fallbackStatus = "Skipped";
+                        statusMessage = "EXTRACTION_SUCCESS";
+                        var extractedResult = JsonSerializer.Deserialize<AiDocumentExtractionResult>(page.ExtractionResultJson);
+                        await OnExtractionComplete.InvokeAsync(extractedResult);
+                        return;
+                    }
+
+                    // Pipeline had issues — fall through to PdfPig fallback
+                    fallbackStatus = "Running...";
+                    StateHasChanged();
+                }
+                else
+                {
+                    ocrStatus = "N/A";
+                    aiStatus = "N/A";
+                    docStatus = "Completed";
+                    fallbackStatus = "Running...";
+                    StateHasChanged();
+                }
+
+                // Stage 2: PdfPig / LocalAiInvoiceService fallback
+                memoryStream.Position = 0;
+                InvoiceExtractionResult fallbackResult;
+                try
+                {
+                    fallbackResult = await LocalInvoiceService.ExtractInvoiceDataAsync(memoryStream, file.Name, file.ContentType);
+                }
+                catch (Exception ex)
+                {
+                    fallbackStatus = $"FAILED: {ex.Message}";
+                    statusMessage = $"ERROR: PDF extraction failed — {ex.Message}. Please try a different file.";
+                    return;
+                }
+
+                if (!fallbackResult.IsSuccess || (fallbackResult.Items.Count == 0 && string.IsNullOrWhiteSpace(fallbackResult.Supplier)))
+                {
+                    fallbackStatus = "FAILED";
+                    statusMessage = $"ERROR: Could not extract meaningful data from PDF. {fallbackResult.ErrorMessage ?? "The document may be scanned or image-only."} Please try a text-based PDF or an image.";
+                    return;
+                }
+
+                fallbackStatus = "Used";
+                statusMessage = "EXTRACTION_SUCCESS";
+
+                // Convert InvoiceExtractionResult → AiDocumentExtractionResult
+                var converted = ConvertInvoiceResult(fallbackResult);
+                await OnExtractionComplete.InvokeAsync(converted);
+                return;
+            }
+
+            // ── IMAGE PATH ────────────────────────────────────────────────────────
+            if (isImage)
+            {
+                docStatus = "Completed";
+                ocrStatus = "Running...";
+                StateHasChanged();
+
+                var ocrResult = await OcrService.ExtractTextAsync(memoryStream, file.Name, file.ContentType);
+
+                if (!ocrResult.IsSuccess)
+                {
+                    bool isMissing = ocrResult.ErrorMessage?.Contains("OCR_DEPENDENCY_MISSING") == true
+                                  || ocrResult.ErrorMessage?.Contains("eng.traineddata") == true;
+
+                    ocrStatus = isMissing ? "OCR_DEPENDENCY_MISSING" : "FAILED";
+                    aiStatus = "Skipped";
+                    fallbackStatus = "N/A";
+                    statusMessage = isMissing
+                        ? "Image OCR is currently unavailable. Please install the required OCR dependency (eng.traineddata) and try again. Alternatively, upload a text-based PDF."
+                        : $"ERROR: OCR failed — {ocrResult.ErrorMessage}";
+                    return;
+                }
+
+                ocrStatus = "SUCCESS";
+                aiStatus = "Running...";
+                fallbackStatus = "N/A";
+                StateHasChanged();
+
+                memoryStream.Position = 0;
+                var base64 = Convert.ToBase64String(memoryStream.ToArray());
+                var aiResult = await AiService.ExtractDocumentAsync(ocrResult.Text ?? "", base64);
+
+                if (aiResult.ErrorMessage?.Contains("AI_UNAVAILABLE") == true)
+                {
+                    // AI is down — fall back to deterministic text parser using the OCR text we already have
+                    aiStatus = "AI_UNAVAILABLE";
+                    fallbackStatus = "Running...";
+                    StateHasChanged();
+
+                    InvoiceExtractionResult fallbackResult;
+                    try
+                    {
+                        fallbackResult = await LocalInvoiceService.AnalyzeTextAsync(ocrResult.Text ?? "");
+                    }
+                    catch (Exception ex)
+                    {
+                        fallbackStatus = $"FAILED: {ex.Message}";
+                        statusMessage = $"ERROR: Both AI and fallback parser failed — {ex.Message}";
+                        return;
+                    }
+
+                    if (!fallbackResult.IsSuccess || (fallbackResult.Items.Count == 0 && string.IsNullOrWhiteSpace(fallbackResult.Supplier)))
+                    {
+                        fallbackStatus = "FAILED";
+                        statusMessage = "AI extraction engine (Qwen2-VL) is currently unavailable, and the fallback parser could not extract meaningful data from the image. Start Ollama or upload a clearer image / text-based PDF.";
+                        return;
+                    }
+
+                    fallbackStatus = "Used";
+                    statusMessage = "EXTRACTION_SUCCESS";
+                    var converted = ConvertInvoiceResult(fallbackResult);
+                    await OnExtractionComplete.InvokeAsync(converted);
+                    return;
+                }
+                else if (!aiResult.IsSuccess)
+                {
+                    aiStatus = "FAILED";
+                    statusMessage = $"ERROR: AI extraction failed — {aiResult.ErrorMessage}";
+                    return;
+                }
+
+                aiStatus = "SUCCESS";
+                statusMessage = "EXTRACTION_SUCCESS";
+                await OnExtractionComplete.InvokeAsync(aiResult);
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"ERROR: Unexpected error — {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Converts the regex-based InvoiceExtractionResult (from LocalAiInvoiceService / PdfPig)
+    /// into the canonical AiDocumentExtractionResult used by the field-mapping pipeline.
+    /// </summary>
+    private static AiDocumentExtractionResult ConvertInvoiceResult(InvoiceExtractionResult src)
+    {
+        var result = new AiDocumentExtractionResult
+        {
+            IsSuccess = true,
+            DocumentType = "Invoice",
+            Vendor = src.Supplier,
+            InvoiceNumber = src.InvoiceNumber,
+            PurchaseOrderNumber = src.PoNumber,
+            DocumentDate = src.InvoiceDate,
+            Confidence = src.IsLowConfidence ? 0.50 : 0.75,
+        };
+
+        if (src.IsLowConfidence)
+            result.Warnings.Add("Extraction used deterministic text parser (AI unavailable). Please review all fields carefully.");
+
+        foreach (var item in src.Items)
+        {
+            result.Items.Add(new AiDocumentExtractionItem
+            {
+                Description = item.Description,
+                Manufacturer = item.Manufacturer == "Unknown" ? null : item.Manufacturer,
+                Model = item.Model == "Unknown" ? null : item.Model,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+                LineTotal = item.TotalPrice,
+            });
+        }
+
+        return result;
+    }
+}

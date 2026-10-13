@@ -1,0 +1,16 @@
+@page "/devices/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@page "/device/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<PageTitle>Device Details - PrimeTech Asset Manager</PageTitle>
+
+<AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@Id" />
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+}
+

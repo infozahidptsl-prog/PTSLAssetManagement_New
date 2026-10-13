@@ -1,0 +1,635 @@
+@page "/reports"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Reports.View)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@inject DeviceService DeviceService
+@inject HandoverService HandoverService
+@inject EmployeeService EmployeeService
+@inject RepairService RepairService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Management reports - PrimeTech Asset Manager</PageTitle>
+
+<PageHeader Title="Management reports">
+    <Actions>
+        <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 border border-line-soft bg-surface">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Download HTML
+        </button>
+        <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 border border-line-soft bg-surface">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+            Open in new tab
+        </button>
+        <button type="button" @onclick="PrintReport" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
+            Print / Save PDF
+        </button>
+    </Actions>
+</PageHeader>
+
+<div class="grid gap-6 px-6 py-6 lg:grid-cols-[20rem_minmax(0,1fr)] lg:px-9 h-[calc(100vh-8.5rem)]">
+    <!-- Sidebar -->
+    <div class="no-print overflow-y-auto pr-2 pb-10 custom-scrollbar">
+        <h2 class="text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+            Report
+        </h2>
+        <ul class="mt-3 space-y-2">
+            <li>
+                <button type="button" @onclick='() => SetReport("summary")' class="w-full rounded-2xl border p-4 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 @(reportType == "summary" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-surface hover:border-line")">
+                    <span class="flex items-baseline justify-between gap-3">
+                        <span class="text-sm font-semibold text-txt-hi">Inventory summary</span>
+                        <span class="text-[10px] font-medium uppercase tracking-widest text-txt-lo">Management Review</span>
+                    </span>
+                    <span class="mt-1.5 block text-[13px] leading-relaxed text-txt-mid">Headline counts, capital value and stock position across systems, components and peripherals.</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" @onclick='() => SetReport("held")' class="w-full rounded-2xl border p-4 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 @(reportType == "held" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-surface hover:border-line")">
+                    <span class="flex items-baseline justify-between gap-3">
+                        <span class="text-sm font-semibold text-txt-hi">Allocation register</span>
+                        <span class="text-[10px] font-medium uppercase tracking-widest text-txt-lo">Audit / HR Handover</span>
+                    </span>
+                    <span class="mt-1.5 block text-[13px] leading-relaxed text-txt-mid">Who holds which asset, with employee ID, designation, issue date and serial numbers.</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" @onclick='() => SetReport("warranty")' class="w-full rounded-2xl border p-4 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 @(reportType == "warranty" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-surface hover:border-line")">
+                    <span class="flex items-baseline justify-between gap-3">
+                        <span class="text-sm font-semibold text-txt-hi">Warranty status</span>
+                        <span class="text-[10px] font-medium uppercase tracking-widest text-txt-lo">Procurement Planning</span>
+                    </span>
+                    <span class="mt-1.5 block text-[13px] leading-relaxed text-txt-mid">Warranty position of every asset, expiring items first, with end dates and days remaining.</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" @onclick='() => SetReport("repair")' class="w-full rounded-2xl border p-4 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 @(reportType == "repair" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-surface hover:border-line")">
+                    <span class="flex items-baseline justify-between gap-3">
+                        <span class="text-sm font-semibold text-txt-hi">Repair & obsolete</span>
+                        <span class="text-[10px] font-medium uppercase tracking-widest text-txt-lo">Cost Control</span>
+                    </span>
+                    <span class="mt-1.5 block text-[13px] leading-relaxed text-txt-mid">Current repair queue, repair outcomes and every asset written off with reasons and cost.</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" @onclick='() => SetReport("movements")' class="w-full rounded-2xl border p-4 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 @(reportType == "movements" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-surface hover:border-line")">
+                    <span class="flex items-baseline justify-between gap-3">
+                        <span class="text-sm font-semibold text-txt-hi">Movement audit trail</span>
+                        <span class="text-[10px] font-medium uppercase tracking-widest text-txt-lo">Internal Audit</span>
+                    </span>
+                    <span class="mt-1.5 block text-[13px] leading-relaxed text-txt-mid">Every in, out, return, repair, install and write-off movement for the selected period.</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" @onclick='() => SetReport("components")' class="w-full rounded-2xl border p-4 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 @(reportType == "components" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-surface hover:border-line")">
+                    <span class="flex items-baseline justify-between gap-3">
+                        <span class="text-sm font-semibold text-txt-hi">Component & peripheral ledger</span>
+                        <span class="text-[10px] font-medium uppercase tracking-widest text-txt-lo">IT Asset Control</span>
+                    </span>
+                    <span class="mt-1.5 block text-[13px] leading-relaxed text-txt-mid">Each RAM, drive, power supply, mouse, keyboard, headset and licence with its host system and warranty.</span>
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Preview Pane -->
+    <section aria-label="Preview" class="min-w-0 flex flex-col overflow-hidden h-full">
+        <div class="no-print flex flex-wrap items-baseline justify-between gap-3">
+            <h2 class="text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Preview — @(reportType == "summary" ? "Inventory Summary" : reportType == "held" ? "Allocation Register" : reportType == "warranty" ? "Warranty Status" : "Report")
+            </h2>
+            <p class="text-xs text-txt-lo">
+                Standalone HTML · print-ready A4 layout
+            </p>
+        </div>
+        
+        <!-- A4 Page Container -->
+        <div class="mt-3 flex-1 overflow-y-auto bg-surface-soft p-4 md:p-8 custom-scrollbar print:p-0 print:overflow-visible">
+            <div class="mx-auto max-w-[210mm] min-h-[297mm] bg-surface rounded-2xl shadow-sm border border-line-soft p-10 lg:p-14 print:shadow-none print:border-none print:m-0 print:w-full">
+                
+                <!-- Report Header -->
+                <div class="flex items-start justify-between border-b border-line pb-6 mb-8">
+                        <div class="flex h-12 shrink-0 items-center">
+                            <img src="/assets/Blacklogo.png?v=5" class="h-full object-contain" alt="PrimeTech Solutions Ltd. Logo" />
+                        </div>
+                    <div class="text-right">
+                        <p class="text-xs text-txt-mid">Report generated</p>
+                        <p class="text-sm font-medium text-txt-hi">@DateTime.Now.ToString("dd MMM yyyy")</p>
+                    </div>
+                </div>
+
+                @if (reportType == "summary")
+                {
+                    <div>
+                        <h2 class="text-2xl font-bold text-txt-hi tracking-tight">Inventory summary</h2>
+                        <p class="mt-2 text-sm text-txt-mid">Headline position of every tracked system, component and peripheral.</p>
+                        <p class="text-xs italic text-txt-lo mt-1 mb-8">Prepared by IT Operations - Confidential — for management use</p>
+
+                        <!-- Top Stats -->
+                        <div class="grid grid-cols-4 gap-4 mb-10">
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Assets in circulation</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@totalAssetsCount</p>
+                                <p class="mt-1 text-xs text-txt-mid">@(totalAssetsCount + obsoleteCount) on record incl. written off</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Capital value at cost</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">BDT @totalCapitalValue.ToString("N0")</p>
+                                <p class="mt-1 text-xs text-txt-mid">Excludes obsolete assets</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Issued to staff</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@issuedAssetsCount</p>
+                                <p class="mt-1 text-xs text-txt-mid">@inStockAssetsCount available in stock</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Needs action</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@(inRepairCount + warrantyExpiringCount)</p>
+                                <p class="mt-1 text-xs text-txt-mid">@inRepairCount in repair · @warrantyExpiringCount warranty expiring</p>
+                            </div>
+                        </div>
+
+                        <!-- Data Table 1 -->
+                        <div class="mb-10">
+                            <h3 class="text-xs font-bold uppercase tracking-widest text-txt-hi mb-4 border-b border-line pb-2">Position by status</h3>
+                            <table class="w-full text-sm text-left">
+                                <thead>
+                                    <tr class="text-[11px] uppercase tracking-widest text-txt-mid">
+                                        <th class="py-2 font-semibold">Status</th>
+                                        <th class="py-2 font-semibold">Items</th>
+                                        <th class="py-2 font-semibold">Share</th>
+                                        <th class="py-2 font-semibold text-right">Value at Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line-soft">
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">Issued</td>
+                                        <td class="py-3">@issuedAssetsCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (issuedAssetsCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @issuedValue.ToString("N0")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">In inventory</td>
+                                        <td class="py-3">@inStockAssetsCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (inStockAssetsCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @inStockValue.ToString("N0")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">Installed</td>
+                                        <td class="py-3">@installedCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (installedCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @installedValue.ToString("N0")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">Obsolete</td>
+                                        <td class="py-3">@obsoleteCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (obsoleteCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @obsoleteValue.ToString("N0")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">Repair shop</td>
+                                        <td class="py-3">@inRepairCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (inRepairCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @inRepairValue.ToString("N0")</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Data Table 2 -->
+                        <div class="mb-10">
+                            <h3 class="text-xs font-bold uppercase tracking-widest text-txt-hi mb-4 border-b border-line pb-2">Position by asset kind</h3>
+                            <table class="w-full text-sm text-left">
+                                <thead>
+                                    <tr class="text-[11px] uppercase tracking-widest text-txt-mid">
+                                        <th class="py-2 font-semibold">Kind</th>
+                                        <th class="py-2 font-semibold">Items</th>
+                                        <th class="py-2 font-semibold">Share</th>
+                                        <th class="py-2 font-semibold text-right">Value at Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line-soft">
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">Systems</td>
+                                        <td class="py-3">@systemCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (systemCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @systemValue.ToString("N0")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">Components</td>
+                                        <td class="py-3">@componentCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (componentCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @componentValue.ToString("N0")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 font-medium text-txt-hi">Peripherals</td>
+                                        <td class="py-3">@peripheralCount</td>
+                                        <td class="py-3 text-txt-mid">@(totalAssetsCount > 0 ? (peripheralCount * 100 / totalAssetsCount) : 0)%</td>
+                                        <td class="py-3 text-right font-mono text-xs">BDT @peripheralValue.ToString("N0")</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+                else if (reportType == "held")
+                {
+                    <div>
+                        <h2 class="text-2xl font-bold text-txt-hi tracking-tight">Allocation register</h2>
+                        <p class="mt-2 text-sm text-txt-mid">Every asset currently issued, grouped by the employee responsible for it.</p>
+                        <p class="text-xs italic text-txt-lo mt-1 mb-8">Prepared by IT Operations - Confidential — for management use</p>
+
+                        <!-- Top Stats -->
+                        <div class="grid grid-cols-4 gap-4 mb-10">
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Assets issued</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@issuedAssetsCount</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Employees holding assets</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@allocationRows.Select(r => r.EmployeeName).Distinct().Count()</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Available in stock</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@inStockAssetsCount</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Value issued at cost</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">BDT @issuedValue.ToString("N0")</p>
+                            </div>
+                        </div>
+
+                        <!-- Data Table -->
+                        <div class="mb-10">
+                            <h3 class="text-xs font-bold uppercase tracking-widest text-txt-hi mb-4 border-b border-line pb-2">Allocation register</h3>
+                            <table class="w-full text-[10px] text-left">
+                                <thead>
+                                    <tr class="uppercase tracking-widest text-txt-mid">
+                                        <th class="py-2 font-semibold">Employee</th>
+                                        <th class="py-2 font-semibold">Employee ID</th>
+                                        <th class="py-2 font-semibold">Designation</th>
+                                        <th class="py-2 font-semibold">Asset ID</th>
+                                        <th class="py-2 font-semibold">Item / Serial</th>
+                                        <th class="py-2 font-semibold">Type</th>
+                                        <th class="py-2 font-semibold">Specification</th>
+                                        <th class="py-2 font-semibold">Issued On</th>
+                                        <th class="py-2 font-semibold text-right">Warranty</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line-soft align-top">
+                                    @foreach (var row in allocationRows)
+                                    {
+                                        <tr>
+                                            <td class="py-3 font-medium text-txt-hi pr-2">@row.EmployeeName</td>
+                                            <td class="py-3 text-txt-mid font-mono pr-2">@row.EmployeeId</td>
+                                            <td class="py-3 text-txt-mid pr-2">@row.Designation</td>
+                                            <td class="py-3 text-txt-hi font-medium font-mono pr-2">@row.AssetId</td>
+                                            <td class="py-3 text-txt-mid pr-2">
+                                                <span class="block">@row.ItemName</span>
+                                                <span class="block text-txt-mid font-mono mt-0.5">@row.Serial</span>
+                                            </td>
+                                            <td class="py-3 text-txt-mid pr-2">@row.Type</td>
+                                            <td class="py-3 text-txt-mid pr-2 max-w-[140px] truncate" title="@row.Specification">@row.Specification</td>
+                                            <td class="py-3 text-txt-mid font-medium whitespace-nowrap pr-2">@row.IssuedOn</td>
+                                            <td class="py-3 text-right">
+                                                @if (row.WarrantyStatus == "No cover")
+                                                {
+                                                    <span class="inline-flex items-center rounded bg-elevated px-1.5 py-0.5 text-[9px] font-medium text-txt-mid">No cover</span>
+                                                }
+                                                else if (row.WarrantyStatus.StartsWith("Expired"))
+                                                {
+                                                    <span class="inline-flex items-center rounded bg-danger-soft px-1.5 py-0.5 text-[9px] font-medium text-danger-600">@row.WarrantyStatus</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="inline-flex items-center rounded bg-success-soft px-1.5 py-0.5 text-[9px] font-medium text-success-600">@row.WarrantyStatus</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+                else if (reportType == "warranty")
+                {
+                    <div>
+                        <h2 class="text-2xl font-bold text-txt-hi tracking-tight">Warranty status</h2>
+                        <p class="mt-2 text-sm text-txt-mid">Warranty cover for every individually tracked asset, including each component and licence.</p>
+                        <p class="text-xs italic text-txt-lo mt-1 mb-8">Prepared by IT Operations - Confidential — for management use</p>
+
+                        <!-- Top Stats -->
+                        <div class="grid grid-cols-4 gap-4 mb-10">
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">In warranty</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@inWarrantyCount</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Expiring in 90 days</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@warrantyExpiringCount</p>
+                                @if (warrantyExpiringCount > 0)
+                                {
+                                    <p class="mt-1 text-xs text-danger-500 font-medium">Action required</p>
+                                }
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">Expired</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@expiredWarrantyCount</p>
+                            </div>
+                            <div class="rounded-xl border border-line bg-canvas p-4">
+                                <h3 class="text-[10px] font-medium uppercase tracking-widest text-txt-mid">No cover</h3>
+                                <p class="mt-2 text-2xl font-semibold text-txt-hi">@noCoverCount</p>
+                            </div>
+                        </div>
+
+                        <!-- Data Table -->
+                        <div class="mb-10">
+                            <h3 class="text-xs font-bold uppercase tracking-widest text-txt-hi mb-4 border-b border-line pb-2">Warranty position — Soonest expiry first</h3>
+                            <table class="w-full text-[10px] text-left">
+                                <thead>
+                                    <tr class="uppercase tracking-widest text-txt-mid">
+                                        <th class="py-2 font-semibold">Asset ID</th>
+                                        <th class="py-2 font-semibold">Item</th>
+                                        <th class="py-2 font-semibold">Type</th>
+                                        <th class="py-2 font-semibold">Serial</th>
+                                        <th class="py-2 font-semibold">Supplier</th>
+                                        <th class="py-2 font-semibold">Purchased</th>
+                                        <th class="py-2 font-semibold text-center">Warranty</th>
+                                        <th class="py-2 font-semibold">Ends</th>
+                                        <th class="py-2 font-semibold text-center">Remaining</th>
+                                        <th class="py-2 font-semibold text-right">Held By</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line-soft align-top">
+                                    @foreach (var row in warrantyRows)
+                                    {
+                                        <tr>
+                                            <td class="py-3 font-medium text-txt-hi font-mono pr-2">@row.AssetId</td>
+                                            <td class="py-3 text-txt-mid pr-2">@row.ItemName</td>
+                                            <td class="py-3 text-txt-mid pr-2 whitespace-pre-line">@row.Type.Replace(" · ", "\n· ")</td>
+                                            <td class="py-3 text-txt-mid font-mono pr-2">@row.Serial</td>
+                                            <td class="py-3 text-txt-mid pr-2">@row.Supplier</td>
+                                            <td class="py-3 text-txt-mid font-medium whitespace-nowrap pr-2">@row.PurchasedOn</td>
+                                            <td class="py-3 text-txt-mid text-center whitespace-nowrap pr-2">@row.WarrantyDuration</td>
+                                            <td class="py-3 text-txt-mid font-medium whitespace-nowrap pr-2">@row.EndsOn</td>
+                                            <td class="py-3 text-center whitespace-nowrap pr-2">
+                                                @if (row.Remaining == "No cover")
+                                                {
+                                                    <span class="inline-flex items-center rounded bg-elevated px-1.5 py-0.5 text-[9px] font-medium text-txt-mid">No cover</span>
+                                                }
+                                                else if (row.Remaining.StartsWith("Expired"))
+                                                {
+                                                    <span class="inline-flex items-center rounded bg-danger-soft px-1.5 py-0.5 text-[9px] font-medium text-danger-600">@row.Remaining</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="inline-flex items-center rounded bg-success-soft px-1.5 py-0.5 text-[9px] font-medium text-success-600">@row.Remaining</span>
+                                                }
+                                            </td>
+                                            <td class="py-3 text-txt-mid text-right">@row.HeldBy</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="flex flex-col items-center justify-center py-20 text-center">
+                        <div class="rounded-full bg-canvas p-4 border border-line-soft mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+                        </div>
+                        <h3 class="text-base font-semibold text-txt-hi">Report preview not fully implemented</h3>
+                        <p class="mt-1 text-sm text-txt-mid max-w-sm">This preview is currently only wired up for the "Inventory summary" report in this prototype.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+    /* Custom scrollbar for preview and sidebar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: var(--line-strong);
+        border-radius: 10px;
+    }
+    .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+        background-color: var(--txt-lo);
+    }
+</style>
+
+@code {
+    private string reportType = "summary";
+    private List<Device> allDevices = new();
+    private List<Employee> allEmployees = new();
+    private List<Handover> activeHandovers = new();
+
+    // Summary Stats
+    private int totalAssetsCount;
+    private double totalCapitalValue;
+    private int issuedAssetsCount;
+    private double issuedValue;
+    private int inStockAssetsCount;
+    private double inStockValue;
+    private int obsoleteCount;
+    private double obsoleteValue;
+    private int inRepairCount;
+    private double inRepairValue;
+    private int installedCount;
+    private double installedValue;
+    private int systemCount;
+    private double systemValue;
+    private int componentCount;
+    private double componentValue;
+    private int peripheralCount;
+    private double peripheralValue;
+
+    // Warranty Stats
+    private int inWarrantyCount;
+    private int warrantyExpiringCount;
+    private int expiredWarrantyCount;
+    private int noCoverCount;
+
+    // Rows
+    private List<AllocationRow> allocationRows = new();
+    private List<WarrantyRow> warrantyRows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        allDevices = await DeviceService.GetDevicesAsync();
+        allEmployees = await EmployeeService.GetEmployeesAsync(false);
+        var actEmps = await EmployeeService.GetEmployeesAsync(true);
+        allEmployees.AddRange(actEmps);
+        allEmployees = allEmployees.GroupBy(e => e.Id).Select(g => g.First()).ToList();
+
+        var handovers = await HandoverService.GetHandoversAsync();
+        activeHandovers = handovers.Where(h => h.ReturnDate == null).ToList();
+        
+        CalculateSummaryStats();
+        BuildAllocationRows();
+        BuildWarrantyRows();
+    }
+
+    private void CalculateSummaryStats()
+    {
+        var activeDevices = allDevices.Where(d => d.Status != DeviceStatus.WrittenOff).ToList();
+        
+        totalAssetsCount = activeDevices.Count;
+        totalCapitalValue = activeDevices.Sum(d => (double)(d.AssetAmount ?? 0));
+        
+        var issued = allDevices.Where(d => d.Status == DeviceStatus.InUse).ToList();
+        issuedAssetsCount = issued.Count;
+        issuedValue = issued.Sum(d => (double)(d.AssetAmount ?? 0));
+        
+        var inStock = allDevices.Where(d => d.Status == DeviceStatus.InStore).ToList();
+        inStockAssetsCount = inStock.Count;
+        inStockValue = inStock.Sum(d => (double)(d.AssetAmount ?? 0));
+        
+        var repairs = allDevices.Where(d => d.Status == DeviceStatus.InRepair).ToList();
+        inRepairCount = repairs.Count;
+        inRepairValue = repairs.Sum(d => (double)(d.AssetAmount ?? 0));
+        
+        var obsolete = allDevices.Where(d => d.Status == DeviceStatus.WrittenOff).ToList();
+        obsoleteCount = obsolete.Count;
+        obsoleteValue = obsolete.Sum(d => (double)(d.AssetAmount ?? 0));
+        
+        installedCount = allDevices.Count(d => d.ParentDeviceId != null);
+        installedValue = allDevices.Where(d => d.ParentDeviceId != null).Sum(d => (double)(d.AssetAmount ?? 0));
+
+        warrantyExpiringCount = activeDevices.Count(d => d.HasWarranty && d.WarrantyEndDate.HasValue && (d.WarrantyEndDate.Value - DateTime.Now).TotalDays >= 0 && (d.WarrantyEndDate.Value - DateTime.Now).TotalDays <= 90);
+        inWarrantyCount = activeDevices.Count(d => d.HasWarranty && d.WarrantyEndDate.HasValue && (d.WarrantyEndDate.Value - DateTime.Now).TotalDays > 90);
+        expiredWarrantyCount = activeDevices.Count(d => d.HasWarranty && d.WarrantyEndDate.HasValue && (d.WarrantyEndDate.Value - DateTime.Now).TotalDays < 0);
+        noCoverCount = activeDevices.Count(d => !d.HasWarranty);
+
+        var systems = activeDevices.Where(d => IsSystem(d.Category)).ToList();
+        systemCount = systems.Count;
+        systemValue = systems.Sum(d => (double)(d.AssetAmount ?? 0));
+
+        var components = activeDevices.Where(d => d.IsComponent).ToList();
+        componentCount = components.Count;
+        componentValue = components.Sum(d => (double)(d.AssetAmount ?? 0));
+
+        var peripherals = activeDevices.Where(d => !IsSystem(d.Category) && !d.IsComponent).ToList();
+        peripheralCount = peripherals.Count;
+        peripheralValue = peripherals.Sum(d => (double)(d.AssetAmount ?? 0));
+    }
+
+    private void BuildAllocationRows()
+    {
+        allocationRows.Clear();
+        foreach (var dev in allDevices.Where(d => d.Status == DeviceStatus.InUse))
+        {
+            var handover = activeHandovers.OrderByDescending(h => h.Id).FirstOrDefault(h => h.DeviceId == dev.Id);
+            var empName = handover?.To ?? dev.UserName;
+            var emp = allEmployees.FirstOrDefault(e => string.Equals(e.Name, empName, StringComparison.OrdinalIgnoreCase));
+            
+            var specs = new List<string>();
+            if (!string.IsNullOrEmpty(dev.Processor)) specs.Add(dev.Processor);
+            if (!string.IsNullOrEmpty(dev.Ram)) specs.Add(dev.Ram);
+            if (!string.IsNullOrEmpty(dev.Ssd)) specs.Add(dev.Ssd);
+            if (!string.IsNullOrEmpty(dev.Hdd)) specs.Add(dev.Hdd);
+
+            allocationRows.Add(new AllocationRow
+            {
+                EmployeeName = empName,
+                EmployeeId = emp?.EmployeeId ?? "-",
+                Designation = emp?.Designation ?? "-",
+                AssetId = string.IsNullOrEmpty(dev.AssetTag) ? dev.Id.ToString() : dev.AssetTag,
+                ItemName = $"{dev.Brand} {dev.DeviceName}",
+                Serial = dev.Serial ?? "-",
+                Type = dev.IsComponent ? "Component" : dev.DeviceTypeDisplay == "System" ? $"System · {dev.Category}" : $"Peripheral · {dev.Category}",
+                Specification = specs.Any() ? string.Join(" · ", specs) : "—",
+                IssuedOn = handover != null && DateTime.TryParse(handover.Released, out var rd) ? rd.ToString("d MMM yyyy") : "-",
+                WarrantyStatus = GetWarrantyBadgeText(dev)
+            });
+        }
+        allocationRows = allocationRows.OrderBy(r => r.EmployeeName).ToList();
+    }
+
+    private void BuildWarrantyRows()
+    {
+        warrantyRows.Clear();
+        foreach (var dev in allDevices.Where(d => d.Status != DeviceStatus.WrittenOff))
+        {
+            warrantyRows.Add(new WarrantyRow
+            {
+                AssetId = string.IsNullOrEmpty(dev.AssetTag) ? dev.Id.ToString() : dev.AssetTag,
+                ItemName = $"{dev.Brand} {dev.DeviceName}",
+                Type = dev.IsComponent ? "Component" : dev.DeviceTypeDisplay == "System" ? $"System · {dev.Category}" : $"Peripheral · {dev.Category}",
+                Serial = dev.Serial ?? "-",
+                Supplier = dev.From ?? "—",
+                PurchasedOn = dev.ProcurementDate?.ToString("d MMM yyyy") ?? "—",
+                WarrantyDuration = dev.WarrantyMonths > 0 ? $"{dev.WarrantyMonths} months" : "—",
+                EndsOn = dev.WarrantyEndDate?.ToString("d MMM yyyy") ?? "—",
+                Remaining = GetWarrantyBadgeText(dev),
+                HeldBy = dev.Status == DeviceStatus.InUse ? (dev.UserName ?? "Employee") : dev.Status == DeviceStatus.InStore ? "IT inventory" : dev.Status == DeviceStatus.InRepair ? "Repair shop" : "—",
+                DaysRemaining = dev.WarrantyEndDate.HasValue ? (dev.WarrantyEndDate.Value - DateTime.Now).TotalDays : int.MaxValue
+            });
+        }
+        warrantyRows = warrantyRows.OrderBy(r => r.DaysRemaining).ToList();
+    }
+
+    private string GetWarrantyBadgeText(Device dev)
+    {
+        if (!dev.HasWarranty || !dev.WarrantyEndDate.HasValue) return "No cover";
+        var days = (dev.WarrantyEndDate.Value - DateTime.Now).TotalDays;
+        if (days < 0) return $"Expired {(int)Math.Abs(days)}d";
+        return $"{(int)days}d left";
+    }
+
+    private bool IsSystem(string category)
+    {
+        var sys = category?.ToLower() ?? "";
+        return sys.Contains("laptop") || sys.Contains("desktop") || sys.Contains("server") || sys.Contains("macbook") || sys.Contains("mobile") || sys.Contains("phone") || sys.Contains("tablet");
+    }
+
+    private void SetReport(string type)
+    {
+        reportType = type;
+    }
+
+    private async Task PrintReport()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    public class AllocationRow
+    {
+        public string EmployeeName { get; set; }
+        public string EmployeeId { get; set; }
+        public string Designation { get; set; }
+        public string AssetId { get; set; }
+        public string ItemName { get; set; }
+        public string Serial { get; set; }
+        public string Type { get; set; }
+        public string Specification { get; set; }
+        public string IssuedOn { get; set; }
+        public string WarrantyStatus { get; set; }
+    }
+
+    public class WarrantyRow
+    {
+        public string AssetId { get; set; }
+        public string ItemName { get; set; }
+        public string Type { get; set; }
+        public string Serial { get; set; }
+        public string Supplier { get; set; }
+        public string PurchasedOn { get; set; }
+        public string WarrantyDuration { get; set; }
+        public string EndsOn { get; set; }
+        public string Remaining { get; set; }
+        public string HeldBy { get; set; }
+        public double DaysRemaining { get; set; }
+    }
+}

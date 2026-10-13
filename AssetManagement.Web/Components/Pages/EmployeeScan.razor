@@ -1,0 +1,370 @@
+@page "/e/{Token}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+@layout AssetManagement.Web.Components.Layout.EmptyLayout
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@inject EmployeeService EmployeeService
+@inject HandoverService HandoverService
+@inject DeviceService DeviceService
+@inject NavigationManager NavigationManager
+
+@if (isLoading)
+{
+    <div class="flex h-screen items-center justify-center bg-canvas">
+        <div class="h-8 w-8 animate-spin rounded-full border-4 border-line border-t-accent-500"></div>
+    </div>
+}
+else if (accessDenied)
+{
+    <div class="flex h-screen flex-col items-center justify-center bg-canvas text-center px-4">
+        <svg style="width:64px;height:64px;margin:0 auto 16px auto;stroke:currentColor;fill:none;" viewBox="0 0 24 24" stroke-width="1.5" class="text-danger-500"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+        <h1 class="text-2xl font-bold text-danger-500">Access Denied</h1>
+        <p class="mt-2 text-sm text-txt-mid">Invalid security token. You cannot access this employee's information.</p>
+
+    </div>
+}
+else if (employee == null)
+{
+    <div class="flex h-screen items-center justify-center bg-canvas">
+        <p class="text-txt-mid">Employee not found.</p>
+    </div>
+}
+else
+{
+    <style>
+        details > summary { list-style: none; list-style-type: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details > summary::marker { display: none; }
+    </style>
+    <div class="min-h-screen bg-canvas pb-12">
+        <div class="max-w-xl mx-auto px-6 pb-6 pt-12">
+            <div class="flex flex-col items-center">
+                <div class="h-24 w-24 overflow-hidden rounded-full border-4 border-white shadow-md bg-slate-100 flex items-center justify-center">
+                    @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
+                    {
+                        <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="h-full w-full object-cover" />
+                    }
+                    else
+                    {
+                        <span class="text-3xl font-bold text-slate-400">@GetInitials(employee.Name)</span>
+                    }
+                </div>
+                <h1 class="mt-4 text-[1.75rem] font-bold tracking-tight text-txt-hi text-center">@employee.Name</h1>
+                <p class="mt-1 text-sm font-medium text-txt-mid text-center">@employee.Designation &middot; @employee.Department</p>
+                <div class="mt-3 flex gap-2 justify-center">
+                    @if(employee.IsActive)
+                    {
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-600/20">
+                            <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span> Inactive
+                        </span>
+                    }
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                        @employee.EmployeeId
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-xl mx-auto px-4 space-y-6">
+            <div class="rounded-xl bg-surface p-5 shadow-sm border border-line-soft">
+                <h2 class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-4">Contact Info</h2>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-txt-mid">Email</span>
+                        <a href="mailto:@employee.Email" class="text-sm font-medium text-accent-500 truncate max-w-[200px]">@(string.IsNullOrEmpty(employee.Email) ? "—" : employee.Email)</a>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-txt-mid">Phone</span>
+                        <a href="tel:@employee.Contact" class="text-sm font-medium text-accent-500">@(string.IsNullOrEmpty(employee.Contact) ? "—" : employee.Contact)</a>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-txt-mid">Location</span>
+                        <span class="text-sm font-medium text-txt-hi">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Assets Overview & Category Breakdown -->
+            <div class="rounded-xl bg-surface p-5 shadow-sm border border-line-soft">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-[10px] font-bold uppercase tracking-widest text-txt-lo">Assets Currently Held</h2>
+                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                        @heldItems.Count Total
+                    </span>
+                </div>
+
+                @if (heldItems.Count > 0)
+                {
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-2xl font-bold text-txt-hi">@heldItems.Count</span>
+                        <span class="text-sm text-txt-mid font-medium">in physical possession.</span>
+                    </div>
+
+                    <!-- Category filter chips -->
+                    <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                        @foreach (var group in heldItems.GroupBy(d => string.IsNullOrWhiteSpace(d.Category) ? "Other" : d.Category))
+                        {
+                            var isSelected = string.Equals(selectedCategoryFilter, group.Key, StringComparison.OrdinalIgnoreCase);
+                            var colors = GetCategoryColors(group.Key);
+                            <button type="button" 
+                                    @onclick="() => ToggleCategory(group.Key)" 
+                                    class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ring-1 transition-all cursor-pointer @(isSelected ? "ring-2 ring-accent-500 bg-accent-500 text-white shadow-md scale-105" : $"ring-inset shadow-xs hover:scale-105 hover:ring-accent-400 hover:shadow-sm {colors.mainClass}")"
+                                    title="@(isSelected ? $"Click to show all (remove {group.Key} filter)" : $"Click to filter by {group.Key}")">
+                                @group.Key
+                                <span class="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold @(isSelected ? "bg-white text-accent-600" : colors.badgeClass)">
+                                    @group.Count()
+                                </span>
+                            </button>
+                        }
+                        @if (!string.IsNullOrEmpty(selectedCategoryFilter))
+                        {
+                            <button type="button" @onclick="ClearCategoryFilter" class="inline-flex items-center gap-1 rounded-md bg-canvas px-2 py-1 text-xs font-medium text-txt-lo hover:text-danger-600 hover:bg-danger-soft border border-line-soft transition-colors cursor-pointer" title="Clear category filter">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <span>Clear filter</span>
+                            </button>
+                        }
+                    </div>
+
+                    @if (repairItems.Count > 0)
+                    {
+                        <div class="mt-3.5 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-900 border border-amber-200/80">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 shrink-0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            <span><strong>@repairItems.Count @(repairItems.Count == 1 ? "device" : "devices")</strong> currently in repair at vendor (temporarily surrendered).</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-sm text-txt-lo">No devices currently in hand.</div>
+                }
+            </div>
+
+            <!-- Card 3: Assigned Items List -->
+            @if (heldItems.Count > 0)
+            {
+                <div class="rounded-xl bg-surface p-5 shadow-sm border border-line-soft">
+                    <div class="flex items-center justify-between border-b border-line-soft pb-3 mb-4">
+                        <div>
+                            <h2 class="text-[10px] font-bold uppercase tracking-widest text-txt-lo">Assigned Items List</h2>
+                            <p class="text-xs text-txt-mid mt-0.5">
+                                @if (!string.IsNullOrEmpty(selectedCategoryFilter))
+                                {
+                                    <span>Showing <strong>@FilteredHeldItems.Count()</strong> @selectedCategoryFilter @(FilteredHeldItems.Count() == 1 ? "asset" : "assets")</span>
+                                }
+                                else
+                                {
+                                    <span>Showing all <strong>@FilteredHeldItems.Count()</strong> physical items</span>
+                                }
+                            </p>
+                        </div>
+                        @if (!string.IsNullOrEmpty(selectedCategoryFilter))
+                        {
+                            <button type="button" @onclick="ClearCategoryFilter" class="inline-flex items-center gap-1 rounded-md bg-canvas px-2.5 py-1 text-xs font-semibold text-accent-600 hover:text-accent-700 border border-line transition-colors">
+                                <span>Show all</span>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="divide-y divide-line-soft">
+                        @foreach (var device in FilteredHeldItems)
+                        {
+                            <details class="group py-3 first:pt-0 last:pb-0">
+                                <summary class="cursor-pointer hover:bg-slate-50 transition-colors p-2.5 -m-1 rounded-lg list-none [&::-webkit-details-marker]:hidden" style="list-style: none;">
+                                    <div class="flex items-center justify-between w-full pointer-events-none">
+                                        <div>
+                                            <div class="font-semibold text-txt-hi text-sm group-hover:text-accent-500 transition-colors pointer-events-auto">@device.Brand @device.DeviceName</div>
+                                            <div class="flex items-center gap-2 mt-1 pointer-events-auto">
+                                                <AssetManagement.Web.Components.Shared.AssetTypeBadge Device="@device" />
+                                                <span class="text-xs text-txt-mid font-mono font-medium">@(string.IsNullOrEmpty(device.AssetTag) ? device.Id.ToString() : device.AssetTag)</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2.5 pointer-events-auto">
+                                            <span class="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 ring-1 ring-inset ring-blue-300">
+                                                @(device.Status == DeviceStatus.InRepair ? "Under Repair" : (string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition))
+                                            </span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo group-hover:text-accent-500 transition-transform group-open:rotate-90"><path d="m9 18 6-6-6-6"/></svg>
+                                        </div>
+                                    </div>
+                                </summary>
+                                
+                                <div class="mt-3 rounded-xl bg-slate-50/50 p-4 border border-line-soft">
+                                    <h3 class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-3">Item Details</h3>
+                                    <div class="space-y-2.5">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-txt-mid">Serial number</span>
+                                            <span class="rounded-md bg-elevated px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi uppercase border border-line-soft">@device.Serial</span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-txt-mid">Category</span>
+                                            <span class="rounded-md bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-800">@device.Category</span>
+                                        </div>
+                                        <div class="flex items-start justify-between gap-2">
+                                            <span class="text-xs text-txt-mid whitespace-nowrap">Specification</span>
+                                            <span class="rounded-md bg-cyan-100 px-2 py-0.5 text-[11px] font-medium text-cyan-800 text-right">@(string.Join(" · ", new[] { (device.Category == "Monitor" ? device.DeviceName : null), device.Processor, device.Ram, device.Ssd, device.Hdd, device.MonitorDisplay }.Where(s => !string.IsNullOrWhiteSpace(s))))</span>
+                                        </div>
+                                        <div class="my-2.5 border-t border-line-soft"></div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-txt-mid">Supplier</span>
+                                            <span class="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">@(string.IsNullOrEmpty(device.From) ? "—" : device.From)</span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-txt-mid">Purchase date</span>
+                                            <span class="rounded-md bg-pink-100 px-2 py-0.5 text-[11px] font-medium text-pink-800">@(device.ProcurementDate?.ToString("d MMM yyyy") ?? "—")</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+                        }
+                        @if (!FilteredHeldItems.Any())
+                        {
+                            <div class="py-4 text-center text-sm text-txt-mid italic">
+                                No assets in "@selectedCategoryFilter" category.
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private Employee? employee;
+    private List<Device> heldItems = new();
+    private List<Device> repairItems = new();
+    private string? selectedCategoryFilter;
+    private bool isLoading = true;
+    private bool accessDenied = false;
+
+    private IEnumerable<Device> FilteredHeldItems => 
+        string.IsNullOrEmpty(selectedCategoryFilter)
+            ? heldItems
+            : heldItems.Where(d => string.Equals(d.Category, selectedCategoryFilter, StringComparison.OrdinalIgnoreCase));
+
+    private void ToggleCategory(string category)
+    {
+        if (string.Equals(selectedCategoryFilter, category, StringComparison.OrdinalIgnoreCase))
+        {
+            selectedCategoryFilter = null;
+        }
+        else
+        {
+            selectedCategoryFilter = category;
+        }
+    }
+
+    private void ClearCategoryFilter()
+    {
+        selectedCategoryFilter = null;
+    }
+
+    private (string mainClass, string badgeClass, string iconClass, string typeBadgeClass) GetCategoryColors(string category)
+    {
+        return category?.ToLower() switch
+        {
+            "laptop" => ("bg-blue-50 text-blue-700 ring-blue-600/20", "bg-blue-100 text-blue-800", "text-blue-500", "bg-blue-50 text-blue-700 ring-blue-600/20"),
+            "desktop" => ("bg-indigo-50 text-indigo-700 ring-indigo-600/20", "bg-indigo-100 text-indigo-800", "text-indigo-500", "bg-indigo-50 text-indigo-700 ring-indigo-600/20"),
+            "monitor" => ("bg-purple-50 text-purple-700 ring-purple-600/20", "bg-purple-100 text-purple-800", "text-purple-500", "bg-purple-50 text-purple-700 ring-purple-600/20"),
+            "test server" => ("bg-rose-50 text-rose-700 ring-rose-600/20", "bg-rose-100 text-rose-800", "text-rose-500", "bg-rose-50 text-rose-700 ring-rose-600/20"),
+            "server" => ("bg-rose-50 text-rose-700 ring-rose-600/20", "bg-rose-100 text-rose-800", "text-rose-500", "bg-rose-50 text-rose-700 ring-rose-600/20"),
+            "mobile" => ("bg-emerald-50 text-emerald-700 ring-emerald-600/20", "bg-emerald-100 text-emerald-800", "text-emerald-500", "bg-emerald-50 text-emerald-700 ring-emerald-600/20"),
+            "peripheral" => ("bg-amber-50 text-amber-700 ring-amber-600/20", "bg-amber-100 text-amber-800", "text-amber-500", "bg-amber-50 text-amber-700 ring-amber-600/20"),
+            "ssd" => ("bg-cyan-50 text-cyan-700 ring-cyan-600/20", "bg-cyan-100 text-cyan-800", "text-cyan-500", "bg-cyan-50 text-cyan-700 ring-cyan-600/20"),
+            "hdd" => ("bg-teal-50 text-teal-700 ring-teal-600/20", "bg-teal-100 text-teal-800", "text-teal-500", "bg-teal-50 text-teal-700 ring-teal-600/20"),
+            "ram" => ("bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20", "bg-fuchsia-100 text-fuchsia-800", "text-fuchsia-500", "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20"),
+            "power supply" => ("bg-orange-50 text-orange-700 ring-orange-600/20", "bg-orange-100 text-orange-800", "text-orange-500", "bg-orange-50 text-orange-700 ring-orange-600/20"),
+            _ => ("bg-slate-50 text-slate-700 ring-slate-600/20", "bg-slate-200 text-slate-800", "text-slate-500", "bg-slate-50 text-slate-700 ring-slate-600/20")
+        };
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            accessDenied = true;
+            isLoading = false;
+            return;
+        }
+
+        var cleanToken = Uri.UnescapeDataString(Token.Trim().TrimEnd('/'));
+
+        // 1. Look up by hashed random security token
+        var tokenHash = AssetManagement.Web.Helpers.SecurityHelper.HashToken(cleanToken);
+        employee = await EmployeeService.GetEmployeeByQrTokenAsync(tokenHash);
+        
+        // 2. Direct lookup by employee GUID
+        if (employee == null)
+        {
+            employee = await EmployeeService.GetEmployeeByIdAsync(cleanToken);
+        }
+
+        // 3. Lookup by employee ID (e.g. PTSL065, PTSL-065)
+        if (employee == null)
+        {
+            var allEmps = await EmployeeService.GetEmployeesAsync(includeInactive: true);
+            var normalizedToken = cleanToken.Replace("-", "").Trim();
+
+            employee = allEmps.FirstOrDefault(e => 
+                string.Equals(e.EmployeeId?.Trim(), cleanToken, StringComparison.OrdinalIgnoreCase) || 
+                string.Equals(e.Id?.Trim(), cleanToken, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(e.EmployeeId) && string.Equals(e.EmployeeId.Replace("-", "").Trim(), normalizedToken, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (employee != null)
+        {
+            var allDevices = await DeviceService.GetDevicesAsync();
+            var empId = employee.EmployeeId?.Trim() ?? "";
+            var empIdNorm = empId.Replace("-", "");
+            var empName = employee.Name?.Trim() ?? "";
+
+            heldItems = allDevices.Where(d => 
+                ((!string.IsNullOrEmpty(d.EmployeeId) && (
+                    string.Equals(d.EmployeeId.Trim(), empId, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(empIdNorm) && string.Equals(d.EmployeeId.Replace("-", "").Trim(), empIdNorm, StringComparison.OrdinalIgnoreCase))
+                )) || 
+                (!string.IsNullOrEmpty(d.UserName) && string.Equals(d.UserName.Trim(), empName, StringComparison.OrdinalIgnoreCase))) &&
+                d.Status == DeviceStatus.InUse
+            ).ToList();
+
+            repairItems = allDevices.Where(d => 
+                ((!string.IsNullOrEmpty(d.EmployeeId) && (
+                    string.Equals(d.EmployeeId.Trim(), empId, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(empIdNorm) && string.Equals(d.EmployeeId.Replace("-", "").Trim(), empIdNorm, StringComparison.OrdinalIgnoreCase))
+                )) || 
+                (!string.IsNullOrEmpty(d.UserName) && string.Equals(d.UserName.Trim(), empName, StringComparison.OrdinalIgnoreCase))) &&
+                d.Status == DeviceStatus.InRepair
+            ).ToList();
+        }
+        else
+        {
+            accessDenied = true;
+        }
+
+        isLoading = false;
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "??";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+}
+
+
+

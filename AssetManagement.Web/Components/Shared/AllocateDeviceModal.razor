@@ -1,0 +1,312 @@
+@using AssetManagement.Core.Entities
+@using AssetManagement.Web.Models
+@inject AssetManagement.Core.Interfaces.ISettingsService SettingsService
+
+<Modal IsOpen="IsOpen" IsOpenChanged="HandleModalOpenChanged" 
+       Title="Issue & Allocate Asset" 
+       Description="Allocate Systems, Components, Peripherals, or Servers to an individual employee or to a Team / Common Pool for shared use.">
+       
+    <EditForm Model="@handover" OnValidSubmit="HandleSubmit" class="space-y-4">
+        <DataAnnotationsValidator />
+
+        <!-- 1. Items to allocate -->
+        <FormField Label="Items to allocate" Id="allocate-item">
+            @if (selectedDeviceIds.Any())
+            {
+                <div class="mb-3 flex flex-wrap gap-2">
+                    @foreach (var id in selectedDeviceIds)
+                    {
+                        var d = AvailableDevices.FirstOrDefault(x => x.Id == id);
+                        if (d != null)
+                        {
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-accent-50 px-2.5 py-1 text-xs font-medium text-accent-700 ring-1 ring-inset ring-accent-600/20">
+                                @(string.IsNullOrEmpty(d.AssetTag) ? d.Id.ToString() : d.AssetTag) - @d.Brand @d.DeviceName (@d.Category)
+                                <button type="button" @onclick="() => RemoveDevice(id)" class="text-accent-500 hover:text-accent-700 ml-1">
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </span>
+                        }
+                    }
+                </div>
+            }
+
+            <SearchableSelect Value="@currentSelection"
+                              ValueChanged="EventCallback.Factory.Create<string>(this, HandleDeviceSelected)"
+                              Options="@(AvailableDevices.Where(d => !selectedDeviceIds.Contains(d.Id)).Select(d => new SelectOption { Value = d.Id, Text = $"{(string.IsNullOrEmpty(d.AssetTag) ? d.Id.ToString() : d.AssetTag)} - {d.Brand} {d.DeviceName} ({d.Category})" }).ToList())"
+                              Placeholder="Search and select items..."
+                              InputClass="@InputClass"
+                              AllowClear="true" />
+            
+            @if(!selectedDeviceIds.Any()) {
+                <p class="mt-1.5 text-xs text-txt-lo">Only items sitting in Inventory/Store can be allocated.</p>
+            }
+        </FormField>
+
+        <!-- 2. Target Selector: Employee vs Team -->
+        <div>
+            <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Allocation Target</label>
+            <div class="grid grid-cols-2 p-1 bg-surface border border-line rounded-xl gap-1">
+                <button type="button" 
+                        @onclick="() => SetTargetType(TargetType.Employee)"
+                        class="py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 @(targetType == TargetType.Employee ? "bg-accent-500 text-white shadow-xs font-bold" : "text-txt-mid hover:text-txt-hi")">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    Individual Employee
+                </button>
+                <button type="button" 
+                        @onclick="() => SetTargetType(TargetType.Team)"
+                        class="py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 @(targetType == TargetType.Team ? "bg-accent-500 text-white shadow-xs font-bold" : "text-txt-mid hover:text-txt-hi")">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    Team / Common Pool
+                </button>
+            </div>
+        </div>
+
+        @if (targetType == TargetType.Employee)
+        {
+            <!-- Employee Selector -->
+            <FormField Label="Allocate to Employee" Id="allocate-employee">
+                <SearchableSelect @bind-Value="handover.To"
+                                  Options="@(ActiveEmployees.Where(e => !e.IsTeamAccount).Select(e => new SelectOption { Value = e.Name, Text = $"{e.Name} ({e.Designation}) - {e.EmployeeId}" }).ToList())"
+                                  Placeholder="Select an employee..."
+                                  InputClass="@InputClass"
+                                  AllowClear="true" />
+            </FormField>
+
+            <FormField Label="Replaces (optional)" Id="allocate-replaces" Hint="Pick the item this allocation replaces — it is returned to inventory automatically.">
+                <SearchableSelect @bind-Value="replacesDeviceId"
+                                  Options="@(CurrentHoldings.Select(d => new SelectOption { Value = d.Id, Text = $"{(string.IsNullOrEmpty(d.AssetTag) ? d.Serial : d.AssetTag)} — {d.Brand}" }).ToList())"
+                                  Placeholder="Nothing currently issued to this person"
+                                  InputClass="@InputClass"
+                                  AllowClear="true" />
+            </FormField>
+        }
+        else
+        {
+            <!-- Team / Common Pool Selector -->
+            <FormField Label="Allocate to Team / Common Pool" Id="allocate-team">
+                <div class="space-y-2">
+                    <SearchableSelect @bind-Value="selectedTeam"
+                                      Options="@GetTeamOptions()"
+                                      Placeholder="Select a team or common pool..."
+                                      InputClass="@InputClass"
+                                      AllowClear="true" />
+                    
+                    <div class="flex items-center gap-2 pt-1">
+                        <span class="text-xs text-txt-lo">Or enter custom pool name:</span>
+                        <input type="text" @bind="customTeamName" @bind:after="OnCustomTeamChanged" placeholder="e.g. QA Testing Lab, Server Room, Meeting Room..." class="@InputClass flex-1" />
+                    </div>
+                </div>
+            </FormField>
+
+            <div class="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-xs text-indigo-900 space-y-1">
+                <div class="font-bold flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Team / Shared Common Use Allocation
+                </div>
+                <p class="text-indigo-800">
+                    This hardware (System, Component, Peripheral, or Server) will be marked for shared usage by <strong>@(GetEffectiveTeamName())</strong>. It will be tracked under Team Accounts in the Employees &amp; Assets registry.
+                </p>
+            </div>
+        }
+
+        <!-- 3. Notes -->
+        <FormField Label="Note" Id="allocate-note">
+            <textarea id="allocate-note" @bind="allocationNote" class="@InputClass" placeholder="Purpose, project, lab/desk location, or allocation details..." rows="2"></textarea>
+        </FormField>
+
+        <!-- 4. Action buttons -->
+        <div class="flex justify-end gap-2 pt-2 border-t border-line-soft">
+            <button type="button" @onclick="CloseAsync" class="@ButtonGhost">
+                Cancel
+            </button>
+            <button type="submit" class="@ButtonPrimary" disabled="@(!selectedDeviceIds.Any() || string.IsNullOrEmpty(GetEffectiveRecipient()))">
+                Allocate item@(selectedDeviceIds.Count > 1 ? "s" : "") to @(targetType == TargetType.Team ? "Team" : "Employee")
+            </button>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    public enum TargetType { Employee, Team }
+    private TargetType targetType = TargetType.Employee;
+
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<List<Handover>> OnAllocated { get; set; }
+
+    [Parameter]
+    public List<Device> AvailableDevices { get; set; } = new();
+
+    [Parameter]
+    public List<Employee> ActiveEmployees { get; set; } = new();
+
+    [Parameter]
+    public List<Device> CurrentHoldings { get; set; } = new();
+
+    [Parameter]
+    public string? PresetEmployeeName { get; set; }
+
+    private Handover handover = new Handover();
+    private List<string> selectedDeviceIds = new();
+    private string currentSelection = "";
+    private string replacesDeviceId = "";
+    private string allocationNote = "";
+    private string selectedTeam = "";
+    private string customTeamName = "";
+
+    private List<Team> loadedTeams = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen)
+        {
+            if (AvailableDevices != null && AvailableDevices.Count == 1 && !selectedDeviceIds.Any())
+            {
+                selectedDeviceIds.Add(AvailableDevices[0].Id);
+            }
+            if (!string.IsNullOrEmpty(PresetEmployeeName) && string.IsNullOrEmpty(handover.To))
+            {
+                handover.To = PresetEmployeeName;
+            }
+            if (!loadedTeams.Any())
+            {
+                try
+                {
+                    var tmList = await SettingsService.GetTeamsAsync();
+                    loadedTeams = tmList?.ToList() ?? new();
+                }
+                catch { }
+            }
+        }
+    }
+
+    private void SetTargetType(TargetType type)
+    {
+        targetType = type;
+        if (targetType == TargetType.Team)
+        {
+            if (string.IsNullOrEmpty(selectedTeam) && loadedTeams.Any())
+            {
+                selectedTeam = loadedTeams[0].Name.EndsWith("Team") ? loadedTeams[0].Name : loadedTeams[0].Name + " Team";
+            }
+        }
+    }
+
+    private List<SelectOption> GetTeamOptions()
+    {
+        var options = new List<SelectOption>();
+        
+        // 1. Teams from DB
+        foreach (var t in loadedTeams)
+        {
+            var displayName = t.Name.EndsWith("Team", StringComparison.OrdinalIgnoreCase) ? t.Name : $"{t.Name} Team";
+            options.Add(new SelectOption { Value = displayName, Text = $"{displayName} (Shared Pool)" });
+        }
+
+        // 2. Teams from Employees table (where IsTeamAccount == true)
+        foreach (var emp in ActiveEmployees.Where(e => e.IsTeamAccount))
+        {
+            if (!options.Any(o => o.Value.Equals(emp.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                options.Add(new SelectOption { Value = emp.Name, Text = $"{emp.Name} (Team Account)" });
+            }
+        }
+
+        // 3. Common standard facilities
+        var standardPools = new[] { "QA & Testing Lab", "Server Room Infrastructure", "Common Workstation Pool", "Conference & Meeting Rooms" };
+        foreach (var pool in standardPools)
+        {
+            if (!options.Any(o => o.Value.Equals(pool, StringComparison.OrdinalIgnoreCase)))
+            {
+                options.Add(new SelectOption { Value = pool, Text = $"{pool} (Common Facility)" });
+            }
+        }
+
+        return options;
+    }
+
+    private void OnCustomTeamChanged()
+    {
+        if (!string.IsNullOrWhiteSpace(customTeamName))
+        {
+            selectedTeam = customTeamName.Trim();
+        }
+    }
+
+    private string GetEffectiveTeamName()
+    {
+        if (!string.IsNullOrWhiteSpace(customTeamName)) return customTeamName.Trim();
+        if (!string.IsNullOrWhiteSpace(selectedTeam)) return selectedTeam;
+        return "Selected Team";
+    }
+
+    private string GetEffectiveRecipient()
+    {
+        return targetType == TargetType.Employee ? handover.To : GetEffectiveTeamName();
+    }
+
+    private void HandleDeviceSelected(string id)
+    {
+        if (!string.IsNullOrEmpty(id) && !selectedDeviceIds.Contains(id))
+        {
+            selectedDeviceIds.Add(id);
+        }
+        currentSelection = "";
+    }
+
+    private void RemoveDevice(string id)
+    {
+        selectedDeviceIds.Remove(id);
+    }
+
+    private async Task HandleModalOpenChanged(bool value)
+    {
+        if (!value) await CloseAsync();
+        else
+        {
+            IsOpen = true;
+            await IsOpenChanged.InvokeAsync(true);
+        }
+    }
+
+    private string InputClass = "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+    private string ButtonPrimary = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-accent-on transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50 disabled:cursor-not-allowed";
+    private string ButtonGhost = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+
+    private async Task HandleSubmit()
+    {
+        var recipient = GetEffectiveRecipient();
+        var defaultCondition = targetType == TargetType.Team ? "Team / Common use allocation" : "Employee allocation";
+        var conditionText = string.IsNullOrWhiteSpace(allocationNote) ? defaultCondition : allocationNote;
+
+        var handovers = selectedDeviceIds.Select(id => new Handover
+        {
+            DeviceId = id,
+            To = recipient,
+            Condition = conditionText,
+            Released = DateTime.Now.ToString("yyyy-MM-dd")
+        }).ToList();
+
+        await OnAllocated.InvokeAsync(handovers);
+        await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+        handover = new Handover();
+        selectedDeviceIds.Clear();
+        currentSelection = "";
+        replacesDeviceId = "";
+        allocationNote = "";
+        selectedTeam = "";
+        customTeamName = "";
+        targetType = TargetType.Employee;
+    }
+}

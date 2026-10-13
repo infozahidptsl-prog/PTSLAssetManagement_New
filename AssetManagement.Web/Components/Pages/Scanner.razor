@@ -1,0 +1,289 @@
+@page "/scan"
+@using Microsoft.AspNetCore.Authorization
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@attribute [AllowAnonymous]
+@rendermode InteractiveServer
+
+@inject DeviceService DeviceService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Asset Lookup — Asset Manager</PageTitle>
+
+<div class="min-h-screen bg-canvas">
+    <div class="max-w-lg mx-auto px-4 pt-10 pb-24">
+
+        <!-- Header -->
+        <div class="mb-8 text-center">
+            <div class="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-500/10 text-accent-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <h1 class="text-2xl font-bold text-txt-hi">Asset Lookup</h1>
+            <p class="mt-1 text-sm text-txt-mid">Search by Asset Tag, Serial number, or Device ID</p>
+        </div>
+
+        <!-- QR tip banner -->
+        <div class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <div class="flex items-start gap-3">
+                <div class="shrink-0 mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3m0 4h4V14h-4M14 21h3"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-emerald-800 mb-1">Faster with QR</p>
+                    <p class="text-xs text-emerald-700 leading-relaxed">
+                        Point your phone's <strong>native Camera app</strong> at the QR label on any asset. The phone detects the URL — just tap it to open the asset page instantly. No manual entry needed.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRIMARY WORKFLOW: Native Phone Camera -->
+        <div class="rounded-2xl border border-accent-500/20 bg-accent-500/5 p-6 mb-5">
+            <div class="flex items-start gap-4">
+                <div class="shrink-0 mt-0.5">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-500/10 text-accent-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                    </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-txt-hi mb-1">Use your phone's Camera app</p>
+                    <p class="text-xs text-txt-mid leading-relaxed">
+                        Point your phone's <strong>native Camera</strong> at any Asset QR label printed on company equipment.
+                        The phone will detect the URL automatically — just tap it to open the asset directly.
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-surface border border-line px-2.5 py-1 text-[11px] font-medium text-txt-mid">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            Android Camera
+                        </span>
+                        <span class="inline-flex items-center gap-1 rounded-full bg-surface border border-line px-2.5 py-1 text-[11px] font-medium text-txt-mid">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            Google Lens
+                        </span>
+                        <span class="inline-flex items-center gap-1 rounded-full bg-surface border border-line px-2.5 py-1 text-[11px] font-medium text-txt-mid">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            iPhone Camera
+                        </span>
+                    </div>
+                    <p class="mt-2 text-[11px] text-txt-lo italic">No app installation required.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Entry -->
+        <div class="rounded-2xl border border-line-soft bg-surface p-5 mb-5 shadow-sm">
+            <p class="text-xs font-bold uppercase tracking-widest text-txt-lo mb-3">Search Asset Fleet</p>
+            @if (!string.IsNullOrEmpty(lookupError))
+            {
+                <div class="mb-3 rounded-lg bg-danger-50 border border-danger-200 px-3 py-2 text-xs text-danger-700">@lookupError</div>
+            }
+            @if (foundDevice != null)
+            {
+                <div class="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+                    <p class="text-xs font-bold text-emerald-700 mb-0.5">Asset found</p>
+                    <p class="text-sm font-semibold text-txt-hi">@foundDevice.Brand @foundDevice.DeviceName</p>
+                    <p class="text-xs text-txt-mid">@foundDevice.AssetTag · @(foundDevice.Status == DeviceStatus.InUse ? "In Use" : foundDevice.Status == DeviceStatus.InStore ? "Available" : foundDevice.Status.ToString())</p>
+                </div>
+                <button @onclick="OpenFoundDevice" class="w-full rounded-xl bg-accent-500 py-3.5 text-sm font-bold text-white shadow hover:bg-accent-600 transition mb-2">
+                    Open Asset Details
+                </button>
+                <button @onclick="ResetLookup" class="w-full rounded-xl bg-surface border border-line py-3 text-sm font-medium text-txt-mid hover:bg-elevated transition">
+                    Search Again
+                </button>
+            }
+            else
+            {
+                <div class="flex gap-2">
+                    <input type="text" @bind="assetCodeInput" @bind:event="oninput" @onkeydown="HandleKeyDown"
+                        placeholder="Asset Tag, Serial, or Device ID"
+                        class="flex-1 min-w-0 rounded-xl border-2 border-line bg-canvas p-3 text-sm focus:border-accent-500 focus:outline-none" />
+                    <button type="button" @onclick="LookupAsset" disabled="@isLooking"
+                        class="shrink-0 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-white shadow hover:bg-accent-600 disabled:opacity-60 transition">
+                        @(isLooking ? "..." : "Find")
+                    </button>
+                </div>
+                <p class="mt-2 text-[11px] text-txt-lo">Enter any part of the Asset Tag (e.g. LPT-018), Serial number, or Device ID.</p>
+            }
+        </div>
+
+        <!-- TERTIARY: Browser Camera (optional, with honest disclaimer) -->
+        <div class="rounded-2xl border border-line-soft bg-surface p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs font-bold uppercase tracking-widest text-txt-lo">Browser Camera Scanner</p>
+                <span class="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wide">Optional</span>
+            </div>
+
+            @if (cameraError)
+            {
+                <!-- Camera unavailable: friendly fallback, not an error block -->
+                <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" class="text-amber-500 mx-auto mb-2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    <p class="text-sm font-semibold text-amber-800 mb-1">Browser camera unavailable</p>
+                    <p class="text-xs text-amber-700 leading-relaxed">
+                        Camera requires HTTPS. On a local/LAN connection, use your <strong>phone's Camera app</strong> to scan the QR label directly, or enter the asset code above.
+                    </p>
+                </div>
+            }
+            else if (isBrowserScanning)
+            {
+                <div class="rounded-xl overflow-hidden border border-line mb-3">
+                    <div id="qr-reader-scan" class="w-full bg-black" style="min-height:240px;max-height:300px;overflow:hidden;"></div>
+                </div>
+                <button @onclick="StopBrowserScanner" class="w-full rounded-xl border border-line py-3 text-sm font-medium text-txt-mid hover:bg-elevated transition">
+                    Stop Camera
+                </button>
+            }
+            else
+            {
+                <p class="text-xs text-txt-mid mb-3 leading-relaxed">
+                    Opens a live camera feed in this browser window. Requires HTTPS or localhost.
+                    On mobile browsers over HTTP, this will not work — use your phone's native camera instead.
+                </p>
+                <button @onclick="StartBrowserScanner" class="w-full rounded-xl border border-line py-3 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition">
+                    Open Browser Camera
+                </button>
+            }
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private string assetCodeInput = "";
+    private bool isLooking = false;
+    private string lookupError = "";
+    private Device? foundDevice = null;
+    private bool cameraError = false;
+    private bool isBrowserScanning = false;
+    private DotNetObjectReference<Scanner>? objRef;
+    private bool isDisposed = false;
+
+    protected override void OnInitialized()
+    {
+        objRef = DotNetObjectReference.Create(this);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await LookupAsset();
+    }
+
+    private async Task LookupAsset()
+    {
+        var input = assetCodeInput.Trim();
+        if (string.IsNullOrEmpty(input)) return;
+
+        isLooking = true;
+        lookupError = "";
+        foundDevice = null;
+
+        try
+        {
+            var allDevices = await DeviceService.GetDevicesAsync();
+            foundDevice = allDevices.FirstOrDefault(d =>
+                (!string.IsNullOrEmpty(d.AssetTag) && d.AssetTag.Equals(input, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(d.Serial) && d.Serial.Equals(input, StringComparison.OrdinalIgnoreCase)) ||
+                (d.Id.Equals(input, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(d.AssetTag) && d.AssetTag.Contains(input, StringComparison.OrdinalIgnoreCase))
+            );
+
+            if (foundDevice == null)
+                lookupError = $"No asset found for \"{input}\". Check the Asset Tag or Serial number.";
+        }
+        catch (Exception ex)
+        {
+            lookupError = "Lookup failed. Please try again.";
+        }
+        finally
+        {
+            isLooking = false;
+        }
+    }
+
+    private async Task OpenFoundDevice()
+    {
+        if (foundDevice == null) return;
+        // Generate a secure random token, store the hash in the database, then navigate
+        var token = AssetManagement.Web.Helpers.SecurityHelper.GenerateSecureRandomToken();
+        var hash = AssetManagement.Web.Helpers.SecurityHelper.HashToken(token);
+        foundDevice.QrTokenHash = hash;
+        foundDevice.QrTokenCreatedAt = DateTime.UtcNow;
+        foundDevice.QrTokenRevokedAt = null;
+        foundDevice.QrTokenVersion++;
+        await DeviceService.UpdateDeviceAsync(foundDevice);
+        NavigationManager.NavigateTo($"/a/{token}");
+    }
+
+    private void ResetLookup()
+    {
+        foundDevice = null;
+        lookupError = "";
+        assetCodeInput = "";
+    }
+
+    private async Task StartBrowserScanner()
+    {
+        cameraError = false;
+        isBrowserScanning = true;
+        await Task.Delay(150); // Allow render
+        try
+        {
+            await JS.InvokeVoidAsync("startScanner", "qr-reader-scan", objRef);
+        }
+        catch
+        {
+            cameraError = true;
+            isBrowserScanning = false;
+        }
+    }
+
+    private async Task StopBrowserScanner()
+    {
+        try { await JS.InvokeVoidAsync("stopScanner"); } catch { }
+        isBrowserScanning = false;
+    }
+
+    [JSInvokable]
+    public async Task OnScanResult(string decodedText)
+    {
+        if (isDisposed) return;
+        try
+        {
+            await StopBrowserScanner();
+            var input = decodedText.Trim();
+            
+            // If it contains /a/ deep link, navigate directly
+            if (input.Contains("/a/"))
+            {
+                var uri = new Uri(input);
+                NavigationManager.NavigateTo(uri.PathAndQuery);
+                return;
+            }
+            
+            // Otherwise, it's just the AssetTag/ID. Use existing lookup logic.
+            assetCodeInput = input;
+            await LookupAsset();
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    [JSInvokable]
+    public void OnScanError(string error)
+    {
+        if (isDisposed) return;
+        cameraError = true;
+        isBrowserScanning = false;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        isDisposed = true;
+        try { await JS.InvokeVoidAsync("stopScanner"); } catch { }
+        objRef?.Dispose();
+    }
+}

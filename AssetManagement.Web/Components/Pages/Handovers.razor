@@ -1,0 +1,195 @@
+@page "/handovers"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@inject HandoverService HandoverService
+@inject NavigationManager NavigationManager
+
+
+<PageHeader Title="Handovers">
+</PageHeader>
+
+<div class="border-y border-line-soft bg-surface px-6 py-3 lg:px-9">
+    <div class="mt-1 text-[13px] font-medium text-txt-mid">
+        @PaginatedHandovers.Count() of @filteredHandovers.Count() handovers
+    </div>
+</div>
+
+<div class="border-y border-line-soft bg-surface">
+    <AppTable Items="PaginatedHandovers" OnRowClick="@((Handover handover) => NavigateToDetail(handover.Device.Id))">
+        <HeaderContent>
+            <th scope="col" class="py-2 pl-6 pr-3 lg:pl-9 w-2/5">Employee</th>
+            <th scope="col" class="px-3 py-2 w-[15%]">Device (ID / Serial)</th>
+            <th scope="col" class="px-3 py-2 w-[15%]">Returned / released</th>
+            <th scope="col" class="px-3 py-2 w-[15%]">Condition at handover</th>
+            <th scope="col" class="py-2 pl-3 pr-6 lg:pr-9 w-[15%]">Status</th>
+        </HeaderContent>
+        <RowTemplate Context="handover">
+            <td class="py-2.5 pl-6 pr-3 lg:pl-9" @onclick="() => NavigateToDetail(handover.Device.Id)">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-elevated text-[10px] font-semibold text-txt-mid">
+                        @GetInitials(handover.From)
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start gap-4">
+                            <div class="w-40 flex-shrink-0 flex flex-col min-w-0">
+                                <span class="truncate text-[13px] font-medium text-txt-hi">@handover.From</span>
+                                <span class="text-[11px] text-txt-lo mt-0.5">Previous holder</span>
+                            </div>
+                            <div class="pt-1 text-txt-lo flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </div>
+                            <div class="flex flex-col min-w-0">
+                                <span class="truncate text-[13px] font-medium text-txt-hi">@handover.To</span>
+                                <span class="text-[11px] text-txt-lo mt-0.5">New holder</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td class="px-3 py-2.5" @onclick="() => NavigateToDetail(handover.Device.Id)">
+                <div class="text-[13px] text-txt-hi">
+                    @handover.Device.Brand
+                    @if (!string.IsNullOrEmpty(handover.Device?.AssetTag))
+                    {
+                        <span class="inline-flex items-center rounded-md bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent-600 ring-1 ring-inset ring-accent-border ml-1.5">@handover.Device?.AssetTag</span>
+                    }
+                </div>
+                <div class="text-[11px] text-txt-lo mt-0.5 uppercase tracking-wider">SN: @handover.Device.Serial</div>
+            </td>
+            <td class="px-3 py-2.5" @onclick="() => NavigateToDetail(handover.Device.Id)">
+                <div class="text-[13px] text-txt-hi whitespace-nowrap">@FormatDate(handover.ReturnDate) - @FormatDate(handover.Released)</div>
+            </td>
+            <td class="px-3 py-2.5" @onclick="() => NavigateToDetail(handover.Device.Id)">
+                <div class="text-[13px] text-txt-hi">@(string.IsNullOrWhiteSpace(handover.Condition) ? "—" : handover.Condition)</div>
+            </td>
+            <td class="py-2.5 pl-3 pr-6 lg:pr-9" @onclick="() => NavigateToDetail(handover.Device.Id)">
+                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border @GetStatusStyles(handover.Device.Status) whitespace-nowrap">
+                    <span class="h-1.5 w-1.5 rounded-full @GetStatusDotColor(handover.Device.Status)" aria-hidden="true"></span>
+                    @GetStatusText(handover.Device.Status)
+                </span>
+            </td>
+        </RowTemplate>
+    </AppTable>
+            
+    @if (filteredHandovers.Any())
+    {
+        <div class="flex items-center justify-between border-t border-line-soft bg-surface px-6 py-3 lg:px-9 mt-auto">
+            <div class="flex items-center gap-4 text-sm text-txt-mid">
+                <div class="flex items-center gap-2">
+                    <label for="pageSize">Rows per page:</label>
+                    <select id="pageSize" class="rounded border border-line bg-elevated py-1 px-2 text-txt-hi focus:border-accent-border focus:outline-none" @bind="PageSize" @bind:after="ResetPage">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <span>
+                    Showing @(((CurrentPage - 1) * PageSize) + 1) to @Math.Min(CurrentPage * PageSize, filteredHandovers.Count()) of @filteredHandovers.Count()
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" class="rounded border border-line bg-elevated px-3 py-1.5 text-sm font-medium text-txt-hi hover:bg-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled="@(CurrentPage <= 1)" @onclick="PrevPage">Previous</button>
+                <button type="button" class="rounded border border-line bg-elevated px-3 py-1.5 text-sm font-medium text-txt-hi hover:bg-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled="@(CurrentPage >= TotalPages)" @onclick="NextPage">Next</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Handover> handovers = new();
+    private string _searchTerm = "";
+    private int PageSize { get; set; } = 25;
+    private int CurrentPage { get; set; } = 1;
+
+    private string searchTerm
+    {
+        get => _searchTerm;
+        set
+        {
+            if (_searchTerm != value)
+            {
+                _searchTerm = value;
+                CurrentPage = 1;
+            }
+        }
+    }
+
+    private List<Handover> filteredHandovers => string.IsNullOrWhiteSpace(searchTerm)
+        ? handovers
+        : handovers.Where(h =>
+            (h.From?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (h.To?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (h.Device?.AssetTag?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (h.Device?.Brand?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (h.Device?.Serial?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).ToList();
+
+    private IEnumerable<Handover> PaginatedHandovers => filteredHandovers.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private int TotalPages => (int)Math.Ceiling(filteredHandovers.Count() / (double)PageSize);
+
+    private void ResetPage()
+    {
+        CurrentPage = 1;
+    }
+    
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages) CurrentPage++;
+    }
+
+    private void PrevPage()
+    {
+        if (CurrentPage > 1) CurrentPage--;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        handovers = await HandoverService.GetHandoversAsync();
+    }
+    
+    private void NavigateToDetail(string id)
+    {
+        NavigationManager.NavigateTo($"/devices/{id}");
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "??";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+    
+    private string FormatDate(string? date)
+    {
+        if (string.IsNullOrWhiteSpace(date)) return "—";
+        return date;
+    }
+
+    private string GetStatusStyles(DeviceStatus status) => status switch
+    {
+        DeviceStatus.InUse => "bg-accent-soft text-accent-600 border-accent-border",
+        DeviceStatus.Faulty => "bg-danger-soft text-danger-500 border-danger-border",
+        _ => "bg-elevated text-txt-mid border-line-soft"
+    };
+
+    private string GetStatusDotColor(DeviceStatus status) => status switch
+    {
+        DeviceStatus.InUse => "bg-accent-500",
+        DeviceStatus.Faulty => "bg-danger-500",
+        _ => "bg-txt-mid"
+    };
+
+    private string GetStatusText(DeviceStatus status) => status switch
+    {
+        DeviceStatus.InUse => "In use",
+        DeviceStatus.InStore => "In store",
+        DeviceStatus.Faulty => "Faulty",
+        DeviceStatus.Returned => "Returned",
+        _ => status.ToString()
+    };
+}
+

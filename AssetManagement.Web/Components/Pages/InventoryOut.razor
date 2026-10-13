@@ -1,0 +1,505 @@
+@page "/inventory-out"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Devices.Assign)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@using AssetManagement.Web.Models
+@inject DeviceService DeviceService
+@inject HandoverService HandoverService
+@inject EmployeeService EmployeeService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<PageTitle>Issue to employee - PrimeTech Asset Manager</PageTitle>
+
+<div class="bg-surface pb-4 border-b border-line-soft">
+<PageHeader Title="Issue to employee">
+    <Actions>
+        <button type="button" @onclick="ShowAllocateModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 9-6-6-6 6"/><path d="M12 3v14"/><path d="M5 21h14"/></svg>
+            Allocate item
+        </button>
+    </Actions>
+    <ChildContent>
+        <div class="mt-5 flex flex-row gap-3">
+
+            <button type="button" @onclick="() => SetFilter(FilterMode.TotalAllocations)" class="@CardClass(FilterMode.TotalAllocations, true)">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="@CardLabelClass(FilterMode.TotalAllocations, 2)">Total Allocations</p>
+                        <p class="@CardValueClass(FilterMode.TotalAllocations, 2)">@allocatedDevices.Count</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Currently issued to users</p>
+                    </div>
+                    <span class="@CardIconClass(FilterMode.TotalAllocations, 2)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </span>
+                </div>
+                <div class="@CardBarClass(FilterMode.TotalAllocations)" style="background:rgb(52,211,153);"></div>
+            </button>
+
+            <button type="button" @onclick="() => SetFilter(FilterMode.ReadyToAllocate)" class="@CardClass(FilterMode.ReadyToAllocate, false)">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="@CardLabelClass(FilterMode.ReadyToAllocate, 1)">Ready to Allocate</p>
+                        <p class="@CardValueClass(FilterMode.ReadyToAllocate, 1)">@readyItems.Count</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Items available in store</p>
+                    </div>
+                    <span class="@CardIconClass(FilterMode.ReadyToAllocate, 1)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                    </span>
+                </div>
+                <div class="@CardBarClass(FilterMode.ReadyToAllocate)" style="background:#8b8cf8;"></div>
+            </button>
+
+            <button type="button" @onclick="() => SetFilter(FilterMode.Replacements)" class="@CardClass(FilterMode.Replacements, false)">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="@CardLabelClass(FilterMode.Replacements, 3)">Of which Replacements</p>
+                        <p class="@CardValueClass(FilterMode.Replacements, 3)">@replacementDevices.Count</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Device swap-outs</p>
+                    </div>
+                    <span class="@CardIconClass(FilterMode.Replacements, 3)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                    </span>
+                </div>
+                <div class="@CardBarClass(FilterMode.Replacements)" style="background:rgb(251,191,36);"></div>
+            </button>
+
+        </div>
+    </ChildContent>
+</PageHeader>
+</div>
+
+<section aria-label="@SectionTitle" class="bg-surface">
+    <div class="px-6 pb-3 pt-5 lg:px-9">
+        <form class="relative max-w-md" @onsubmit:preventDefault="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" @bind="QuerySearch" @bind:event="oninput" placeholder="Search @(SectionTitle.ToLower())..." aria-label="Search inventory" class="w-full rounded-lg border border-line bg-elevated py-2 pl-9 pr-3 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" />
+        </form>
+    </div>
+    <AppTable TItem="Device" Items="filteredDevices" OnRowClick="@(async (Device device) => await ToggleExpand(device.Id))" IsRowExpanded="@((Device d) => d.Id == expandedDeviceId)">
+        <HeaderContent>
+            <th scope="col" class="py-2 pl-6 pr-3 font-semibold text-[10px] uppercase tracking-widest text-txt-mid lg:pl-9 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Asset")'>
+                <div class="flex items-center gap-1.5">Asset to allocate @RenderSortIcon("Asset")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Type")'>
+                <div class="flex items-center gap-1.5">Type @RenderSortIcon("Type")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Specification")'>
+                <div class="flex items-center gap-1.5">Specification @RenderSortIcon("Specification")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Status")'>
+                <div class="flex items-center gap-1.5">Status @RenderSortIcon("Status")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("User")'>
+                <div class="flex items-center gap-1.5">USER @RenderSortIcon("User")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Warranty")'>
+                <div class="flex items-center gap-1.5">Warranty @RenderSortIcon("Warranty")</div>
+            </th>
+            <th scope="col" class="relative py-2 pl-3 pr-6 lg:pr-9"><span class="sr-only">Expand</span></th>
+        </HeaderContent>
+        <RowTemplate Context="device">
+            <th scope="row" class="py-2 pl-6 pr-3 text-left lg:pl-9 relative">
+                <AssetManagement.Web.Components.Shared.AssetIdentityCell Device="device" />
+            </th>
+            <td class="px-3 py-3">
+                <AssetManagement.Web.Components.Shared.AssetTypeBadge Device="device" />
+            </td>
+            <td class="px-3 py-3 text-xs text-txt-mid">
+                @if (device.IsComponent)
+                {
+                    <span class="block text-txt-hi">@device.DeviceName</span>
+                }
+                else
+                {
+                    <span class="block text-txt-hi">@(string.Join(" - ", new[] { device.Processor, device.Ram, device.Ssd, device.Hdd, device.MonitorDisplay }.Where(s => !string.IsNullOrWhiteSpace(s))))</span>
+                }
+                <span class="block text-txt-lo mt-0.5">@device.Condition</span>
+            </td>
+            <td class="px-3 py-3">
+                <StatusBadge Status="device.Status" />
+            </td>
+            <td class="px-3 py-3 text-xs text-txt-mid">
+                @if (device.Status == DeviceStatus.InStore)
+                {
+                    <span>IT inventory</span>
+                }
+                else if (device.Status == DeviceStatus.InUse && (!string.IsNullOrEmpty(device.UserName) || !string.IsNullOrEmpty(device.EmployeeId)))
+                {
+                    @if (!string.IsNullOrEmpty(device.UserName))
+                    {
+                        <span class="block text-txt-hi font-medium whitespace-nowrap">@device.UserName</span>
+                    }
+                    <span class="block mt-0.5 text-txt-lo">@device.EmployeeId</span>
+                }
+                else
+                {
+                    <span>-</span>
+                }
+            </td>
+            <td class="px-3 py-3 text-xs">
+                @if (device.HasWarranty)
+                {
+                    var warrantyEnd = device.ProcurementDate?.AddMonths(device.WarrantyMonths ?? 0);
+                    if (warrantyEnd.HasValue)
+                    {
+                        var daysLeft = (warrantyEnd.Value - DateTime.Now).TotalDays;
+                        if (daysLeft < 0)
+                        {
+                            <div class="flex items-center gap-1.5">
+                                    <span class="text-danger-500 font-medium">Expired</span>
+                                    <span class="text-txt-lo">@warrantyEnd.Value.ToString("d MMM yyyy")</span>
+                                </div>
+                        }
+                        else
+                        {
+                            <div class="flex items-center gap-1.5">
+                                    <span class="text-emerald-500 font-medium">In warranty</span>
+                                    <span class="text-txt-lo">@(Math.Ceiling(daysLeft))d left</span>
+                                </div>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-txt-lo">-</span>
+                    }
+                }
+                else
+                {
+                    <span class="text-txt-lo">-</span>
+                }
+            </td>
+            <td class="py-3 px-3 text-right pr-6 lg:pr-9">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo transition-transform duration-200 @(expandedDeviceId == device.Id ? "rotate-180" : "")" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </td>
+        </RowTemplate>
+        <ExpandedRowTemplate Context="device">
+            <td colspan="8" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
+                <div class="px-2 lg:px-3">
+                    <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" OnStateChanged="LoadData" IsInline="true" HideEmployeeProfileLink="false" />
+                </div>
+            </td>
+        </ExpandedRowTemplate>
+    </AppTable>
+
+    @if (TotalItems > 0)
+    {
+        <div class="px-6 py-4 flex items-center justify-between border-t border-line-soft">
+            <div class="flex items-center gap-4">
+                <div class="text-xs text-txt-mid">
+                    Showing @(TotalItems == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1) to @(Math.Min(CurrentPage * PageSize, TotalItems)) of @TotalItems results
+                </div>
+                <div class="flex items-center gap-2 text-xs text-txt-mid">
+                    <span>Rows per page:</span>
+                    <select class="bg-elevated border border-line rounded px-2 py-1 focus:outline-none focus:border-accent-500" @bind="PageSize" @bind:after="() => { CurrentPage = 1; StateHasChanged(); }">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-1">
+                <button type="button" class="px-3 py-1 rounded border border-line bg-surface text-xs font-medium hover:bg-elevated disabled:opacity-50 transition-colors" @onclick="() => ChangePage(CurrentPage - 1)" disabled="@(CurrentPage == 1)">Previous</button>
+                <button type="button" class="px-3 py-1 rounded border border-line bg-surface text-xs font-medium hover:bg-elevated disabled:opacity-50 transition-colors" @onclick="() => ChangePage(CurrentPage + 1)" disabled="@(CurrentPage >= TotalPages || TotalPages == 0)">Next</button>
+            </div>
+        </div>
+    }
+</section>
+
+
+<AssetManagement.Web.Components.Shared.AllocateDeviceModal @bind-IsOpen="showAllocateModal" OnAllocated="OnDeviceAllocated" AvailableDevices="readyItems" ActiveEmployees="activeEmployees" />
+
+@code {
+    private string? expandedDeviceId = null;
+
+    private async Task ToggleExpand(string deviceId)
+    {
+        try
+        {
+            var selection = await JS.InvokeAsync<string>("eval", "window.getSelection().toString()");
+            if (!string.IsNullOrWhiteSpace(selection)) return;
+        }
+        catch { }
+        
+        expandedDeviceId = expandedDeviceId == deviceId ? null : deviceId;
+    }
+    private enum FilterMode { ReadyToAllocate, TotalAllocations, Replacements }
+    private FilterMode currentFilter = FilterMode.TotalAllocations;
+
+    private List<Device> readyItems = new();
+    private List<Device> allocatedDevices = new();
+    private List<Device> replacementDevices = new();
+    private List<Employee> activeEmployees = new();
+    
+    private bool showAllocateModal = false;
+
+    private string? _querySearch;
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? QuerySearch 
+    {
+        get => _querySearch;
+        set
+        {
+            if (_querySearch != value)
+            {
+                _querySearch = value;
+                CurrentPage = 1;
+            }
+        }
+    }
+
+    private int CurrentPage = 1;
+    private int PageSize = 50;
+    private int TotalItems = 0;
+    private int TotalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
+
+    private void ChangePage(int pageNumber)
+    {
+        if (pageNumber >= 1 && pageNumber <= TotalPages)
+        {
+            CurrentPage = pageNumber;
+        }
+    }
+
+    private List<Device> filteredDevices 
+    {
+        get
+        {
+            var items = currentFilter switch
+            {
+                FilterMode.ReadyToAllocate => readyItems,
+                FilterMode.TotalAllocations => allocatedDevices,
+                FilterMode.Replacements => replacementDevices,
+                _ => readyItems
+            };
+
+            var result = items.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(QuerySearch))
+            {
+                var cleanSearch = QuerySearch.Replace("(", "").Replace(")", "").Replace("+", "").ToLower();
+                var terms = cleanSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                
+                result = result.Where(d => terms.All(term =>
+                    (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
+                    (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
+                    (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
+                    (d.UserName != null && d.UserName.ToLower().Contains(term)) ||
+                    (d.EmployeeId != null && d.EmployeeId.ToLower().Contains(term)) ||
+                    (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
+                    (d.ProcessorFamily != null && d.ProcessorFamily.ToLower().Contains(term)) ||
+                    (d.Ram != null && d.Ram.ToLower().Contains(term)) ||
+                    (d.Ssd != null && d.Ssd.ToLower().Contains(term)) ||
+                    (d.Hdd != null && d.Hdd.ToLower().Contains(term)) ||
+                    (d.Brand != null && d.Brand.ToLower().Contains(term))
+                ));
+            }
+
+            TotalItems = result.Count();
+
+            result = SortColumn switch
+            {
+                "Asset" => SortAscending 
+                    ? result.OrderBy(d => d.Brand).ThenBy(d => d.DeviceName).ThenBy(d => d.AssetTag) 
+                    : result.OrderByDescending(d => d.Brand).ThenByDescending(d => d.DeviceName).ThenByDescending(d => d.AssetTag),
+                "Type" => SortAscending 
+                    ? result.OrderBy(d => d.Category).ThenBy(d => d.IsComponent) 
+                    : result.OrderByDescending(d => d.Category).ThenByDescending(d => d.IsComponent),
+                "Specification" => SortAscending 
+                    ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram) 
+                    : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram),
+                "Status" => SortAscending 
+                    ? result.OrderBy(d => d.Status.ToString()) 
+                    : result.OrderByDescending(d => d.Status.ToString()),
+                "User" => SortAscending 
+                    ? result.OrderBy(d => d.UserName ?? string.Empty).ThenBy(d => d.EmployeeId ?? string.Empty) 
+                    : result.OrderByDescending(d => d.UserName ?? string.Empty).ThenByDescending(d => d.EmployeeId ?? string.Empty),
+                "Warranty" => SortAscending 
+                    ? result.OrderBy(d => d.HasWarranty ? 0 : 1).ThenBy(d => d.WarrantyEndDate) 
+                    : result.OrderByDescending(d => d.HasWarranty ? 0 : 1).ThenByDescending(d => d.WarrantyEndDate),
+                _ => result
+            };
+
+            return result
+                .Skip((CurrentPage - 1) * PageSize)
+                .Take(PageSize)
+                .ToList();
+        }
+    }
+
+    private string SortColumn { get; set; } = "Asset";
+    private bool SortAscending { get; set; } = true;
+
+    private void SortBy(string column)
+    {
+        if (SortColumn == column)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            SortColumn = column;
+            SortAscending = true;
+        }
+        CurrentPage = 1;
+    }
+
+    private RenderFragment RenderSortIcon(string column) => __builder =>
+    {
+        if (SortColumn == column)
+        {
+            if (SortAscending)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m5 15 7-7 7 7"/></svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m19 9-7 7-7-7"/></svg>
+            }
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-line-strong opacity-40 group-hover:opacity-100 transition-opacity"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        }
+    };
+
+    private string SectionTitle => currentFilter switch
+    {
+        FilterMode.ReadyToAllocate => "Available stock",
+        FilterMode.TotalAllocations => "Allocated devices",
+        FilterMode.Replacements => "Replacement devices",
+        _ => "Available stock"
+    };
+
+    private void SetFilter(FilterMode mode)
+    {
+        if (currentFilter != mode)
+        {
+            currentFilter = mode;
+            CurrentPage = 1;
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var allDevices = await DeviceService.GetDevicesAsync();
+        readyItems = allDevices.Where(d => d.Status == DeviceStatus.InStore || d.Status == DeviceStatus.Returned).ToList();
+        allocatedDevices = allDevices.Where(d => d.Status == DeviceStatus.InUse).ToList();
+        replacementDevices = new(); // In this system, we don't track replacement explicitly via Handover flag, so keep it empty for now
+
+        var allEmployees = await EmployeeService.GetEmployeesAsync(true);
+        activeEmployees = allEmployees.ToList();
+    }
+
+    private void ShowAllocateModal() => showAllocateModal = true;
+    
+    private void CloseAllocateModal() => showAllocateModal = false;
+
+    private async Task OnDeviceAllocated(List<Handover> handovers)
+    {
+        foreach (var handover in handovers)
+        {
+            if (!string.IsNullOrEmpty(handover.DeviceId))
+            {
+                var emp = activeEmployees?.FirstOrDefault(e => e.Name == handover.To);
+                var isTeam = emp?.IsTeamAccount == true || handover.Condition?.Contains("Common") == true || handover.Condition?.Contains("Team") == true || handover.To.Contains("Team") || handover.To.Contains("Pool") || handover.To.Contains("Room") || handover.To.Contains("Lab");
+
+                if (isTeam && (emp == null || !emp.IsTeamAccount))
+                {
+                    var existingTeamEmp = (await EmployeeService.GetEmployeesAsync(true)).FirstOrDefault(e => e.Name.Equals(handover.To, StringComparison.OrdinalIgnoreCase));
+                    if (existingTeamEmp == null)
+                    {
+                        var cleanCode = System.Text.RegularExpressions.Regex.Replace(handover.To.ToUpper(), @"[^A-Z0-9]", "");
+                        var teamId = "TEAM-" + (cleanCode.Length > 6 ? cleanCode.Substring(0, 6) : cleanCode);
+                        
+                        await EmployeeService.AddEmployeeAsync(new Employee
+                        {
+                            Name = handover.To,
+                            EmployeeId = teamId,
+                            Designation = "Team / Common Use",
+                            Department = "Shared Operations",
+                            IsTeamAccount = true,
+                            IsActive = true
+                        });
+                        var allEmployees = await EmployeeService.GetEmployeesAsync(true);
+                        activeEmployees = allEmployees.ToList();
+                        emp = activeEmployees.FirstOrDefault(e => e.Name.Equals(handover.To, StringComparison.OrdinalIgnoreCase));
+                    }
+                    else
+                    {
+                        emp = existingTeamEmp;
+                    }
+                }
+
+                var newAssignmentData = new Device
+                {
+                    UserName = handover.To,
+                    EmployeeId = emp?.EmployeeId ?? (isTeam ? "TEAM" : null),
+                    Email = emp?.Email ?? "",
+                    Contact = emp?.Contact ?? "",
+                    Designation = emp?.Designation ?? (isTeam ? "Team / Common Use" : "Staff")
+                };
+                await DeviceService.TransferDeviceAsync(handover.DeviceId, "TransferToUser", newAssignmentData);
+            }
+        }
+        showAllocateModal = false;
+        await LoadData();
+    }
+
+    // Stat card CSS helpers — fixed colors regardless of selection state
+    private string CardClass(FilterMode mode, bool isAccent)
+    {
+        string baseClass = "flex-1 group relative overflow-hidden rounded-xl border text-left transition-all duration-200 ";
+        
+        // Each card always has its own fixed color
+        string colors = mode == FilterMode.ReadyToAllocate ? "border-indigo-200 bg-indigo-50" :
+                        mode == FilterMode.TotalAllocations ? "border-emerald-200 bg-emerald-50" :
+                        "border-amber-200 bg-amber-50";
+
+        string shadow = currentFilter == mode ? "shadow-md " : "hover:shadow-sm ";
+                                
+        return baseClass + shadow + colors;
+    }
+
+    private string CardBgClass(FilterMode mode) => "absolute inset-0 opacity-0";
+
+    private string CardLabelClass(FilterMode mode, int colorIndex) =>
+        "text-[10px] font-bold uppercase tracking-widest " +
+        (colorIndex == 1 ? "text-indigo-700" : colorIndex == 2 ? "text-emerald-700" : "text-amber-700");
+
+    private string CardValueClass(FilterMode mode, int colorIndex) =>
+        "tnum mt-1 text-xl font-bold tracking-tight " +
+        (colorIndex == 1 ? "text-indigo-900" : colorIndex == 2 ? "text-emerald-900" : "text-amber-900");
+
+    private string CardIconClass(FilterMode mode, int colorIndex) =>
+        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors " +
+        (colorIndex == 1 ? "bg-indigo-500/15 text-indigo-500" : colorIndex == 2 ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500");
+
+    private string CardBarClass(FilterMode mode) =>
+        currentFilter == mode
+            ? "absolute bottom-0 left-0 right-0 h-[3px] rounded-b-xl opacity-100"
+            : "absolute bottom-0 left-0 right-0 h-[3px] rounded-b-xl opacity-0";
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

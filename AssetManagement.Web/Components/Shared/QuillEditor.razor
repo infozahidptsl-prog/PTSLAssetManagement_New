@@ -1,0 +1,43 @@
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<div class="rounded-lg border border-line bg-elevated overflow-hidden">
+    <div id="@EditorId" class="min-h-[120px] bg-white text-sm text-txt-hi"></div>
+</div>
+
+@code {
+    [Parameter]
+    public string? Value { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    private string EditorId = "quill-" + Guid.NewGuid().ToString("N");
+    private DotNetObjectReference<QuillEditor>? dotNetHelper;
+    private bool isInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetHelper = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("quillInterop.init", EditorId, dotNetHelper, Value ?? "");
+            isInitialized = true;
+        }
+    }
+
+    [JSInvokable]
+    public Task OnContentChanged(string content)
+    {
+        // Don't trigger if the content is just empty quill tags
+        if (content == "<p><br></p>") content = "";
+        
+        Value = content;
+        return ValueChanged.InvokeAsync(content);
+    }
+
+    public void Dispose()
+    {
+        dotNetHelper?.Dispose();
+    }
+}

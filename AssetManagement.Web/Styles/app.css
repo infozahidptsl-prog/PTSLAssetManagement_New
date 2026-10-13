@@ -1,0 +1,163 @@
+/* @import url() FONT IMPORTS MUST ALWAYS BE AT THE VERY TOP OF THIS FILE, ABOVE THE TAILWIND IMPORTS — DO NOT DELETE THIS COMMENT */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* CRITICAL: THE FOLLOWING TAILWIND IMPORTS MUST NEVER BE DELETED OR REORDERED — DO NOT DELETE THIS COMMENT */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* END TAILWIND IMPORTS — ALL OTHER CSS MUST GO BELOW THIS LINE */
+
+/* Highly polished modern light theme: crisp slate canvas, strong contrast, distinct borders. */
+:root {
+  --canvas: #f1f5f9;
+  /* slate-100 */
+  --surface: #ffffff;
+  /* white */
+  --elevated: #f8fafc;
+  /* slate-50 */
+  --raised: #e2e8f0;
+  /* slate-200 */
+  --line: #cbd5e1;
+  /* slate-300 (stronger lines for visibility) */
+  --line-soft: #e2e8f0;
+  /* slate-200 */
+  --line-strong: #94a3b8;
+  /* slate-400 */
+  --txt-hi: #0f172a;
+  /* slate-900 */
+  --txt-mid: #475569;
+  /* slate-600 */
+  --txt-lo: #64748b;
+  /* slate-500 */
+  --accent-soft: #e0e7ff;
+  /* indigo-100 */
+  --accent-border: #c7d2fe;
+  /* indigo-200 */
+  --accent-400: #6366f1;
+  /* indigo-500 */
+  --accent-500: #4f46e5;
+  /* indigo-600 */
+  --accent-600: #4338ca;
+  /* indigo-700 */
+  --accent-on: #ffffff;
+  --ok-soft: #dcfce7;
+  --ok-border: #bbf7d0;
+  --ok-400: #22c55e;
+  --ok-500: #16a34a;
+  --warn-soft: #fef9c3;
+  --warn-border: #fef08a;
+  --warn-400: #eab308;
+  --warn-500: #ca8a04;
+  --danger-soft: #fee2e2;
+  --danger-border: #fecaca;
+  --danger-400: #ef4444;
+  --danger-500: #dc2626;
+  --scrim: rgba(15, 23, 42, 0.4);
+  /* slate-900 with opacity */
+}
+
+/* Softened dark theme: desaturated navy rather than pure black, gentler contrast. */
+.dark {
+  --canvas: #101319;
+  --surface: #161a23;
+  --elevated: #1b202a;
+  --raised: #232936;
+  --line: #28303c;
+  --line-soft: #1f2530;
+  --line-strong: #333c4a;
+  --txt-hi: #e9edf4;
+  --txt-mid: #9ba5b5;
+  --txt-lo: #6c7686;
+  --accent-soft: #212745;
+  --accent-border: #3c467d;
+  --accent-400: #a6adf4;
+  --accent-500: #7c86e8;
+  --accent-600: #6b74d8;
+  --accent-on: #0f1218;
+  --ok-soft: #16302a;
+  --ok-border: #28594b;
+  --ok-400: #6fdcb8;
+  --ok-500: #3fbd94;
+  --warn-soft: #2e2617;
+  --warn-border: #574526;
+  --warn-400: #f0c684;
+  --warn-500: #e0a94a;
+  --danger-soft: #331a1d;
+  --danger-border: #63343a;
+  --danger-400: #f4a4a7;
+  --danger-500: #e07074;
+  --scrim: rgba(6, 8, 12, 0.6);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--canvas);
+  color: var(--txt-hi);
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background-color: var(--accent-soft);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+::placeholder {
+  opacity: 0.35 !important;
+}
+
+/* Asset label printing: only the label sheet reaches the printer. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .print-sheet {
+    display: block !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
+  .print-label {
+    break-inside: avoid;
+    border: 1px dashed #9aa4b4 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
+@page {
+  margin: 10mm;
+}

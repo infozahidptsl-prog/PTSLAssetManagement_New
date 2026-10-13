@@ -1,0 +1,453 @@
+﻿@page "/automation"
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Core.Interfaces
+@inject IAutomationService AutomationService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Automation Center | Prime Tech Asset Management</PageTitle>
+
+<style>
+    @@keyframes fadeSlideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    
+    html { overflow-y: scroll; }
+    
+    .automation-container { padding: 24px; animation: fadeSlideUp 0.5s ease-out forwards; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    
+    .stat-card { background: #ffffff; border: 1px solid #eef0f4; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease; cursor: pointer; display: flex; align-items: flex-start; gap: 16px; }
+    .stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
+    
+    .stat-card.critical:hover { border-color: #fca5a5; }
+    .stat-card.warning:hover { border-color: #fcd34d; }
+    .stat-card.info:hover { border-color: #a5b4fc; }
+    .stat-card.resolved:hover { border-color: #86efac; }
+    
+    .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .stat-icon.critical { background: #fef2f2; color: #ef4444; }
+    .stat-icon.warning { background: #fffbeb; color: #f59e0b; }
+    .stat-icon.info { background: #eef2ff; color: #6366f1; }
+    .stat-icon.resolved { background: #f0fdf4; color: #10b981; }
+
+    .stat-number { font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 4px; }
+    .stat-label { font-size: 14px; font-weight: 700; color: #334155; margin-bottom: 2px; }
+    .stat-sublabel { font-size: 12px; color: #64748b; }
+
+    .automation-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .automation-table th { background: #f8fafc; color: #475569; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; }
+    .automation-table th:first-child { border-top-left-radius: 8px; border-left: 1px solid #e2e8f0; }
+    .automation-table th:last-child { border-top-right-radius: 8px; border-right: 1px solid #e2e8f0; }
+    .automation-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; background: #ffffff; vertical-align: middle; transition: background-color 0.2s; }
+    .automation-table tr:hover td { background: #f8fafc; }
+    .automation-table td:first-child { border-left: 1px solid #e2e8f0; }
+    .automation-table td:last-child { border-right: 1px solid #e2e8f0; }
+    .automation-table tr:last-child td:first-child { border-bottom-left-radius: 8px; }
+    .automation-table tr:last-child td:last-child { border-bottom-right-radius: 8px; }
+    
+    .badge-priority { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; border: 1px solid; }
+    .badge-priority .dot { width: 6px; height: 6px; border-radius: 50%; }
+    
+    .badge-priority.critical { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+    .badge-priority.critical .dot { background: #ef4444; }
+    
+    .badge-priority.high { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+    .badge-priority.high .dot { background: #f97316; }
+    
+    .badge-priority.medium { background: #fefce8; color: #a16207; border-color: #fef08a; }
+    .badge-priority.medium .dot { background: #eab308; }
+    
+    .badge-priority.low { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .badge-priority.low .dot { background: #22c55e; }
+
+    .status-badge { padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; display: inline-block; }
+    .status-new { background: #eff6ff; color: #2563eb; }
+    .status-progress { background: #fffbeb; color: #d97706; }
+    .status-resolved { background: #f0fdf4; color: #16a34a; }
+    
+    .btn-review { background: #4f46e5; color: white; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; transition: background 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .btn-review:hover { background: #4338ca; }
+    .btn-view { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+    .btn-view:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
+    
+    .tab-btn { padding: 6px 16px; font-size: 14px; font-weight: 600; border-radius: 8px; transition: all 0.2s; color: #64748b; }
+    .tab-btn:hover { color: #1e293b; background: #f1f5f9; }
+    .tab-btn.active { background: #4f46e5; color: white; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.2); }
+</style>
+
+<div class="automation-container">
+    <div class="flex items-start justify-between mb-8">
+        <div>
+            <p class="text-[11px] font-bold text-slate-400 tracking-wider uppercase mb-1">MANAGEMENT</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Automation Center</h1>
+            <p class="text-slate-500 text-sm mt-1">Monitor and manage system alerts, automation rules and detected issues.</p>
+        </div>
+        <button @onclick="RunScan" class="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-200 bg-accent-600 text-white hover:bg-accent-700 shadow-sm disabled:opacity-50" disabled="@_isScanning">
+            @if (_isScanning)
+            {
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Scanning...</span>
+            }
+            else
+            {
+                <svg class="mr-2 h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Run Automation</span>
+            }
+        </button>
+    </div>
+
+    @if (_findings == null)
+    {
+        <div class="flex items-center justify-center p-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-500"></div>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card critical" @onclick="() => SetSeverityFilter(FindingSeverity.Critical)">
+                <div class="stat-icon critical">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <p class="stat-number">@_criticalCount</p>
+                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <p class="stat-label">Critical</p>
+                    <p class="stat-sublabel">Requires immediate attention</p>
+                </div>
+            </div>
+            
+            <div class="stat-card warning" @onclick="() => SetSeverityFilter(FindingSeverity.Warning)">
+                <div class="stat-icon warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <p class="stat-number">@_warningCount</p>
+                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <p class="stat-label">Warning</p>
+                    <p class="stat-sublabel">Needs review</p>
+                </div>
+            </div>
+
+            <div class="stat-card info" @onclick="() => SetSeverityFilter(FindingSeverity.Info)">
+                <div class="stat-icon info">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <p class="stat-number">@_infoCount</p>
+                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <p class="stat-label">Informational</p>
+                    <p class="stat-sublabel">For your awareness</p>
+                </div>
+            </div>
+
+            <div class="stat-card resolved" @onclick="() => SetStatusFilter(FindingStatus.Resolved)">
+                <div class="stat-icon resolved">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <p class="stat-number">@_resolvedCount</p>
+                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <p class="stat-label">Resolved</p>
+                    <p class="stat-sublabel">Automatically handled</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Row -->
+        <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
+            <div class="flex items-center gap-2">
+                <button class="tab-btn @(_currentStatusFilter == null && _currentSeverityFilter == null ? "active" : "")" @onclick="() => ClearFilters()">All</button>
+                <button class="tab-btn @(_currentStatusFilter == FindingStatus.Open ? "active" : "")" @onclick="() => SetStatusFilter(FindingStatus.Open)">
+                    New <span class="ml-1 text-xs opacity-80">@_newCount</span>
+                </button>
+                <button class="tab-btn @(_currentStatusFilter == FindingStatus.Resolved ? "active" : "")" @onclick="() => SetStatusFilter(FindingStatus.Resolved)">
+                    Resolved <span class="ml-1 text-xs opacity-80">@_resolvedCount</span>
+                </button>
+                <button class="tab-btn @(_currentStatusFilter == FindingStatus.Dismissed ? "active" : "")" @onclick="() => SetStatusFilter(FindingStatus.Dismissed)">
+                    Dismissed <span class="ml-1 text-xs opacity-80">@_dismissedCount</span>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full lg:w-auto">
+                <div class="relative flex-1 lg:w-80">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <input type="text" @bind="SearchQuery" @bind:event="oninput" 
+                           class="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:bg-white focus:border-accent-500 focus:ring-1 focus:ring-accent-500 sm:text-sm" 
+                           placeholder="Search issues, assets, references..." />
+                </div>
+                
+                <button class="inline-flex items-center px-3 py-2 border border-slate-200 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50">
+                    <svg class="mr-2 h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Automation Table -->
+        <div class="bg-white rounded-xl overflow-hidden" style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);">
+            <div class="overflow-x-auto">
+                <table class="automation-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="w-12 text-center">
+                                <input type="checkbox" class="h-4 w-4 text-accent-600 focus:ring-accent-500 border-slate-300 rounded" />
+                            </th>
+                            <th scope="col">Priority</th>
+                            <th scope="col" style="width: 35%;">Issue</th>
+                            <th scope="col">Asset / Reference</th>
+                            <th scope="col">Detected</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-right pr-6">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!FilteredFindings.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-slate-500 bg-white border-b border-l border-r border-slate-200 rounded-b-lg">
+                                    <div class="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                                        <svg class="w-8 h-8 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                                    </div>
+                                    <p class="font-medium text-slate-700">No findings match your criteria.</p>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var finding in FilteredFindings)
+                            {
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="h-4 w-4 text-accent-600 focus:ring-accent-500 border-slate-300 rounded cursor-pointer" />
+                                    </td>
+                                    <td>
+                                        <span class="badge-priority @finding.Severity.ToString().ToLower()">
+                                            <span class="dot"></span>
+                                            @finding.Severity.ToString()
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="font-bold text-slate-900 text-sm">@finding.Title</div>
+                                        <div class="text-xs text-slate-500 mt-0.5 line-clamp-1">@finding.Description</div>
+                                    </td>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-400">
+                                                @if (finding.DeviceId?.StartsWith("PUR-") == true)
+                                                {
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                                }
+                                                else
+                                                {
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                                }
+                                            </span>
+                                            <div>
+                                                <div class="font-semibold text-slate-700 text-sm">@(finding.DeviceId?.StartsWith("PUR-") == true ? "Network Device" : "Laptop")</div>
+                                                <div class="text-[11px] text-slate-500">
+                                                    @(finding.DeviceId?.StartsWith("PUR-") == true ? "PO" : "SN"): @finding.DeviceId
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-sm font-medium text-slate-700">@finding.CreatedAt.ToString("MMM d, yyyy h:mm tt")</div>
+                                        <div class="text-[11px] text-slate-400 mt-0.5">by System</div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge @(finding.Status == FindingStatus.Open ? "status-new" : (finding.Status == FindingStatus.Resolved ? "status-resolved" : "status-progress"))">
+                                            @finding.Status.ToString()
+                                        </span>
+                                    </td>
+                                    <td class="text-right pr-6">
+                                        <div class="flex justify-end gap-2 items-center">
+                                            @if (finding.Status == FindingStatus.Open)
+                                            {
+                                                <button class="btn-review" @onclick="() => NavigateToResolution(finding)">Review</button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn-view" @onclick="() => NavigateToResolution(finding)">View</button>
+                                            }
+                                            <button class="text-slate-400 hover:text-slate-600 p-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination Footer -->
+            <div class="bg-white px-6 py-4 border-t border-slate-200 border-l border-r rounded-b-lg flex items-center justify-between">
+                <div class="text-sm text-slate-500 font-medium">
+                    Showing <span class="font-bold text-slate-700">1</span>-<span class="font-bold text-slate-700">@FilteredFindings.Count()</span> of <span class="font-bold text-slate-700">@_findings.Count</span> items
+                </div>
+                <div class="flex items-center gap-1">
+                    <button class="w-8 h-8 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600 disabled:opacity-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button class="w-8 h-8 rounded bg-accent-600 text-white font-medium text-sm flex items-center justify-center">1</button>
+                    <button class="w-8 h-8 rounded hover:bg-slate-50 text-slate-600 font-medium text-sm flex items-center justify-center">2</button>
+                    <button class="w-8 h-8 rounded hover:bg-slate-50 text-slate-600 font-medium text-sm flex items-center justify-center">3</button>
+                    <button class="w-8 h-8 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<AutomationFinding>? _findings;
+    private bool _isScanning = false;
+    private string _searchQuery = "";
+
+    private FindingSeverity? _currentSeverityFilter;
+    private FindingStatus? _currentStatusFilter;
+
+    // Counts
+    private int _criticalCount = 0;
+    private int _warningCount = 0;
+    private int _infoCount = 0;
+    private int _resolvedCount = 0;
+    private int _newCount = 0;
+    private int _dismissedCount = 0;
+
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set
+        {
+            _searchQuery = value;
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<AutomationFinding> FilteredFindings
+    {
+        get
+        {
+            if (_findings == null) return Array.Empty<AutomationFinding>();
+
+            var query = _findings.AsEnumerable();
+
+            if (_currentSeverityFilter.HasValue)
+                query = query.Where(f => f.Severity == _currentSeverityFilter.Value);
+
+            if (_currentStatusFilter.HasValue)
+                query = query.Where(f => f.Status == _currentStatusFilter.Value);
+
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                var lowerQuery = _searchQuery.ToLowerInvariant();
+                query = query.Where(f => 
+                    (f.Title != null && f.Title.ToLowerInvariant().Contains(lowerQuery)) ||
+                    (f.Description != null && f.Description.ToLowerInvariant().Contains(lowerQuery)) ||
+                    (f.DeviceId != null && f.DeviceId.ToLowerInvariant().Contains(lowerQuery))
+                );
+            }
+
+            return query.OrderByDescending(f => f.CreatedAt).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _findings = await AutomationService.GetFindingsAsync();
+        CalculateStats();
+    }
+
+    private void CalculateStats()
+    {
+        if (_findings == null) return;
+        
+        _criticalCount = _findings.Count(f => f.Severity == FindingSeverity.Critical);
+        _warningCount = _findings.Count(f => f.Severity == FindingSeverity.Warning);
+        _infoCount = _findings.Count(f => f.Severity == FindingSeverity.Info);
+        _resolvedCount = _findings.Count(f => f.Status == FindingStatus.Resolved);
+        
+        _newCount = _findings.Count(f => f.Status == FindingStatus.Open);
+        _dismissedCount = _findings.Count(f => f.Status == FindingStatus.Dismissed);
+    }
+
+    private async Task RunScan()
+    {
+        _isScanning = true;
+        StateHasChanged();
+        
+        // Let UI update
+        await Task.Delay(100);
+        
+        await AutomationService.RunScanAsync();
+        await LoadDataAsync();
+        
+        _isScanning = false;
+        StateHasChanged();
+    }
+
+    private void SetSeverityFilter(FindingSeverity severity)
+    {
+        if (_currentSeverityFilter == severity)
+        {
+            _currentSeverityFilter = null; // Toggle off
+        }
+        else
+        {
+            _currentSeverityFilter = severity;
+            _currentStatusFilter = null; // Clear status filter if setting severity
+        }
+    }
+
+    private void SetStatusFilter(FindingStatus status)
+    {
+        if (_currentStatusFilter == status)
+        {
+            _currentStatusFilter = null; // Toggle off
+        }
+        else
+        {
+            _currentStatusFilter = status;
+            _currentSeverityFilter = null; // Clear severity filter if setting status
+        }
+    }
+
+    private void ClearFilters()
+    {
+        _currentSeverityFilter = null;
+        _currentStatusFilter = null;
+        _searchQuery = "";
+    }
+
+    private void NavigateToResolution(AutomationFinding finding)
+    {
+        NavigationManager.NavigateTo($"/automation/resolve/{finding.Id}");
+    }
+}
+

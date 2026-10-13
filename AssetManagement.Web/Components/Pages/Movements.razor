@@ -1,0 +1,252 @@
+@page "/movements"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Devices.View)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@using AssetManagement.Web.Models
+@inject DeviceService DeviceService
+@inject HandoverService HandoverService
+@inject EmployeeService EmployeeService
+@inject RepairService RepairService
+
+<PageTitle>Transfer history - PrimeTech Asset Manager</PageTitle>
+
+<div class="bg-surface pb-2 border-b border-line-soft">
+<PageHeader Title="Transfer history" ShowBackButton="true">
+    <ChildContent>
+        <div class="mt-3 flex flex-row gap-3">
+            <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #f5f3ff; border: 1px solid #ddd6fe;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #5b21b6;">Total movements</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #7c3aed;">@allMovements.Count</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #6d28d9;">All time records</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #ede9fe; color: #7c3aed;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #1e40af;">Allocations</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #1d4ed8;">@allMovements.Count(m => m.Type == "allocate")</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #1d4ed8;">Issued to employees</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #dbeafe; color: #2563eb;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 9-6-6-6 6"/><path d="M12 3v14"/><path d="M5 21h14"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #ecfdf5; border: 1px solid #a7f3d0;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #065f46;">Returns</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #047857;">@allMovements.Count(m => m.Type == "return")</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #047857;">Returned to inventory</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #d1fae5; color: #059669;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #fffbeb; border: 1px solid #fde68a;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #92400e;">Repair events</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #b45309;">@allMovements.Count(m => m.Type == "send-repair" || m.Type == "repair-return")</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #92400e;">Sent &amp; returned</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #fef3c7; color: #d97706;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</PageHeader>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(QuerySearch))
+{
+    <div class="flex items-center justify-between bg-accent-50/60 dark:bg-accent-950/30 border-b border-accent-200/50 dark:border-accent-800/40 px-6 py-2 lg:px-9 text-xs text-accent-700 dark:text-accent-300">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Showing movements filtered for: <strong>@QuerySearch</strong></span>
+        </div>
+        <button type="button" onclick="window.history.length > 1 ? window.history.back() : window.location.href='/employees'" class="inline-flex items-center gap-1 font-semibold hover:underline cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Back to previous page
+        </button>
+    </div>
+}
+
+<div class="flex flex-wrap items-center gap-2.5 border-y border-line-soft bg-surface px-6 py-3 lg:px-9">
+    <div class="relative min-w-[16rem] flex-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-txt-lo" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="search" @bind="searchTerm" @bind:event="oninput" placeholder="Search asset, person, supplier, reason…" aria-label="Search movements" class="w-full rounded-lg border border-line bg-elevated py-2 pl-9 pr-3 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" />
+    </div>
+
+    <select @bind="movementType" class="rounded-lg border border-line bg-elevated py-2 pl-2.5 pr-8 text-sm text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+        <option value="all">All movement types</option>
+        <option value="purchase-in">Purchase & Add</option>
+        <option value="allocate">Issue to employee</option>
+        <option value="return">Returned to IT</option>
+        <option value="send-repair">Sent to repair</option>
+        <option value="repair-return">Returned from repair</option>
+        <option value="obsolete">Written off</option>
+    </select>
+
+    <AssetManagement.Web.Components.Shared.DateRangePicker 
+        @bind-StartDate="dateFrom" 
+        @bind-EndDate="dateTo" 
+        Placeholder="Filter movements by date" />
+
+    <span class="tnum text-xs text-txt-lo">
+        @FilteredMovements.Count() of @allMovements.Count movements
+    </span>
+</div>
+
+<MovementFeed Movements="FilteredMovements.Take(120)" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? QuerySearch { get; set; }
+
+    private List<MovementDto> allMovements = new();
+    
+    private string searchTerm = "";
+    private string movementType = "all";
+    private DateTime? dateFrom;
+    private DateTime? dateTo;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(QuerySearch) && string.IsNullOrWhiteSpace(searchTerm))
+        {
+            searchTerm = QuerySearch;
+        }
+    }
+
+    private void ClearDates() { dateFrom = null; dateTo = null; }
+
+    private IEnumerable<MovementDto> FilteredMovements => allMovements
+        .Where(m => movementType == "all" || m.Type == movementType || (movementType == "repair" && (m.Type == "send-repair" || m.Type == "repair-return")))
+        .Where(m => string.IsNullOrWhiteSpace(searchTerm) || 
+                    m.ItemId.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    m.From.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    m.To.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    m.Note.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        .Where(m => !dateFrom.HasValue || m.Date.Date >= dateFrom.Value.Date)
+        .Where(m => !dateTo.HasValue || m.Date.Date <= dateTo.Value.Date)
+        .OrderByDescending(m => m.Date);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var devices = await DeviceService.GetDevicesAsync();
+        var handovers = await HandoverService.GetHandoversAsync();
+        var repairs = await RepairService.GetRepairsAsync();
+        var employees = await EmployeeService.GetEmployeesAsync(true);
+        var employeeDict = employees.ToDictionary(e => e.Id, e => e.Name);
+        var deviceDict = devices.ToDictionary(d => d.Id, d => string.IsNullOrEmpty(d.AssetTag) ? d.Id.ToString() : d.AssetTag);
+        var deviceDict2 = devices.ToDictionary(d => d.Id, d => $"{d.Brand} {d.DeviceName}");
+
+        var movements = new List<MovementDto>();
+
+        // Purchases
+        foreach (var d in devices.Where(d => d.ProcurementDate.HasValue))
+        {
+            movements.Add(new MovementDto
+            {
+                Type = "purchase-in",
+                From = "Supplier",
+                To = "In stock",
+                ItemId = string.IsNullOrEmpty(d.AssetTag) ? d.Id.ToString() : d.AssetTag,
+                Note = $"{d.Brand} {d.DeviceName}",
+                Date = d.ProcurementDate.Value
+            });
+        }
+
+        // Handovers (Allocations & Returns)
+        foreach (var h in handovers)
+        {
+            var empName = h.To;
+            var itemId = deviceDict.GetValueOrDefault(h.DeviceId, h.DeviceId.ToString());
+            
+            movements.Add(new MovementDto
+            {
+                Type = "allocate",
+                From = "In stock",
+                To = empName,
+                ItemId = itemId,
+                Note = deviceDict2.TryGetValue(h.DeviceId, out var dn) ? dn : "Allocated to employee",
+                Date = DateTime.TryParse(h.Released, out var dtReleased) ? dtReleased : DateTime.Now
+            });
+
+            if (!string.IsNullOrEmpty(h.ReturnDate))
+            {
+                movements.Add(new MovementDto
+                {
+                    Type = "return",
+                    From = empName,
+                    To = "In stock",
+                    ItemId = itemId,
+                    Note = string.IsNullOrEmpty(h.Condition) ? (deviceDict2.TryGetValue(h.DeviceId, out var dn2) ? dn2 : "Returned") : h.Condition,
+                    Date = DateTime.TryParse(h.ReturnDate, out var dtReturn) ? dtReturn : DateTime.Now
+                });
+            }
+        }
+
+        // Repairs
+        foreach (var r in repairs)
+        {
+            var itemId = deviceDict.GetValueOrDefault(r.DeviceId, r.DeviceId.ToString());
+            movements.Add(new MovementDto
+            {
+                Type = "send-repair",
+                From = "In stock",
+                To = r.VendorName ?? "Repair Center",
+                ItemId = itemId,
+                Note = r.IssueDescription,
+                Date = DateTime.TryParse(r.SentDate, out var dtSent) ? dtSent : DateTime.Now
+            });
+
+            if (!string.IsNullOrEmpty(r.ActualReturnDate))
+            {
+                movements.Add(new MovementDto
+                {
+                    Type = "repair-return",
+                    From = r.VendorName ?? "Repair Center",
+                    To = "In stock",
+                    ItemId = itemId,
+                    Note = r.Remarks ?? "Returned from repair",
+                    Date = DateTime.TryParse(r.ActualReturnDate, out var dtActualRet) ? dtActualRet : DateTime.Now
+                });
+            }
+        }
+
+        // Written off
+        foreach (var d in devices.Where(d => d.Status == DeviceStatus.WrittenOff))
+        {
+            movements.Add(new MovementDto
+            {
+                Type = "obsolete",
+                From = "Inventory",
+                To = "Scrap",
+                ItemId = string.IsNullOrEmpty(d.AssetTag) ? d.Id.ToString() : d.AssetTag,
+                Note = d.Note ?? "Written off",
+                Date = DateTime.Now // Usually we'd track actual write off date, using Now for mock
+            });
+        }
+
+        allMovements = movements;
+    }
+}
+
+
+

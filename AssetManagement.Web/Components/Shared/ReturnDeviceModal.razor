@@ -1,0 +1,134 @@
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+
+<Modal IsOpen="IsOpen" IsOpenChanged="HandleModalOpenChanged" 
+       Title="Return to inventory" 
+       Description="Bring an issued item back into IT stock and keep the holder history intact.">
+       
+    <EditForm Model="@model" OnValidSubmit="HandleSubmit" class="space-y-6">
+        <DataAnnotationsValidator />
+
+        <div class="space-y-2">
+            <label for="return-item" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Item being returned
+            </label>
+            <select id="return-item" @bind="model.DeviceId" class="@InputClass" required>
+                <option value="">Select an issued item...</option>
+                @foreach (var d in AssignedDevices)
+                {
+                    <option value="@d.Id">@(string.IsNullOrEmpty(d.AssetTag) ? d.Serial : d.AssetTag) — @d.UserName (@d.Brand)</option>
+                }
+            </select>
+        </div>
+
+        <div class="space-y-3">
+            <fieldset>
+                <legend class="block text-xs font-medium uppercase tracking-widest text-txt-lo">
+                    Reason
+                </legend>
+                <div class="mt-2 space-y-2">
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(model.Reason == "Employee left the job" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-elevated hover:border-line")" @onclick='() => model.Reason = "Employee left the job"'>
+                        <input type="radio" name="reason" value="Employee left the job" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" checked="@(model.Reason == "Employee left the job")" />
+                        <span>
+                            <span class="block text-sm font-medium text-txt-hi">Employee left the job</span>
+                            <span class="block text-xs text-txt-mid">The machine comes back permanently and is stocked for re-issue.</span>
+                        </span>
+                    </label>
+
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(model.Reason == "Issue with the system" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-elevated hover:border-line")" @onclick='() => model.Reason = "Issue with the system"'>
+                        <input type="radio" name="reason" value="Issue with the system" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" checked="@(model.Reason == "Issue with the system")" />
+                        <span>
+                            <span class="block text-sm font-medium text-txt-hi">Issue with the system</span>
+                            <span class="block text-xs text-txt-mid">Return for triage — you can issue an interim system to keep the user working.</span>
+                        </span>
+                    </label>
+
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(model.Reason == "Replaced by another system" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-elevated hover:border-line")" @onclick='() => model.Reason = "Replaced by another system"'>
+                        <input type="radio" name="reason" value="Replaced by another system" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" checked="@(model.Reason == "Replaced by another system")" />
+                        <span>
+                            <span class="block text-sm font-medium text-txt-hi">Replaced by another system</span>
+                            <span class="block text-xs text-txt-mid">The user has already been given a different machine.</span>
+                        </span>
+                    </label>
+
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(model.Reason == "Other reason" ? "border-accent-border bg-accent-soft" : "border-line-soft bg-elevated hover:border-line")" @onclick='() => model.Reason = "Other reason"'>
+                        <input type="radio" name="reason" value="Other reason" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" checked="@(model.Reason == "Other reason")" />
+                        <span>
+                            <span class="block text-sm font-medium text-txt-hi">Other reason</span>
+                            <span class="block text-xs text-txt-mid">Any other return to inventory.</span>
+                        </span>
+                    </label>
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="space-y-2">
+            <label for="return-note" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Note
+            </label>
+            <InputTextArea id="return-note" @bind-Value="model.Note" rows="3" placeholder="Condition on return, accessories included..." class="@InputClass" style="min-height: 70px;" />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-1">
+            <button type="button" @onclick="CloseAsync" class="@ButtonGhost">
+                Cancel
+            </button>
+            <button type="submit" class="@ButtonPrimary">
+                Record return
+            </button>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<ReturnModel> OnReturned { get; set; }
+
+    [Parameter]
+    public List<Device> AssignedDevices { get; set; } = new();
+
+    public class ReturnModel
+    {
+        public string DeviceId { get; set; } = string.Empty;
+        public string Reason { get; set; } = "Employee left the job";
+        public string Note { get; set; } = string.Empty;
+    }
+
+    private ReturnModel model = new ReturnModel();
+
+    private string InputClass = "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+    private string ButtonPrimary = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-accent-on transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed";
+    private string ButtonGhost = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+
+    private async Task HandleModalOpenChanged(bool value)
+    {
+        if (!value)
+        {
+            await CloseAsync();
+        }
+        else
+        {
+            IsOpen = true;
+            await IsOpenChanged.InvokeAsync(true);
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        await OnReturned.InvokeAsync(model);
+        await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+        model = new ReturnModel();
+    }
+}

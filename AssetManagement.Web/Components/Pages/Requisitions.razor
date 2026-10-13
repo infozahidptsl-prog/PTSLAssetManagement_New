@@ -1,0 +1,865 @@
+@page "/requisitions"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Requisitions.View)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Interfaces
+@using AssetManagement.Infrastructure.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject RequisitionService RequisitionService
+@inject EmployeeService EmployeeService
+@inject ISettingsService SettingsService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<PageTitle>Asset Requisitions - PrimeTech Asset Manager</PageTitle>
+
+<div class="bg-surface pb-4 border-b border-line-soft">
+<PageHeader Title="Asset Requisitions">
+    <Actions>
+        <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Requisitions.Create">
+            <button type="button" @onclick="OpenNewModal"
+                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                New Requisition
+            </button>
+        </AuthorizeView>
+    </Actions>
+    <ChildContent>
+        <div class="mt-5 flex flex-row gap-3">
+
+            <button type="button" @onclick='() => SetFilter("Pending")' class="@StatCardClass("Pending")">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-amber-700">Pending Approval</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-amber-800">@pendingCount</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Awaiting manager review</p>
+                    </div>
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl bg-amber-400 @(currentFilter == "Pending" ? "opacity-100" : "opacity-0")"></div>
+            </button>
+
+            <button type="button" @onclick='() => SetFilter("Approved")' class="@StatCardClass("Approved")">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Approved</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-emerald-800">@approvedCount</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Ready to purchase</p>
+                    </div>
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl bg-emerald-400 @(currentFilter == "Approved" ? "opacity-100" : "opacity-0")"></div>
+            </button>
+
+            <button type="button" @onclick='() => SetFilter("Rejected")' class="@StatCardClass("Rejected")">
+                <div class="relative z-10 flex items-start justify-between p-4">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-rose-700">Rejected</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-rose-800">@rejectedCount</p>
+                        <p class="mt-0.5 text-[11px] text-txt-lo">Declined requests</p>
+                    </div>
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-500/15 text-rose-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    </span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl bg-rose-400 @(currentFilter == "Rejected" ? "opacity-100" : "opacity-0")"></div>
+            </button>
+
+        </div>
+    </ChildContent>
+</PageHeader>
+</div>
+
+<section class="bg-surface">
+    <div class="px-6 pb-3 pt-5 lg:px-9 flex items-center gap-2 flex-wrap">
+        @foreach (var tab in new[] { "All", "Pending", "Approved", "Rejected" })
+        {
+            <button type="button" @onclick="() => SetFilter(tab)"
+                    class="@(currentFilter == tab ? "rounded-full px-4 py-1.5 text-xs font-semibold bg-accent-500 text-white shadow-sm" : "rounded-full px-4 py-1.5 text-xs font-medium border border-line text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors")">
+                @tab
+            </button>
+        }
+        <div class="ml-auto">
+            <span class="text-xs text-txt-lo">@filteredRequisitions.Count result@(filteredRequisitions.Count != 1 ? "s" : "")</span>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-line-soft bg-canvas/50">
+                    <th class="py-2 pl-6 pr-3 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid lg:pl-9 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("ReqId")'>
+                        <div class="flex items-center gap-1.5">Req. ID @RenderSortIcon("ReqId")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("User")'>
+                        <div class="flex items-center gap-1.5">Requested By @RenderSortIcon("User")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Asset")'>
+                        <div class="flex items-center gap-1.5">Asset @RenderSortIcon("Asset")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Qty")'>
+                        <div class="flex items-center gap-1.5">Qty @RenderSortIcon("Qty")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Priority")'>
+                        <div class="flex items-center gap-1.5">Priority @RenderSortIcon("Priority")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Status")'>
+                        <div class="flex items-center gap-1.5">Status @RenderSortIcon("Status")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Date")'>
+                        <div class="flex items-center gap-1.5">Date @RenderSortIcon("Date")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("PM")'>
+                        <div class="flex items-center gap-1.5">PM @RenderSortIcon("PM")</div>
+                    </th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid">File</th>
+                    <th class="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-widest text-txt-mid">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr><td colspan="10" class="py-16 text-center text-txt-lo text-sm">Loading&#x2026;</td></tr>
+                }
+                else if (!filteredRequisitions.Any())
+                {
+                    <tr>
+                        <td colspan="10" class="py-16 text-center">
+                            <div class="flex flex-col items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                <p class="text-sm text-txt-lo">No requisitions found</p>
+                                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Requisitions.Create">
+                                    <button type="button" @onclick="OpenNewModal" class="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-600 transition-colors">+ New Requisition</button>
+                                </AuthorizeView>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var req in filteredRequisitions)
+                    {
+                        <tr class="border-b border-line-soft/50 hover:bg-canvas/40 transition-colors">
+                            <td class="py-3 pl-6 pr-3 lg:pl-9">
+                                <span class="font-mono text-xs font-semibold text-accent-500">@req.RequisitionNumber</span>
+                            </td>
+                            <td class="px-3 py-3">
+                                <span class="block text-xs font-medium text-txt-hi">@req.RequestedByName</span>
+                                @if (!string.IsNullOrEmpty(req.RequestedByEmployeeId))
+                                {
+                                    <span class="block text-[11px] text-txt-lo mt-0.5">@req.RequestedByEmployeeId</span>
+                                }
+                            </td>
+                            <td class="px-3 py-3">
+                                @if (!string.IsNullOrEmpty(req.AssetCategory))
+                                {
+                                    <span class="block text-[10px] font-medium text-txt-lo mb-0.5">@req.AssetCategory</span>
+                                }
+                                <span class="block text-xs font-medium text-txt-hi">@req.AssetType</span>
+                                @if (!string.IsNullOrEmpty(req.AssetSpecification))
+                                {
+                                    <span class="block text-[11px] text-txt-lo mt-0.5 max-w-[160px] truncate" title="@req.AssetSpecification">@req.AssetSpecification</span>
+                                }
+                            </td>
+                            <td class="px-3 py-3"><span class="text-xs font-mono font-medium text-txt-hi">@req.Quantity</span></td>
+                            <td class="px-3 py-3"><span class="@PriorityBadge(req.Priority)">@req.Priority</span></td>
+                            <td class="px-3 py-3"><span class="@StatusBadgeClass(req.Status)">@req.Status</span></td>
+                            <td class="px-3 py-3 text-xs text-txt-mid whitespace-nowrap">@req.RequestedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
+                            <td class="px-3 py-3 text-xs text-txt-mid">@(string.IsNullOrEmpty(req.ProjectManagerName) ? "&#x2014;" : req.ProjectManagerName)</td>
+                            <td class="px-3 py-3">
+                                @if (!string.IsNullOrEmpty(req.AttachmentPath))
+                                {
+                                    var isImage = IsImageFile(req.AttachmentOriginalName ?? "");
+                                    <div class="flex items-center gap-1.5">
+                                        @if (isImage)
+                                        {
+                                            <img src="@req.AttachmentPath" alt="attachment" class="h-8 w-8 rounded object-cover border border-line cursor-pointer hover:opacity-80 transition-opacity" @onclick="() => OpenPreviewModal(req)" />
+                                        }
+                                        else
+                                        {
+                                            <button type="button" @onclick="() => OpenPreviewModal(req)" class="flex h-8 w-8 items-center justify-center rounded border border-line bg-elevated text-accent-500 hover:bg-accent-50 transition-colors" title="@req.AttachmentOriginalName">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            </button>
+                                        }
+                                        <a href="@req.AttachmentPath" download="@req.AttachmentOriginalName" class="inline-flex h-7 w-7 items-center justify-center rounded text-txt-mid hover:text-accent-500 hover:bg-accent-50 transition-colors" title="Download">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        </a>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-[11px] text-txt-lo">&#x2014;</span>
+                                }
+                            </td>
+                            <td class="px-3 py-3">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    @if (req.Status == "Pending")
+                                    {
+                                        <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Requisitions.Approve">
+                                            <button type="button" @onclick="() => OpenApproveModal(req)" class="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 hover:bg-emerald-100 transition-colors">Approve</button>
+                                            <button type="button" @onclick="() => OpenRejectModal(req)" class="inline-flex items-center rounded-md bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20 hover:bg-rose-100 transition-colors">Reject</button>
+                                        </AuthorizeView>
+                                    }
+                                    else if (req.Status == "Approved" && string.IsNullOrEmpty(req.PurchasedDeviceId))
+                                    {
+                                        <button type="button" @onclick="() => GoToPurchase(req)" class="inline-flex items-center gap-1 rounded-md bg-accent-500 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-accent-600 transition-colors">
+                                            Purchase <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                        </button>
+                                    }
+                                    else if (req.Status == "Approved" && !string.IsNullOrEmpty(req.PurchasedDeviceId))
+                                    {
+                                        <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            Purchased
+                                        </span>
+                                    }
+                                    <button type="button" @onclick="() => OpenViewModal(req)" class="inline-flex items-center rounded-md border border-line bg-elevated px-2.5 py-1 text-[11px] font-medium text-txt-mid hover:text-txt-hi hover:border-line-strong transition-colors">View</button>
+                                    <button type="button" @onclick="() => OpenDeleteModal(req)" class="inline-flex items-center rounded-md border border-red-100 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-600 hover:text-red-700 hover:bg-red-100 transition-colors">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@* ==================== NEW REQUISITION MODAL ==================== *@
+@if (showNewModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
+        <div class="relative w-full max-w-2xl rounded-2xl bg-surface shadow-2xl border border-line max-h-[90vh] flex flex-col" @onclick:stopPropagation="true">
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4 shrink-0">
+                <h2 class="text-base font-semibold text-txt-hi">New Asset Requisition</h2>
+                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-lo hover:bg-elevated hover:text-txt-hi transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="px-6 py-5 space-y-4 overflow-y-auto">
+                <div class="grid grid-cols-2 gap-4">
+
+                    @* Requested By *@
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Requested By <span class="text-rose-500">*</span></label>
+                        <select @bind="newReq.RequestedByName" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
+                            <option value="">&#x2014; Select employee &#x2014;</option>
+                            @foreach (var emp in employees)
+                            {
+                                <option value="@emp.Name">@emp.Name (@emp.EmployeeId)</option>
+                            }
+                        </select>
+                    </div>
+
+                    @* Project Manager *@
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Project Manager</label>
+                        <select @bind="newReq.ProjectManagerName" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
+                            <option value="">&#x2014; Select PM &#x2014;</option>
+                            @foreach (var mgr in managers)
+                            {
+                                <option value="@mgr">@mgr</option>
+                            }
+                        </select>
+                    </div>
+
+                    @* Requisition Received Date *@
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Requisition Received Date</label>
+                        <input type="date" @bind="newReqReceivedDate" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none" />
+                    </div>
+
+                    @* Priority *@
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Priority</label>
+                        <select @bind="newReq.Priority" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+
+                    @* Asset Category *@
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Category <span class="text-rose-500">*</span></label>
+                        <select @bind="newReq.AssetCategory" @bind:after="OnCategoryChanged" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
+                            <option value="">&#x2014; Select category &#x2014;</option>
+                            <option value="System">System</option>
+                            <option value="Component">Component</option>
+                            <option value="Peripheral">Peripheral</option>
+                        </select>
+                    </div>
+
+                    @* Asset Type *@
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Type / Name <span class="text-rose-500">*</span></label>
+                        @if (filteredCategoryItems.Any())
+                        {
+                            <select @bind="newReq.AssetType" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
+                                <option value="">&#x2014; Select type &#x2014;</option>
+                                @foreach (var cat in filteredCategoryItems)
+                                {
+                                    <option value="@cat.Name">@cat.Name</option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <input type="text" @bind="newReq.AssetType" placeholder="e.g. Laptop, Monitor 24&quot;, USB Hub" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none" />
+                        }
+                    </div>
+
+                    @* Specification *@
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Specification</label>
+                        <input type="text" @bind="newReq.AssetSpecification" placeholder="e.g. Intel i5, 16GB, 512GB SSD" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none" />
+                    </div>
+
+                    @* Quantity *@
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Quantity</label>
+                        <input type="number" @bind="newReq.Quantity" min="1" max="99" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none" />
+                    </div>
+
+                    @* Justification *@
+                    <div class="col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Justification / Note</label>
+                        <textarea @bind="newReq.JustificationNote" rows="2" placeholder="Why is this asset needed?" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none resize-none"></textarea>
+                    </div>
+
+                    @* File Upload *@
+                    <div class="col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Attach File (email / image)</label>
+                        <div class="relative rounded-xl border-2 border-dashed border-line p-4 text-center hover:border-accent-border transition-colors group">
+                            @if (uploadedFilePreview == null)
+                            {
+                                <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.eml,.msg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="reqFileInput" />
+                            }
+                            @if (uploadedFilePreview != null)
+                            {
+                                <div class="flex flex-col items-center gap-2 relative z-20">
+                                    @if (uploadedFileIsImage)
+                                    {
+                                        <img src="@uploadedFilePreview" alt="Preview" class="max-h-28 max-w-full rounded-lg object-contain border border-line shadow-sm" />
+                                    }
+                                    else
+                                    {
+                                        <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-accent-50 border border-accent-border/30">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        </div>
+                                    }
+                                    <p class="text-xs font-medium text-txt-hi">@uploadedFileName</p>
+                                    <button type="button" @onclick="ClearFile" class="text-[11px] text-rose-500 hover:text-rose-700 transition-colors">Remove file</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex flex-col items-center gap-2 relative z-0 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo group-hover:text-accent-500 transition-colors"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    <span class="text-xs text-txt-mid">Click, drop, or <kbd class="px-1 py-0.5 border border-line-soft rounded text-[10px] bg-elevated font-mono">Ctrl+V</kbd> to paste <span class="text-accent-500 font-medium">image/email</span></span>
+                                    <span class="text-[11px] text-txt-lo">JPG, PNG, PDF, EML, MSG</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                </div>
+                @if (!string.IsNullOrEmpty(formError)) { <p class="text-xs text-rose-500">@formError</p> }
+            </div>
+            <div class="flex justify-end gap-2 border-t border-line-soft px-6 py-4 shrink-0">
+                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors">Cancel</button>
+                <button type="button" @onclick="SubmitNewRequisition" disabled="@isSaving"
+                        class="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600 transition-colors disabled:opacity-60">
+                    @if (isSaving) { <span>Saving&#x2026;</span> } else { <span>Submit Requisition</span> }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@* ==================== APPROVE MODAL ==================== *@
+@if (showApproveModal && selectedReq != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
+        <div class="relative w-full max-w-md rounded-2xl bg-surface shadow-2xl border border-line" @onclick:stopPropagation="true">
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4">
+                <h2 class="text-base font-semibold text-txt-hi">Approve Requisition</h2>
+                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-lo hover:bg-elevated hover:text-txt-hi transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="px-6 py-5 space-y-4">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p class="text-sm font-medium text-emerald-800">@selectedReq.RequisitionNumber &#x2014; @selectedReq.AssetType</p>
+                    <p class="text-xs text-emerald-700 mt-0.5">Requested by @selectedReq.RequestedByName &middot; Qty: @selectedReq.Quantity</p>
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-txt-mid">Your Name (Approver) <span class="text-rose-500">*</span></label>
+                    <input type="text" @bind="approverName" placeholder="Enter your name" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none" />
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-txt-mid">Approval Note (optional)</label>
+                    <textarea @bind="approvalNote" rows="2" placeholder="Any notes..." class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none resize-none"></textarea>
+                </div>
+                @if (!string.IsNullOrEmpty(formError)) { <p class="text-xs text-rose-500">@formError</p> }
+            </div>
+            <div class="flex justify-end gap-2 border-t border-line-soft px-6 py-4">
+                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors">Cancel</button>
+                <button type="button" @onclick="ConfirmApprove" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors">&#x2713; Confirm Approval</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* ==================== REJECT MODAL ==================== *@
+@if (showRejectModal && selectedReq != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
+        <div class="relative w-full max-w-md rounded-2xl bg-surface shadow-2xl border border-line" @onclick:stopPropagation="true">
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4">
+                <h2 class="text-base font-semibold text-txt-hi">Reject Requisition</h2>
+                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-lo hover:bg-elevated hover:text-txt-hi transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="px-6 py-5 space-y-4">
+                <div class="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                    <p class="text-sm font-medium text-rose-800">@selectedReq.RequisitionNumber &#x2014; @selectedReq.AssetType</p>
+                    <p class="text-xs text-rose-700 mt-0.5">Requested by @selectedReq.RequestedByName</p>
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-txt-mid">Your Name <span class="text-rose-500">*</span></label>
+                    <input type="text" @bind="approverName" placeholder="Enter your name" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none" />
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-txt-mid">Reason for Rejection <span class="text-rose-500">*</span></label>
+                    <textarea @bind="approvalNote" rows="3" placeholder="Explain why this requisition is being rejected..." class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none resize-none"></textarea>
+                </div>
+                @if (!string.IsNullOrEmpty(formError)) { <p class="text-xs text-rose-500">@formError</p> }
+            </div>
+            <div class="flex justify-end gap-2 border-t border-line-soft px-6 py-4">
+                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors">Cancel</button>
+                <button type="button" @onclick="ConfirmReject" class="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 transition-colors">&#x2715; Confirm Rejection</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* ==================== VIEW MODAL ==================== *@
+@if (showViewModal && selectedReq != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
+        <div class="relative w-full max-w-md rounded-2xl bg-surface shadow-2xl border border-line" @onclick:stopPropagation="true">
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4">
+                <div>
+                    <h2 class="text-base font-semibold text-txt-hi">@selectedReq.RequisitionNumber</h2>
+                    <p class="text-xs text-txt-lo mt-0.5">@selectedReq.RequestedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p>
+                </div>
+                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-lo hover:bg-elevated hover:text-txt-hi transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="px-6 py-5 space-y-3 text-sm max-h-[60vh] overflow-y-auto">
+                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Status</span><span class="@StatusBadgeClass(selectedReq.Status)">@selectedReq.Status</span></div>
+                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Requested by</span><span class="text-txt-hi font-medium">@selectedReq.RequestedByName @(string.IsNullOrEmpty(selectedReq.RequestedByEmployeeId) ? "" : $"({selectedReq.RequestedByEmployeeId})")</span></div>
+                @if (!string.IsNullOrEmpty(selectedReq.ProjectManagerName))
+                {
+                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Project Manager</span><span class="text-txt-hi">@selectedReq.ProjectManagerName</span></div>
+                }
+                @if (selectedReq.RequisitionReceivedDate.HasValue)
+                {
+                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Req. Received</span><span class="text-txt-hi">@selectedReq.RequisitionReceivedDate.Value.ToString("dd MMM yyyy")</span></div>
+                }
+                @if (!string.IsNullOrEmpty(selectedReq.AssetCategory))
+                {
+                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Category</span><span class="text-txt-hi">@selectedReq.AssetCategory</span></div>
+                }
+                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Asset Type</span><span class="text-txt-hi font-medium">@selectedReq.AssetType</span></div>
+                @if (!string.IsNullOrEmpty(selectedReq.AssetSpecification))
+                {
+                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Specification</span><span class="text-txt-hi">@selectedReq.AssetSpecification</span></div>
+                }
+                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Quantity</span><span class="text-txt-hi font-mono font-semibold">@selectedReq.Quantity</span></div>
+                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Priority</span><span class="@PriorityBadge(selectedReq.Priority)">@selectedReq.Priority</span></div>
+                @if (!string.IsNullOrEmpty(selectedReq.JustificationNote))
+                {
+                    <div class="border-b border-line-soft pb-2"><span class="text-txt-mid block mb-1">Justification</span><p class="text-txt-hi">@selectedReq.JustificationNote</p></div>
+                }
+                @if (!string.IsNullOrEmpty(selectedReq.ApprovedByName))
+                {
+                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">@(selectedReq.Status == "Rejected" ? "Rejected by" : "Approved by")</span><span class="text-txt-hi">@selectedReq.ApprovedByName</span></div>
+                }
+                @if (!string.IsNullOrEmpty(selectedReq.ApprovalNote))
+                {
+                    <div class="pb-2"><span class="text-txt-mid block mb-1">Note</span><p class="text-txt-hi">@selectedReq.ApprovalNote</p></div>
+                }
+                @if (!string.IsNullOrEmpty(selectedReq.AttachmentPath))
+                {
+                    <div class="border-t border-line-soft pt-3">
+                        <span class="text-txt-mid block mb-2 text-xs font-medium uppercase tracking-widest">Attached File</span>
+                        @if (IsImageFile(selectedReq.AttachmentOriginalName ?? ""))
+                        {
+                            <img src="@selectedReq.AttachmentPath" alt="Attachment" class="max-w-full rounded-lg border border-line shadow-sm" />
+                        }
+                        else
+                        {
+                            <div class="flex items-center gap-3 rounded-lg border border-line bg-elevated p-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                <span class="flex-1 text-sm text-txt-hi truncate">@selectedReq.AttachmentOriginalName</span>
+                                <a href="@selectedReq.AttachmentPath" download="@selectedReq.AttachmentOriginalName" class="inline-flex items-center gap-1 rounded-md bg-accent-500 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-accent-600 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    Download
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="flex justify-end border-t border-line-soft px-6 py-4">
+                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* ==================== FILE PREVIEW MODAL ==================== *@
+@if (showPreviewModal && selectedReq != null && !string.IsNullOrEmpty(selectedReq.AttachmentPath))
+{
+    <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm" @onclick="ClosePreviewModal">
+        <div class="relative max-w-3xl w-full mx-4" @onclick:stopPropagation="true">
+            <div class="flex items-center justify-between mb-3 px-1">
+                <span class="text-white text-sm font-medium">@selectedReq.AttachmentOriginalName</span>
+                <div class="flex items-center gap-2">
+                    <a href="@selectedReq.AttachmentPath" download="@selectedReq.AttachmentOriginalName" class="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Download
+                    </a>
+                    <button type="button" @onclick="ClosePreviewModal" class="rounded-lg bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+            </div>
+            @if (IsImageFile(selectedReq.AttachmentOriginalName ?? ""))
+            {
+                <img src="@selectedReq.AttachmentPath" alt="Preview" class="max-w-full max-h-[80vh] rounded-xl object-contain mx-auto block shadow-2xl" />
+            }
+        </div>
+    </div>
+}
+
+
+@* ==================== DELETE MODAL ==================== *@
+@if (showDeleteModal && selectedReq != null)
+{
+    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
+        <div class="relative w-full max-w-md rounded-2xl bg-surface shadow-xl border border-line" @onclick:stopPropagation="true">
+            <div class="p-6 text-center">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-txt-hi">Delete Requisition</h3>
+                <p class="mt-2 text-sm text-txt-mid">Are you sure you want to delete requisition <span class="font-bold">@selectedReq.RequisitionNumber</span>? This action cannot be undone.</p>
+                <div class="mt-6 flex justify-center gap-3">
+                    <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-hi hover:bg-surface transition-colors">Cancel</button>
+                    <button type="button" @onclick="ConfirmDelete" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Requisition> allRequisitions = new();
+    private List<Employee> employees = new();
+    private List<DeviceCategoryModel> allCategories = new();
+    private List<string> managers = new();
+    private string currentFilter = "All";
+    private bool isLoading = true;
+    private bool isSaving = false;
+
+    private int pendingCount  => allRequisitions.Count(r => r.Status == "Pending");
+    private int approvedCount => allRequisitions.Count(r => r.Status == "Approved");
+    private int rejectedCount => allRequisitions.Count(r => r.Status == "Rejected");
+
+    private string sortColumn = "Date";
+    private bool sortAscending = false;
+
+    private List<Requisition> filteredRequisitions => GetSortedRequisitions();
+
+    private List<DeviceCategoryModel> filteredCategoryItems =>
+        string.IsNullOrEmpty(newReq.AssetCategory)
+            ? allCategories
+            : allCategories.Where(c => c.Type?.Equals(newReq.AssetCategory, StringComparison.OrdinalIgnoreCase) == true).ToList();
+
+    // Modal state
+    private bool showNewModal     = false;
+    private bool showApproveModal = false;
+    private bool showRejectModal  = false;
+    private bool showViewModal    = false;
+    private bool showDeleteModal  = false;
+    private bool showPreviewModal = false;
+    private Requisition? selectedReq  = null;
+    private Requisition  newReq       = new();
+    private DateTime?    newReqReceivedDate;
+    private string  approverName = string.Empty;
+    private string? approvalNote;
+    private string? formError;
+
+    // File upload state
+    private IBrowserFile? uploadedFile;
+    private string? uploadedFilePreview;
+    private string? uploadedFileName;
+    private bool    uploadedFileIsImage;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("setupFilePaste", "reqFileInput");
+        }
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        allRequisitions = await RequisitionService.GetAllAsync();
+        var empList = (await EmployeeService.GetEmployeesAsync(true)).ToList();
+        employees = empList;
+
+        // Load project managers from settings
+        var pmList = await SettingsService.GetProjectManagersAsync();
+        managers = pmList.Select(pm => pm.Name).OrderBy(n => n).ToList();
+
+        // Load categories from settings
+        allCategories = (await SettingsService.GetCategoriesAsync()).ToList();
+
+        isLoading = false;
+    }
+
+    private void SetFilter(string filter) => currentFilter = filter;
+
+    private void OpenNewModal()
+    {
+        newReq = new Requisition { Quantity = 1, Priority = "Normal" };
+        newReqReceivedDate = null;
+        formError = null;
+        uploadedFile = null;
+        uploadedFilePreview = null;
+        uploadedFileName = null;
+        uploadedFileIsImage = false;
+        showNewModal = true;
+    }
+
+    private void OnCategoryChanged()
+    {
+        newReq.AssetType = string.Empty; // reset type when category changes
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+        uploadedFileName = e.File.Name;
+        uploadedFileIsImage = IsImageFile(e.File.Name);
+
+        if (uploadedFileIsImage)
+        {
+            // Generate preview
+            var format = "image/jpeg";
+            var resized = await e.File.RequestImageFileAsync(format, 800, 600);
+            using var stream = resized.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new System.IO.MemoryStream();
+            await stream.CopyToAsync(ms);
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            uploadedFilePreview = $"data:{format};base64,{base64}";
+        }
+        else
+        {
+            uploadedFilePreview = "file"; // non-null signals a file exists
+        }
+    }
+
+    private void ClearFile()
+    {
+        uploadedFile = null;
+        uploadedFilePreview = null;
+        uploadedFileName = null;
+        uploadedFileIsImage = false;
+    }
+
+    
+    private void OpenDeleteModal(Requisition req)
+    {
+        selectedReq = req;
+        showDeleteModal = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (selectedReq != null)
+        {
+            await RequisitionService.DeleteAsync(selectedReq.Id);
+            CloseModals();
+            await LoadData();
+        }
+    }
+
+    private void OpenApproveModal(Requisition req)
+    {
+        selectedReq = req; approverName = string.Empty; approvalNote = null; formError = null;
+        showApproveModal = true;
+    }
+
+    private void OpenRejectModal(Requisition req)
+    {
+        selectedReq = req; approverName = string.Empty; approvalNote = null; formError = null;
+        showRejectModal = true;
+    }
+
+    private void OpenViewModal(Requisition req) { selectedReq = req; showViewModal = true; }
+
+    private void OpenPreviewModal(Requisition req) { selectedReq = req; showPreviewModal = true; }
+    private void ClosePreviewModal() { showPreviewModal = false; }
+
+    private void CloseModals()
+    {
+        showNewModal = showApproveModal = showRejectModal = showViewModal = showPreviewModal = showDeleteModal = false;
+        selectedReq = null; formError = null;
+    }
+
+    private async Task SubmitNewRequisition()
+    {
+        if (string.IsNullOrWhiteSpace(newReq.RequestedByName)) { formError = "Please select an employee."; return; }
+        if (string.IsNullOrWhiteSpace(newReq.AssetCategory))   { formError = "Please select an asset category."; return; }
+        if (string.IsNullOrWhiteSpace(newReq.AssetType))       { formError = "Asset type is required."; return; }
+
+        isSaving = true;
+
+        // Populate employee ID
+        var emp = employees.FirstOrDefault(e => e.Name == newReq.RequestedByName);
+        newReq.RequestedByEmployeeId = emp?.EmployeeId;
+        newReq.RequisitionReceivedDate = newReqReceivedDate;
+
+        // Save file if any
+        if (uploadedFile != null)
+        {
+            try
+            {
+                var ext = System.IO.Path.GetExtension(uploadedFile.Name);
+                var fileName = $"{Guid.NewGuid()}{ext}";
+                var folderPath = System.IO.Path.Combine("wwwroot", "uploads", "requisitions");
+                System.IO.Directory.CreateDirectory(folderPath);
+                var fullPath = System.IO.Path.Combine(folderPath, fileName);
+                using var fs = System.IO.File.Create(fullPath);
+                using var stream = uploadedFile.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+                await stream.CopyToAsync(fs);
+                newReq.AttachmentPath = $"/uploads/requisitions/{fileName}";
+                newReq.AttachmentOriginalName = uploadedFile.Name;
+            }
+            catch { /* silently skip if file save fails */ }
+        }
+
+        await RequisitionService.CreateAsync(newReq);
+        isSaving = false;
+        CloseModals();
+        await LoadData();
+    }
+
+    private async Task ConfirmApprove()
+    {
+        if (string.IsNullOrWhiteSpace(approverName)) { formError = "Please enter the approver's name."; return; }
+        await RequisitionService.ApproveAsync(selectedReq!.Id, approverName, approvalNote);
+        CloseModals(); await LoadData();
+    }
+
+    private async Task ConfirmReject()
+    {
+        if (string.IsNullOrWhiteSpace(approverName)) { formError = "Please enter your name."; return; }
+        if (string.IsNullOrWhiteSpace(approvalNote)) { formError = "Please provide a reason for rejection."; return; }
+        await RequisitionService.RejectAsync(selectedReq!.Id, approverName, approvalNote);
+        CloseModals(); await LoadData();
+    }
+
+    private void GoToPurchase(Requisition req)
+    {
+        var category = Uri.EscapeDataString(req.AssetType);
+        var spec     = Uri.EscapeDataString(req.AssetSpecification ?? "");
+        NavigationManager.NavigateTo($"/inventory-in?reqId={req.Id}&category={category}&spec={spec}&qty={req.Quantity}");
+    }
+
+    private static bool IsImageFile(string name)
+    {
+        var ext = System.IO.Path.GetExtension(name).ToLowerInvariant();
+        return ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp";
+    }
+
+    private string StatCardClass(string status) =>
+        "flex-1 group relative overflow-hidden rounded-xl border text-left transition-all duration-200 " +
+        (status == "Pending"
+            ? (currentFilter == "Pending"  ? "border-amber-300/60 bg-amber-50/80 shadow-md"   : "border-line-soft bg-surface hover:bg-amber-50/30 hover:shadow-sm")
+        : status == "Approved"
+            ? (currentFilter == "Approved" ? "border-emerald-300/60 bg-emerald-50/80 shadow-md" : "border-line-soft bg-surface hover:bg-emerald-50/30 hover:shadow-sm")
+            : (currentFilter == "Rejected" ? "border-rose-300/60 bg-rose-50/80 shadow-md"       : "border-line-soft bg-surface hover:bg-rose-50/30 hover:shadow-sm"));
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "Approved" => "inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
+        "Rejected" => "inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20",
+        _          => "inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20"
+    };
+
+    private static string PriorityBadge(string priority) => priority switch
+    {
+        "High" => "inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20",
+        "Low"  => "inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20",
+        _      => "inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 ring-1 ring-inset ring-gray-300"
+    };
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private RenderFragment RenderSortIcon(string column) => __builder =>
+    {
+        if (sortColumn == column)
+        {
+            if (sortAscending)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500 shrink-0"><path d="m5 15 7-7 7 7"/></svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500 shrink-0"><path d="m19 9-7 7-7-7"/></svg>
+            }
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-line-strong opacity-40 group-hover:opacity-100 transition-opacity shrink-0"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        }
+    };
+
+    private List<Requisition> GetSortedRequisitions()
+    {
+        var list = (currentFilter == "All" ? allRequisitions : allRequisitions.Where(r => r.Status == currentFilter)).AsEnumerable();
+        list = sortColumn switch
+        {
+            "ReqId" => sortAscending ? list.OrderBy(r => r.RequisitionNumber) : list.OrderByDescending(r => r.RequisitionNumber),
+            "User" => sortAscending ? list.OrderBy(r => r.RequestedByName) : list.OrderByDescending(r => r.RequestedByName),
+            "Asset" => sortAscending ? list.OrderBy(r => r.AssetType) : list.OrderByDescending(r => r.AssetType),
+            "Qty" => sortAscending ? list.OrderBy(r => r.Quantity) : list.OrderByDescending(r => r.Quantity),
+            "Priority" => sortAscending ? list.OrderBy(r => r.Priority) : list.OrderByDescending(r => r.Priority),
+            "Status" => sortAscending ? list.OrderBy(r => r.Status) : list.OrderByDescending(r => r.Status),
+            "Date" => sortAscending ? list.OrderBy(r => r.RequestedAt) : list.OrderByDescending(r => r.RequestedAt),
+            "PM" => sortAscending ? list.OrderBy(r => r.ProjectManagerName) : list.OrderByDescending(r => r.ProjectManagerName),
+            _ => sortAscending ? list.OrderBy(r => r.RequestedAt) : list.OrderByDescending(r => r.RequestedAt)
+        };
+        return list.ToList();
+    }
+}
+
+
+

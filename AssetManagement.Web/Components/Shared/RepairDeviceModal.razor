@@ -1,0 +1,99 @@
+@using AssetManagement.Core.Entities
+
+<Modal IsOpen="IsOpen" IsOpenChanged="HandleModalOpenChanged" 
+       Title="Send to repair shop" 
+       Description="The item moves out of service and its holder is remembered so it can go back to the same person once fixed.">
+       
+    <EditForm Model="@repair" OnValidSubmit="HandleSubmit" class="space-y-4">
+        <DataAnnotationsValidator />
+
+        <div class="space-y-2">
+            <label for="repair-item" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Item with the issue
+            </label>
+            <select id="repair-item" @bind="repair.DeviceId" class="@InputClass" required>
+                <option value="">Select an item…</option>
+                @foreach (var d in FaultyDevices)
+                {
+                    <option value="@d.Id">@(string.IsNullOrEmpty(d.AssetTag) ? d.Serial : d.AssetTag) — @d.Brand (@d.Condition)</option>
+                }
+            </select>
+        </div>
+
+        <div class="space-y-2">
+            <label for="repair-vendor" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Repair vendor
+            </label>
+            <InputText id="repair-vendor" @bind-Value="repair.VendorName" placeholder="NextGen Repair Shop" class="@InputClass" required />
+        </div>
+
+        <div class="space-y-2">
+            <label for="repair-issue" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Reported issue
+            </label>
+            <InputText id="repair-issue" @bind-Value="repair.IssueDescription" placeholder="Keyboard fault, not powering on, display flicker..." class="@InputClass" required />
+        </div>
+
+        <div class="space-y-2">
+            <label for="repair-expected-date" class="block text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                Expected delivery date (Optional)
+            </label>
+            <InputText id="repair-expected-date" type="date" @bind-Value="repair.ExpectedReturnDate" class="@InputClass" />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-1">
+            <button type="button" @onclick="CloseAsync" class="@ButtonGhost">
+                Cancel
+            </button>
+            <button type="submit" class="@ButtonPrimary">
+                Send to repair
+            </button>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<RepairRecord> OnRepaired { get; set; }
+
+    [Parameter]
+    public List<Device> FaultyDevices { get; set; } = new();
+
+    private async Task HandleModalOpenChanged(bool value)
+    {
+        if (!value)
+        {
+            await CloseAsync();
+        }
+        else
+        {
+            IsOpen = true;
+            await IsOpenChanged.InvokeAsync(true);
+        }
+    }
+
+    private RepairRecord repair = new RepairRecord();
+
+    private string InputClass = "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+    private string ButtonPrimary = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-accent-on transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed";
+    private string ButtonGhost = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500";
+
+    private async Task HandleSubmit()
+    {
+        await OnRepaired.InvokeAsync(repair);
+        await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+        repair = new RepairRecord();
+    }
+}

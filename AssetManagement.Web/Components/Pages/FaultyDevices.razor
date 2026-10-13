@@ -1,0 +1,98 @@
+@page "/faulty"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@inject DeviceService DeviceService
+@inject NavigationManager NavigationManager
+
+
+<div class="px-6 pb-6 pt-7 lg:px-9">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold text-txt-hi tracking-tight">Faulty devices</h1>
+            <p class="mt-1.5 text-[13px] text-txt-mid max-w-3xl">
+                Every machine flagged in the condition column — dead units, body damage, keyboard faults and slow machines to triage.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="px-6 pb-12 lg:px-9">
+    @if (!faultyDevices.Any())
+    {
+        <div class="flex flex-col items-center justify-center py-16 text-txt-mid bg-surface rounded-xl border border-line-soft">
+            <svg class="h-12 w-12 text-line-strong mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p class="text-sm font-medium">No faulty devices found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+            @foreach (var device in faultyDevices)
+            {
+                <div class="rounded-xl border border-line-soft bg-surface p-6 hover:bg-elevated cursor-pointer transition-colors shadow-sm" @onclick="() => NavigateToDetail(device.Id)">
+                    <div class="flex items-center justify-between border-b border-line-soft pb-4 mb-4">
+                        <div class="flex items-center gap-3 pr-4 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-line-soft text-txt-hi">
+                                <DeviceIcon Category="@device.Category" />
+                            </div>
+                            <div class="flex flex-col min-w-0">
+                                <h3 class="text-[13px] font-semibold text-txt-hi uppercase truncate">
+                                    @device.Brand
+                                    @if (!string.IsNullOrEmpty(device.AssetTag))
+                                    {
+                                        <span class="inline-flex items-center rounded-md bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent-600 ring-1 ring-inset ring-accent-border ml-1.5 normal-case tracking-normal">@device.AssetTag</span>
+                                    }
+                                </h3>
+                                <p class="text-[11px] text-txt-lo uppercase tracking-wider mt-0.5 truncate">SN: @device.Serial</p>
+                            </div>
+                        </div>
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] border bg-danger-soft text-danger-500 border-danger-border shrink-0 max-w-[50%]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <span class="truncate">@(string.IsNullOrWhiteSpace(device.Condition) ? "Faulty" : device.Condition)</span>
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-x-12 gap-y-3">
+                        <div class="flex items-center justify-between min-w-0">
+                            <span class="text-txt-lo text-[13px] shrink-0">Last user</span>
+                            <span class="text-txt-mid text-[13px] truncate text-right pl-4">@(string.IsNullOrWhiteSpace(device.UserName) ? "—" : device.UserName)</span>
+                        </div>
+                        <div class="flex items-center justify-between min-w-0">
+                            <span class="text-txt-lo text-[13px] shrink-0">Returned</span>
+                            <span class="text-txt-mid text-[13px] truncate text-right pl-4">@(string.IsNullOrWhiteSpace(device.ReturnDate) ? "—" : device.ReturnDate)</span>
+                        </div>
+                        <div class="flex items-center justify-between min-w-0">
+                            <span class="text-txt-lo text-[13px] shrink-0">Spec</span>
+                            <span class="text-txt-mid text-[13px] truncate text-right pl-4">@device.Processor · @(string.IsNullOrWhiteSpace(device.Ram) ? "—" : device.Ram)</span>
+                        </div>
+                        <div class="flex items-center justify-between min-w-0">
+                            <span class="text-txt-lo text-[13px] shrink-0">Storage</span>
+                            <span class="text-txt-mid text-[13px] truncate text-right pl-4">@(string.IsNullOrWhiteSpace(device.Ssd) ? (string.IsNullOrWhiteSpace(device.Hdd) ? "—" : device.Hdd) : (string.IsNullOrWhiteSpace(device.Hdd) ? device.Ssd : $"{device.Ssd} + {device.Hdd}"))</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Device> faultyDevices = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var allDevices = await DeviceService.GetDevicesAsync();
+        faultyDevices = allDevices.Where(d => d.Status == DeviceStatus.Faulty).ToList();
+    }
+    
+    private void NavigateToDetail(string id)
+    {
+        NavigationManager.NavigateTo($"/devices/{id}");
+    }
+}
+

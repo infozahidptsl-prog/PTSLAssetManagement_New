@@ -1,0 +1,788 @@
+@page "/a/{Token}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@layout AssetManagement.Web.Components.Layout.EmptyLayout
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@inject DeviceService DeviceService
+@inject NavigationManager NavigationManager
+@inject EmployeeService EmployeeService
+@inject RepairService RepairService
+@inject IJSRuntime JS
+
+@if (isLoading)
+{
+    <div class="flex h-screen items-center justify-center bg-canvas">
+        <div class="flex flex-col items-center gap-3">
+            <div class="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-accent-500"></div>
+            <p class="text-sm text-txt-mid">Loading asset...</p>
+        </div>
+    </div>
+}
+else if (accessDenied)
+{
+    <div class="flex h-screen flex-col items-center justify-center bg-canvas text-center px-8">
+        <div class="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-full bg-danger-500/10">
+            <svg style="width:36px;height:36px;stroke:currentColor;fill:none;" viewBox="0 0 24 24" stroke-width="1.5" class="text-danger-500"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+        </div>
+        <h1 class="text-xl font-bold text-danger-500">Invalid QR Code</h1>
+        <p class="mt-2 text-sm text-txt-mid leading-relaxed">This QR code is invalid or the link has been tampered with. Please scan the original label on the asset.</p>
+    </div>
+}
+else if (device == null)
+{
+    <div class="flex h-screen flex-col items-center justify-center bg-canvas text-center px-8">
+        <div class="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-full bg-txt-lo/10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+        <h1 class="text-xl font-bold text-txt-hi">Asset Not Found</h1>
+        <p class="mt-2 text-sm text-txt-mid">No asset matched this QR code. It may have been removed from the system.</p>
+    </div>
+}
+else
+{
+    <div class="min-h-screen bg-canvas pb-28">
+
+        <!-- Header: Asset Identified Banner -->
+        <div class="bg-canvas px-5 pb-5 pt-10 relative">
+            @if (currentMode != ViewMode.ViewAsset)
+            {
+                <button @onclick="CancelAction" class="absolute left-4 top-5 flex items-center gap-1.5 text-sm text-txt-mid hover:text-txt-hi">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    Back
+                </button>
+            }
+            else
+            {
+                <button onclick="history.back()" class="absolute left-4 top-5 flex items-center gap-1.5 text-sm text-txt-mid hover:text-txt-hi">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    Back
+                </button>
+            }
+
+            <!-- Asset identified label -->
+            <div class="mb-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Asset Identified</span>
+            </div>
+
+            <h1 class="text-2xl font-bold tracking-tight text-txt-hi">@device.Brand @device.DeviceName</h1>
+            <p class="mt-1.5 text-sm text-txt-mid">
+                @{
+                    var pList = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(device.Category)) pList.Add(device.Category);
+                    if (!string.IsNullOrWhiteSpace(device.Processor)) pList.Add(device.Processor);
+                    if (!string.IsNullOrWhiteSpace(device.Ram)) pList.Add(device.Ram);
+                    if (!string.IsNullOrWhiteSpace(device.Ssd)) pList.Add(device.Ssd);
+                }
+                @string.Join(" \u00B7 ", pList)
+            </p>
+
+            <!-- Status + Asset Tag row -->
+            <div class="mt-4 flex flex-wrap gap-2">
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-elevated px-3 py-1.5 text-xs font-semibold text-txt-hi">
+                    @(string.IsNullOrEmpty(device.AssetTag) ? "No Tag" : device.AssetTag)
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold
+                    @(device.Status == DeviceStatus.InUse ? "bg-blue-100 text-blue-800" :
+                      device.Status == DeviceStatus.InStore ? "bg-emerald-100 text-emerald-800" :
+                      device.Status == DeviceStatus.InRepair ? "bg-amber-100 text-amber-800" :
+                      "bg-elevated text-txt-mid")">
+                    <span class="h-1.5 w-1.5 rounded-full
+                        @(device.Status == DeviceStatus.InUse ? "bg-blue-500" :
+                          device.Status == DeviceStatus.InStore ? "bg-emerald-500" :
+                          device.Status == DeviceStatus.InRepair ? "bg-amber-500" : "bg-txt-lo")"></span>
+                    @GetStatusText(device.Status)
+                </span>
+            </div>
+        </div>
+
+        <!-- Error message -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="mx-4 mb-4 rounded-xl bg-danger-50 border border-danger-200 p-4">
+                <p class="text-sm font-medium text-danger-700">@errorMessage</p>
+            </div>
+        }
+
+        <div class="px-4 space-y-5 mt-4">
+            @if (currentMode == ViewMode.ViewAsset)
+            {
+                <!-- ACTION BUTTONS — large, touch-friendly -->
+                @if (device.Status == DeviceStatus.InStore)
+                {
+                    <div class="space-y-3">
+                        <button @onclick="() => StartAction(ViewMode.ScanEmployeeAllocate)"
+                            class="w-full rounded-2xl bg-accent-500 py-4 text-base font-bold text-white shadow-lg hover:bg-accent-600 active:scale-[0.98] transition">
+                            Allocate Asset
+                        </button>
+                        <button @onclick="() => StartAction(ViewMode.RepairAsset)"
+                            class="w-full rounded-2xl border-2 border-line bg-surface py-4 text-base font-bold text-txt-hi hover:bg-elevated active:scale-[0.98] transition">
+                            Send to Repair
+                        </button>
+                    </div>
+                }
+                else if (device.Status == DeviceStatus.InUse)
+                {
+                    <div class="space-y-3">
+                        <button @onclick="() => StartAction(ViewMode.ReturnAsset)"
+                            class="w-full rounded-2xl bg-accent-500 py-4 text-base font-bold text-white shadow-lg hover:bg-accent-600 active:scale-[0.98] transition">
+                            Return Asset
+                        </button>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button @onclick="() => StartAction(ViewMode.ScanEmployeeTransfer)"
+                                class="rounded-2xl border-2 border-line bg-surface py-4 text-sm font-bold text-txt-hi hover:bg-elevated active:scale-[0.98] transition">
+                                Transfer
+                            </button>
+                            <button @onclick="() => StartAction(ViewMode.RepairAsset)"
+                                class="rounded-2xl border-2 border-line bg-surface py-4 text-sm font-bold text-txt-hi hover:bg-elevated active:scale-[0.98] transition">
+                                Repair
+                            </button>
+                        </div>
+                    </div>
+                }
+                else if (device.Status == DeviceStatus.InRepair)
+                {
+                    <div class="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-center">
+                        <p class="text-sm font-bold text-amber-800">Currently in Repair</p>
+                        <p class="text-xs text-amber-700 mt-1">Manage this asset from the Repair Center.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="rounded-2xl border-2 border-line bg-surface p-4 text-center">
+                        <p class="text-sm text-txt-mid">No actions available for current status.</p>
+                    </div>
+                }
+
+                <!-- CURRENT CUSTODY CARD -->
+                <div class="rounded-2xl bg-slate-50 p-5 shadow-sm border border-line-soft cursor-pointer transition-colors hover:bg-slate-100" @onclick="ToggleAssetDetails">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-txt-lo">Current Custody</p>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-txt-mid transition-transform @(showAssetDetails ? "rotate-180" : "")" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    @if (string.IsNullOrEmpty(currentEmployee?.Name ?? device.UserName))
+                    {
+                        <p class="text-sm text-txt-mid italic">Not assigned to any employee</p>
+                    }
+                    else
+                    {
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-500/10 text-accent-500 font-bold text-sm">
+                                @((currentEmployee?.Name ?? device.UserName ?? "?")[0])
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-semibold text-txt-hi text-sm">@(currentEmployee?.Name ?? device.UserName)</p>
+                                <p class="text-xs text-txt-mid mt-0.5">@(currentEmployee?.Designation ?? device.Designation ?? "Employee")</p>
+                                <p class="text-xs text-txt-lo mt-0.5">@(currentEmployee?.EmployeeId ?? device.EmployeeId ?? "")</p>
+                            </div>
+                        </div>
+                    }
+
+                    @if (showAssetDetails)
+                    {
+                        var dash = "\u2014";
+                        var spec = string.Join(" \u00B7 ", new[] { (device.Category == "Monitor" ? device.DeviceName : null), device.Processor, device.Ram, device.Ssd, device.Hdd, device.MonitorDisplay }.Where(s => !string.IsNullOrWhiteSpace(s)));
+                        <div class="mt-4 rounded-xl bg-surface p-4 shadow-sm border border-line-soft">
+                            <h3 class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-4">Item Details</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs text-txt-mid">Serial number</span>
+                                    <span class="rounded-md bg-elevated px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi uppercase border border-line-soft">@(string.IsNullOrWhiteSpace(device.Serial) ? dash : device.Serial)</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs text-txt-mid">Category</span>
+                                    <span class="rounded-md bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-800">@(string.IsNullOrWhiteSpace(device.Category) ? dash : device.Category)</span>
+                                </div>
+                                <div class="flex items-start justify-between gap-2">
+                                    <span class="text-xs text-txt-mid whitespace-nowrap">Specification</span>
+                                    <span class="rounded-md bg-cyan-100 px-2 py-0.5 text-[11px] font-medium text-cyan-800 text-right">@(string.IsNullOrWhiteSpace(spec) ? dash : spec)</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(device.MacAddress))
+                                {
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-xs text-txt-mid">MAC address</span>
+                                        <span class="rounded-md bg-elevated px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi uppercase border border-line-soft">@device.MacAddress</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(device.Imei))
+                                {
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-xs text-txt-mid">IMEI</span>
+                                        <span class="rounded-md bg-elevated px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi border border-line-soft">@device.Imei</span>
+                                    </div>
+                                }
+                                <div class="my-3 border-t border-line-soft"></div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs text-txt-mid">Supplier</span>
+                                    <span class="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">@(string.IsNullOrWhiteSpace(device.From) ? dash : device.From)</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs text-txt-mid">Purchase date</span>
+                                    <span class="rounded-md bg-pink-100 px-2 py-0.5 text-[11px] font-medium text-pink-800">@(device.ProcurementDate?.ToString("d MMM yyyy") ?? dash)</span>
+                                </div>
+                                @if (device.HasWarranty && device.WarrantyMonths.HasValue)
+                                {
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-xs text-txt-mid">Warranty</span>
+                                        <span class="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">@device.WarrantyMonths months</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else if (currentMode == ViewMode.ScanEmployeeAllocate || currentMode == ViewMode.ScanEmployeeTransfer)
+            {
+                <!-- EMPLOYEE SELECTION —mobile-first, no camera required -->
+                <div class="rounded-2xl bg-surface border border-line-soft shadow-sm overflow-hidden">
+                    <!-- Instruction banner -->
+                    <div class="bg-accent-500/5 border-b border-accent-500/20 px-5 py-4">
+                        <p class="text-sm font-bold text-txt-hi mb-1">@(currentMode == ViewMode.ScanEmployeeAllocate ? "Select Employee to Allocate" : "Select Employee to Transfer to")</p>
+                        <p class="text-xs text-txt-mid leading-relaxed">
+                            Search by name or employee ID, then tap an employee to select.
+                        </p>
+                    </div>
+
+                    <div class="p-5">
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="mb-4 rounded-xl bg-danger-50 border border-danger-200 px-3 py-2.5">
+                                <p class="text-xs text-danger-700">@errorMessage</p>
+                            </div>
+                        }
+
+                        <!-- Search box (filters only) -->
+                        <div class="relative mb-3">
+                            <input id="employee-search" type="search" autocomplete="off"
+                                @bind="employeeSearch" @bind:event="oninput"
+                                placeholder="Search employee name or ID"
+                                class="w-full rounded-xl border-2 border-line bg-canvas px-4 py-3.5 text-sm focus:border-accent-500 focus:outline-none" />
+                        </div>
+
+                        <!-- Selectable list -->
+                        <div class="rounded-xl border border-line-soft divide-y divide-line-soft max-h-[50vh] overflow-y-auto mb-4 bg-surface">
+                            @if (employeesLoading)
+                            {
+                                <div class="px-4 py-6 text-center text-sm text-txt-mid">Loading employees...</div>
+                            }
+                            else
+                            {
+                                var list = FilteredEmployees.ToList();
+                                if (!list.Any())
+                                {
+                                    <div class="px-4 py-6 text-center text-sm text-txt-mid">No matching employees.</div>
+                                }
+                                foreach (var emp in list)
+                                {
+                                    var e = emp;
+                                    <button type="button" @onclick="() => SelectEmployee(e)"
+                                        class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent-500/5 active:bg-accent-500/10 transition">
+                                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-500/10 text-accent-500 font-bold text-sm">
+                                            @(string.IsNullOrEmpty(e.Name) ? "?" : e.Name.Substring(0, 1).ToUpper())
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-txt-hi truncate">@e.Name</p>
+                                            <p class="text-xs text-txt-mid truncate">@(string.IsNullOrEmpty(e.Designation) ? "Employee" : e.Designation)</p>
+                                        </div>
+                                        <span class="shrink-0 rounded-md bg-elevated border border-line-soft px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi">@e.EmployeeId</span>
+                                    </button>
+                                }
+                            }
+                        </div>
+
+                        <button @onclick="CancelAction"
+                            class="w-full rounded-xl border border-line bg-surface py-3 text-sm font-medium text-txt-mid hover:bg-elevated transition">
+                            &larr; Cancel
+                        </button>
+                    </div>
+                </div>
+            }
+            else if (currentMode == ViewMode.ConfirmAllocate || currentMode == ViewMode.ConfirmTransfer)
+            {
+                <!-- CONFIRM ALLOCATE / TRANSFER -->
+                <div class="rounded-2xl bg-surface p-5 shadow-sm border border-line-soft">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-4">@(currentMode == ViewMode.ConfirmAllocate ? "Confirm Allocation" : "Confirm Transfer")</p>
+
+                    <div class="flex items-start gap-3 mb-5">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-500/10 text-accent-500 font-bold">
+                            @((scannedEmployee?.Name ?? "?")[0])
+                        </div>
+                        <div>
+                            <p class="font-semibold text-txt-hi">@scannedEmployee?.Name</p>
+                            <p class="text-xs text-txt-mid">@scannedEmployee?.EmployeeId &middot; @(scannedEmployee?.Designation ?? "Employee")</p>
+                        </div>
+                    </div>
+
+                    @if (currentMode == ViewMode.ConfirmTransfer)
+                    {
+                        <div class="mb-5 rounded-xl p-3 bg-amber-50 border border-amber-200">
+                            <p class="text-xs font-bold text-amber-800 mb-0.5">Transferring From</p>
+                            <p class="text-sm text-amber-900">@(currentEmployee?.Name ?? device.UserName)</p>
+                        </div>
+                    }
+
+                    <div class="space-y-3 mt-2">
+                        <button @onclick="ExecuteAssignment" disabled="@isProcessing"
+                            class="w-full rounded-2xl bg-accent-500 py-4 text-base font-bold text-white shadow-lg hover:bg-accent-600 disabled:opacity-60 active:scale-[0.98] transition">
+                            @(isProcessing ? "Processing..." : (currentMode == ViewMode.ConfirmAllocate ? "Confirm Allocation" : "Confirm Transfer"))
+                        </button>
+                        <button @onclick="CancelAction"
+                            class="w-full rounded-2xl border-2 border-line bg-surface py-4 text-base font-bold text-txt-mid hover:bg-elevated transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            }
+            else if (currentMode == ViewMode.ReturnAsset)
+            {
+                <!-- RETURN WORKFLOW -->
+                <div class="rounded-2xl bg-surface p-5 shadow-sm border border-line-soft">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-4">Return Asset</p>
+
+                    <div class="mb-5 rounded-xl bg-slate-50 border border-line-soft p-4">
+                        <p class="text-xs text-txt-mid mb-1">Currently with</p>
+                        <p class="text-base font-bold text-txt-hi">@(currentEmployee?.Name ?? device.UserName)</p>
+                        <p class="text-xs text-txt-mid">@(currentEmployee?.EmployeeId ?? device.EmployeeId ?? "")</p>
+                    </div>
+
+                    <label class="block text-sm font-medium text-txt-hi mb-2">Condition after return</label>
+                    <select @bind="returnCondition" class="w-full rounded-xl border-2 border-line bg-surface px-4 py-3 text-sm outline-none focus:border-accent-500 mb-4">
+                        <option value="Good">Good / Working</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Damaged">Damaged — Needs Repair</option>
+                        <option value="Failed">Failed / Faulty</option>
+                    </select>
+
+                    <label class="block text-sm font-medium text-txt-hi mb-2">Notes (Optional)</label>
+                    <textarea @bind="actionNotes" rows="3" class="w-full rounded-xl border-2 border-line bg-surface px-4 py-3 text-sm outline-none focus:border-accent-500 mb-5" placeholder="Any notes about this return..."></textarea>
+
+                    <div class="space-y-3">
+                        <button @onclick="ExecuteReturn" disabled="@isProcessing"
+                            class="w-full rounded-2xl bg-accent-500 py-4 text-base font-bold text-white shadow-lg hover:bg-accent-600 disabled:opacity-60 active:scale-[0.98] transition">
+                            @(isProcessing ? "Processing..." : "Confirm Return")
+                        </button>
+                        <button @onclick="CancelAction"
+                            class="w-full rounded-2xl border-2 border-line bg-surface py-4 text-base font-bold text-txt-mid hover:bg-elevated transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            }
+            else if (currentMode == ViewMode.RepairAsset)
+            {
+                <!-- REPAIR WORKFLOW -->
+                <div class="rounded-2xl bg-surface p-5 shadow-sm border border-line-soft">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-4">Send to Repair</p>
+
+                    <label class="block text-sm font-medium text-txt-hi mb-2">Problem Description</label>
+                    <textarea @bind="actionNotes" rows="4" class="w-full rounded-xl border-2 border-line bg-surface px-4 py-3 text-sm outline-none focus:border-accent-500 mb-5" placeholder="Describe the issue clearly..."></textarea>
+
+                    <div class="space-y-3">
+                        <button @onclick="ExecuteRepair" disabled="@isProcessing"
+                            class="w-full rounded-2xl bg-amber-500 py-4 text-base font-bold text-white shadow-lg hover:bg-amber-600 disabled:opacity-60 active:scale-[0.98] transition">
+                            @(isProcessing ? "Processing..." : "Confirm — Send to Repair")
+                        </button>
+                        <button @onclick="CancelAction"
+                            class="w-full rounded-2xl border-2 border-line bg-surface py-4 text-base font-bold text-txt-mid hover:bg-elevated transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private Device? device;
+    private Employee? currentEmployee;
+    private bool isLoading = true;
+    private bool accessDenied = false;
+    private bool isProcessing = false;
+    private string errorMessage = "";
+    private string manualQrInput = "";
+    private bool cameraFailed = false;
+    private bool showAssetDetails = false;
+    
+    private void ToggleAssetDetails()
+    {
+        showAssetDetails = !showAssetDetails;
+    }
+    
+    private enum ViewMode
+    {
+        ViewAsset,
+        ScanEmployeeAllocate,
+        ConfirmAllocate,
+        ScanEmployeeTransfer,
+        ConfirmTransfer,
+        ReturnAsset,
+        RepairAsset
+    }
+    
+    private ViewMode currentMode = ViewMode.ViewAsset;
+    private Employee? scannedEmployee;
+    private string returnCondition = "Good";
+    private string actionNotes = "";
+
+    private DotNetObjectReference<DeviceScan>? objRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        objRef = DotNetObjectReference.Create(this);
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            accessDenied = true;
+            isLoading = false;
+            return;
+        }
+
+        // New secure path: look up by hashed random token
+        var tokenHash = AssetManagement.Web.Helpers.SecurityHelper.HashToken(Token);
+        device = await DeviceService.GetDeviceByQrTokenAsync(tokenHash);
+
+        if (device != null && !string.IsNullOrEmpty(device.EmployeeId))
+        {
+            currentEmployee = await EmployeeService.GetEmployeeByIdAsync(device.EmployeeId);
+        }
+        else
+        {
+            currentEmployee = null;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task StartAction(ViewMode mode)
+    {
+        errorMessage = "";
+        currentMode = mode;
+        actionNotes = "";
+        returnCondition = "Good";
+        manualQrInput = "";
+        employeeSearch = "";
+
+        if (mode == ViewMode.ScanEmployeeAllocate || mode == ViewMode.ScanEmployeeTransfer)
+        {
+            employeesLoading = true;
+            StateHasChanged();
+            try
+            {
+                allEmployees = (await EmployeeService.GetEmployeesAsync(false))
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Name))
+                    .OrderBy(x => x.Name)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Could not load employees: {ex.Message}";
+                allEmployees = new();
+            }
+            finally
+            {
+                employeesLoading = false;
+            }
+        }
+    }
+
+    private string employeeSearch = "";
+    private bool employeesLoading = false;
+    private List<Employee> allEmployees = new();
+
+    private IEnumerable<Employee> FilteredEmployees
+    {
+        get
+        {
+            var q = allEmployees.AsEnumerable();
+
+            // When transferring, exclude the current custodian
+            if (currentMode == ViewMode.ScanEmployeeTransfer && device != null && !string.IsNullOrEmpty(device.EmployeeId))
+                q = q.Where(x => !string.Equals(x.EmployeeId, device.EmployeeId, StringComparison.OrdinalIgnoreCase));
+
+            var term = employeeSearch?.Trim();
+            if (!string.IsNullOrEmpty(term))
+            {
+                q = q.Where(x =>
+                    (x.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.EmployeeId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            return q.Take(100);
+        }
+    }
+
+    private void SelectEmployee(Employee emp)
+    {
+        errorMessage = "";
+        scannedEmployee = emp;
+        currentMode = currentMode == ViewMode.ScanEmployeeAllocate ? ViewMode.ConfirmAllocate : ViewMode.ConfirmTransfer;
+    }
+
+    private async Task CancelAction()
+    {
+        currentMode = ViewMode.ViewAsset;
+        errorMessage = "";
+        manualQrInput = "";
+    }
+
+    [JSInvokable]
+    public async Task OnScanResult(string decodedText)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("stopScanner");
+            
+            // Expected format: http://.../e/{secureToken}
+            var parts = decodedText.Split(new[] { "/e/" }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 1)
+            {
+                var rawToken = parts[1].Split('?')[0].Trim();
+                var tokenHash = AssetManagement.Web.Helpers.SecurityHelper.HashToken(rawToken);
+                scannedEmployee = await EmployeeService.GetEmployeeByQrTokenAsync(tokenHash);
+                
+                if (scannedEmployee != null)
+                {
+                    currentMode = currentMode == ViewMode.ScanEmployeeAllocate ? ViewMode.ConfirmAllocate : ViewMode.ConfirmTransfer;
+                    StateHasChanged();
+                    return;
+                }
+            }
+            
+            errorMessage = "Invalid Employee QR code.";
+            currentMode = ViewMode.ViewAsset;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Scan error: {ex.Message}";
+            currentMode = ViewMode.ViewAsset;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void OnScanError(string error) 
+    { 
+        cameraFailed = true;
+        errorMessage = "";
+        StateHasChanged();
+    }
+
+    private async Task HandleManualKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SubmitManualQr();
+    }
+
+    private async Task SubmitManualQr()
+    {
+        var input = manualQrInput?.Trim() ?? "";
+        if (string.IsNullOrEmpty(input)) return;
+        
+        errorMessage = "";
+
+        // Try URL format first (contains /e/)
+        if (input.Contains("/e/"))
+        {
+            await OnScanResult(input);
+            return;
+        }
+
+        // Try direct Employee ID lookup
+        var allEmps = await EmployeeService.GetEmployeesAsync(true);
+        scannedEmployee = allEmps.FirstOrDefault(e =>
+            (!string.IsNullOrEmpty(e.EmployeeId) && e.EmployeeId.Equals(input, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(e.Name) && e.Name.Equals(input, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(e.Email) && e.Email.Equals(input, StringComparison.OrdinalIgnoreCase))
+        );
+
+        if (scannedEmployee != null)
+        {
+            currentMode = currentMode == ViewMode.ScanEmployeeAllocate ? ViewMode.ConfirmAllocate : ViewMode.ConfirmTransfer;
+            StateHasChanged();
+        }
+        else
+        {
+            errorMessage = $"No employee found for '{input}'. Try Employee ID (e.g. PTSL220).";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExecuteAssignment()
+    {
+        if (device == null || scannedEmployee == null) return;
+        
+        isProcessing = true;
+        errorMessage = "";
+        
+        try
+        {
+            // Concurrency check
+            var latestDevice = await DeviceService.GetDeviceByIdAsync(device.Id);
+            if (currentMode == ViewMode.ConfirmAllocate && latestDevice.Status != DeviceStatus.InStore)
+            {
+                errorMessage = "Asset is no longer available. It has already been allocated or moved.";
+                isProcessing = false;
+                return;
+            }
+            if (currentMode == ViewMode.ConfirmTransfer && latestDevice.Status != DeviceStatus.InUse)
+            {
+                errorMessage = "Asset is no longer in use, cannot transfer.";
+                isProcessing = false;
+                return;
+            }
+
+            var newAssignment = new Device 
+            { 
+                UserName = scannedEmployee.Name,
+                EmployeeId = scannedEmployee.EmployeeId,
+                Email = scannedEmployee.Email,
+                Contact = scannedEmployee.Contact,
+                Designation = scannedEmployee.Designation
+            };
+
+            await DeviceService.TransferDeviceAsync(device.Id, "TransferToUser", newAssignment);
+            await LoadDataAsync();
+            currentMode = ViewMode.ViewAsset;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Operation failed: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ExecuteReturn()
+    {
+        if (device == null) return;
+        isProcessing = true;
+        errorMessage = "";
+
+        try
+        {
+            // Concurrency check
+            var latestDevice = await DeviceService.GetDeviceByIdAsync(device.Id);
+            if (latestDevice.Status != DeviceStatus.InUse)
+            {
+                errorMessage = "Asset is not currently allocated.";
+                isProcessing = false;
+                return;
+            }
+
+            // Update condition first
+            latestDevice.Condition = returnCondition;
+            if (!string.IsNullOrEmpty(actionNotes))
+            {
+                latestDevice.Condition += $" - {actionNotes}";
+            }
+            await DeviceService.UpdateDeviceAsync(latestDevice); // This doesn't trigger handover yet if from/to haven't changed
+
+            // Execute return via service (logs handover to Store)
+            await DeviceService.TransferDeviceAsync(device.Id, "ReturnToStore");
+
+            // Apply specific failure/repair statuses if needed
+            if (returnCondition == "Damaged" || returnCondition == "Failed")
+            {
+                var returnedDevice = await DeviceService.GetDeviceByIdAsync(device.Id);
+                returnedDevice.Status = returnCondition == "Damaged" ? DeviceStatus.InRepair : DeviceStatus.Faulty;
+                await DeviceService.UpdateDeviceAsync(returnedDevice);
+            }
+
+            await LoadDataAsync();
+            currentMode = ViewMode.ViewAsset;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Operation failed: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ExecuteRepair()
+    {
+        if (device == null) return;
+        isProcessing = true;
+        errorMessage = "";
+
+        try
+        {
+            var latestDevice = await DeviceService.GetDeviceByIdAsync(device.Id);
+            
+            // If it's allocated, unallocate it first
+            if (latestDevice.Status == DeviceStatus.InUse)
+            {
+                await DeviceService.TransferDeviceAsync(device.Id, "ReturnToStore");
+                latestDevice = await DeviceService.GetDeviceByIdAsync(device.Id);
+            }
+
+            // Update device status to InRepair
+            latestDevice.Status = DeviceStatus.InRepair;
+            latestDevice.Condition = string.IsNullOrEmpty(actionNotes) ? "Under Repair" : actionNotes;
+            latestDevice.From = "Store/IT";
+            latestDevice.To = "Repair Center";
+            await DeviceService.UpdateDeviceAsync(latestDevice);
+
+            // Create a RepairRecord so it appears in the Repair Center page
+            var repairRecord = new RepairRecord
+            {
+                Id = Guid.NewGuid().ToString(),
+                DeviceId = device.Id,
+                VendorName = "Pending Assignment",
+                IssueDescription = string.IsNullOrEmpty(actionNotes) ? "Sent to repair via QR workflow" : actionNotes,
+                SentDate = DateTime.Now.ToString("dd MMM yyyy"),
+                Status = "In Repair"
+            };
+            await RepairService.AddRepairAsync(repairRecord);
+
+            await LoadDataAsync();
+            currentMode = ViewMode.ViewAsset;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Operation failed: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private string GetStatusText(DeviceStatus status) => status switch
+    {
+        DeviceStatus.InUse => "Allocated",
+        DeviceStatus.InStore => "Available",
+        DeviceStatus.Faulty => "Failed",
+        DeviceStatus.WrittenOff => "Written Off",
+        DeviceStatus.Returned => "Returned",
+        DeviceStatus.InRepair => "In Repair",
+        _ => status.ToString()
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        objRef?.Dispose();
+    }
+}
+
+

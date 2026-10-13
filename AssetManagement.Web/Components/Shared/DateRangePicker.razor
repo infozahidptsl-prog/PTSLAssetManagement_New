@@ -1,0 +1,337 @@
+@using System
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="relative inline-block @CssClass @(isOpen ? "z-[60]" : "z-10")">
+    <!-- Click-away backdrop -->
+    @if (isOpen)
+    {
+        <div class="fixed inset-0 z-40 bg-transparent" @onclick="ClosePopover"></div>
+    }
+
+    <!-- Trigger Button -->
+    <div class="relative z-50 flex items-center">
+        <button type="button"
+                @onclick="TogglePopover"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150 shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 @TriggerClasses">
+            <svg class="w-4 h-4 text-txt-mid shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                <line x1="16" x2="16" y1="2" y2="6"/>
+                <line x1="8" x2="8" y1="2" y2="6"/>
+                <line x1="3" x2="21" y1="10" y2="10"/>
+            </svg>
+
+            <span class="truncate max-w-[210px]">
+                @if (HasActiveFilter)
+                {
+                    <span class="font-semibold text-txt-hi">@DisplayLabel</span>
+                }
+                else
+                {
+                    <span class="text-txt-mid">@(Placeholder ?? "Filter by date")</span>
+                }
+            </span>
+
+            @if (HasActiveFilter)
+            {
+                <span role="button" 
+                      title="Clear date filter"
+                      @onclick:stopPropagation="true" 
+                      @onclick="ClearDates" 
+                      class="ml-1 inline-flex items-center justify-center h-4 w-4 rounded-full bg-txt-lo/20 hover:bg-danger-500 hover:text-white text-txt-mid transition-colors">
+                    <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </span>
+            }
+
+            <svg class="w-3.5 h-3.5 text-txt-lo shrink-0 transition-transform duration-150 @(isOpen ? "rotate-180" : "")" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Dropdown Popover -->
+    @if (isOpen)
+    {
+        <div class="absolute right-0 top-full mt-2 z-50 w-80 sm:w-96 rounded-2xl border border-line bg-surface p-4 shadow-xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-150">
+            <!-- Header -->
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-line-soft">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent-500">
+                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                            <line x1="16" x2="16" y1="2" y2="6"/>
+                            <line x1="8" x2="8" y1="2" y2="6"/>
+                            <line x1="3" x2="21" y1="10" y2="10"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h4 class="text-xs font-bold text-txt-hi">Date Range Filter</h4>
+                        <p class="text-[11px] text-txt-lo">Select preset or customize period</p>
+                    </div>
+                </div>
+
+                @if (HasActiveFilter)
+                {
+                    <button type="button" 
+                            @onclick="ClearDates" 
+                            class="text-[11px] font-semibold text-danger-600 hover:text-danger-700 hover:underline">
+                        Reset
+                    </button>
+                }
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="mb-4">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-txt-lo mb-2">Quick Presets</label>
+                <div class="grid grid-cols-3 gap-1.5 text-xs">
+                    <button type="button" @onclick='() => ApplyPreset("today")' class="@GetPresetClass("today")">Today</button>
+                    <button type="button" @onclick='() => ApplyPreset("7days")' class="@GetPresetClass("7days")">Last 7 Days</button>
+                    <button type="button" @onclick='() => ApplyPreset("30days")' class="@GetPresetClass("30days")">Last 30 Days</button>
+                    <button type="button" @onclick='() => ApplyPreset("month")' class="@GetPresetClass("month")">This Month</button>
+                    <button type="button" @onclick='() => ApplyPreset("year")' class="@GetPresetClass("year")">This Year</button>
+                    <button type="button" @onclick='() => ApplyPreset("all")' class="@GetPresetClass("all")">All Time</button>
+                </div>
+            </div>
+
+            <!-- Custom Date Inputs -->
+            <div class="space-y-3 pt-3 border-t border-line-soft">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-txt-lo">Custom Period</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <span class="block text-[11px] font-medium text-txt-mid mb-1">From Date</span>
+                        <div class="relative">
+                            <input type="date" 
+                                   value="@tempStartDateString" 
+                                   @onchange="OnTempStartDateChange" 
+                                   class="w-full rounded-xl border border-line bg-elevated px-2.5 py-1.5 text-xs font-medium text-txt-hi focus:border-accent-border focus:bg-surface focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
+                        </div>
+                    </div>
+                    <div>
+                        <span class="block text-[11px] font-medium text-txt-mid mb-1">To Date</span>
+                        <div class="relative">
+                            <input type="date" 
+                                   value="@tempEndDateString" 
+                                   @onchange="OnTempEndDateChange" 
+                                   class="w-full rounded-xl border border-line bg-elevated px-2.5 py-1.5 text-xs font-medium text-txt-hi focus:border-accent-border focus:bg-surface focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-between pt-4 mt-4 border-t border-line-soft">
+                <span class="text-[11px] text-txt-lo truncate">
+                    @if (tempStartDate.HasValue || tempEndDate.HasValue)
+                    {
+                        <span>@(tempStartDate?.ToString("dd MMM yyyy") ?? "Earliest") &rarr; @(tempEndDate?.ToString("dd MMM yyyy") ?? "Today")</span>
+                    }
+                    else
+                    {
+                        <span>No date limit active</span>
+                    }
+                </span>
+                <div class="flex items-center gap-2">
+                    <button type="button" 
+                            @onclick="ClosePopover" 
+                            class="px-3 py-1.5 rounded-lg border border-line text-xs font-semibold text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" 
+                            @onclick="ApplyCustom" 
+                            class="px-3 py-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-xs font-semibold text-accent-on shadow-xs transition-colors">
+                        Apply
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime? StartDate { get; set; }
+    [Parameter] public EventCallback<DateTime?> StartDateChanged { get; set; }
+
+    [Parameter] public DateTime? EndDate { get; set; }
+    [Parameter] public EventCallback<DateTime?> EndDateChanged { get; set; }
+
+    [Parameter] public EventCallback OnRangeChanged { get; set; }
+    [Parameter] public string? Placeholder { get; set; } = "Filter by date";
+    [Parameter] public string? CssClass { get; set; }
+
+    private bool isOpen = false;
+    private DateTime? tempStartDate;
+    private DateTime? tempEndDate;
+    private string activePreset = "";
+
+    private string tempStartDateString => tempStartDate?.ToString("yyyy-MM-dd") ?? "";
+    private string tempEndDateString => tempEndDate?.ToString("yyyy-MM-dd") ?? "";
+
+    private bool HasActiveFilter => StartDate.HasValue || EndDate.HasValue;
+
+    private string DisplayLabel
+    {
+        get
+        {
+            if (StartDate.HasValue && EndDate.HasValue)
+            {
+                if (StartDate.Value.Date == EndDate.Value.Date)
+                    return StartDate.Value.ToString("dd MMM yyyy");
+                return $"{StartDate.Value:dd MMM} – {EndDate.Value:dd MMM yyyy}";
+            }
+            if (StartDate.HasValue)
+                return $"From {StartDate.Value:dd MMM yyyy}";
+            if (EndDate.HasValue)
+                return $"Until {EndDate.Value:dd MMM yyyy}";
+            return Placeholder ?? "Filter by date";
+        }
+    }
+
+    private string TriggerClasses
+    {
+        get
+        {
+            if (HasActiveFilter)
+                return "border-accent-300 bg-accent-soft text-accent-600 hover:bg-accent-100/50";
+            return "border-line bg-surface text-txt-hi hover:border-line-strong hover:bg-elevated";
+        }
+    }
+
+    private string GetPresetClass(string preset)
+    {
+        bool isSelected = activePreset == preset;
+        if (isSelected)
+            return "py-1.5 px-2 rounded-lg font-semibold bg-accent-500 text-white shadow-xs text-center transition-colors";
+        return "py-1.5 px-2 rounded-lg font-medium border border-line bg-elevated hover:bg-canvas hover:text-txt-hi text-txt-mid text-center transition-colors";
+    }
+
+    private void TogglePopover()
+    {
+        isOpen = !isOpen;
+        if (isOpen)
+        {
+            tempStartDate = StartDate;
+            tempEndDate = EndDate;
+            DetectPreset();
+        }
+    }
+
+    private void ClosePopover()
+    {
+        isOpen = false;
+    }
+
+    private void OnTempStartDateChange(ChangeEventArgs e)
+    {
+        activePreset = "custom";
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+            tempStartDate = dt;
+        else
+            tempStartDate = null;
+    }
+
+    private void OnTempEndDateChange(ChangeEventArgs e)
+    {
+        activePreset = "custom";
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+            tempEndDate = dt;
+        else
+            tempEndDate = null;
+    }
+
+    private async Task ApplyPreset(string preset)
+    {
+        activePreset = preset;
+        var today = DateTime.Today;
+
+        switch (preset)
+        {
+            case "today":
+                tempStartDate = today;
+                tempEndDate = today;
+                break;
+            case "7days":
+                tempStartDate = today.AddDays(-6);
+                tempEndDate = today;
+                break;
+            case "30days":
+                tempStartDate = today.AddDays(-29);
+                tempEndDate = today;
+                break;
+            case "month":
+                tempStartDate = new DateTime(today.Year, today.Month, 1);
+                tempEndDate = today;
+                break;
+            case "year":
+                tempStartDate = new DateTime(today.Year, 1, 1);
+                tempEndDate = today;
+                break;
+            case "all":
+            default:
+                tempStartDate = null;
+                tempEndDate = null;
+                break;
+        }
+
+        await CommitDates();
+        isOpen = false;
+    }
+
+    private async Task ApplyCustom()
+    {
+        await CommitDates();
+        isOpen = false;
+    }
+
+    private async Task CommitDates()
+    {
+        StartDate = tempStartDate;
+        EndDate = tempEndDate;
+        await StartDateChanged.InvokeAsync(StartDate);
+        await EndDateChanged.InvokeAsync(EndDate);
+        await OnRangeChanged.InvokeAsync();
+    }
+
+    private async Task ClearDates()
+    {
+        tempStartDate = null;
+        tempEndDate = null;
+        activePreset = "all";
+        await CommitDates();
+    }
+
+    private void DetectPreset()
+    {
+        if (!StartDate.HasValue && !EndDate.HasValue)
+        {
+            activePreset = "all";
+            return;
+        }
+        var today = DateTime.Today;
+        if (StartDate == today && EndDate == today)
+        {
+            activePreset = "today";
+        }
+        else if (StartDate == today.AddDays(-6) && EndDate == today)
+        {
+            activePreset = "7days";
+        }
+        else if (StartDate == today.AddDays(-29) && EndDate == today)
+        {
+            activePreset = "30days";
+        }
+        else if (StartDate == new DateTime(today.Year, today.Month, 1) && EndDate == today)
+        {
+            activePreset = "month";
+        }
+        else if (StartDate == new DateTime(today.Year, 1, 1) && EndDate == today)
+        {
+            activePreset = "year";
+        }
+        else
+        {
+            activePreset = "custom";
+        }
+    }
+}

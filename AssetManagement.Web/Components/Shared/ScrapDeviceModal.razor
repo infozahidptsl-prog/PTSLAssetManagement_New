@@ -1,0 +1,89 @@
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@inject DeviceService DeviceService
+
+<Modal IsOpen="true" Title="Scrap asset (declare obsolete)" Description="Use this when damage cannot be fixed. The asset leaves circulation but keeps its Asset ID and full movement history for audit." OnClose="OnClose">
+    <EditForm Model="scrapModel" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <div class="space-y-5 px-4 py-5 sm:px-6">
+            <div>
+                <label for="deviceId" class="block text-xs font-semibold tracking-widest text-txt-lo uppercase">Item</label>
+                <InputSelect id="deviceId" @bind-Value="scrapModel.DeviceId" class="mt-2 block w-full rounded-lg border-line bg-surface py-2.5 pl-3 pr-10 text-sm text-txt-hi focus:border-danger-500 focus:outline-none focus:ring-1 focus:ring-danger-500">
+                    <option value="0">Select an item...</option>
+                    @foreach (var device in availableDevices)
+                    {
+                        <option value="@device.Id">@(string.IsNullOrEmpty(device.AssetTag) ? device.Id.ToString() : device.AssetTag) - @device.Brand @device.DeviceName</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => scrapModel.DeviceId)" class="mt-1 text-xs text-danger-400" />
+            </div>
+
+            <div>
+                <label for="note" class="block text-xs font-semibold tracking-widest text-txt-lo uppercase">Reason</label>
+                <InputTextArea id="note" @bind-Value="scrapModel.Note" rows="3" class="mt-2 block w-full rounded-lg border-line bg-surface px-3 py-2.5 text-sm text-txt-hi placeholder-txt-lo focus:border-danger-500 focus:outline-none focus:ring-1 focus:ring-danger-500" placeholder="Motherboard dead, not economical to repair..." />
+                <ValidationMessage For="@(() => scrapModel.Note)" class="mt-1 text-xs text-danger-400" />
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 rounded-b-2xl border-t border-line-soft bg-elevated px-4 py-4 sm:px-6">
+            <button type="button" @onclick="OnClose" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-surface hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                Cancel
+            </button>
+            <button type="submit" disabled="@isSubmitting" class="inline-flex items-center justify-center rounded-lg bg-danger-500 px-4 py-2 text-sm font-semibold text-danger-on shadow-sm transition-colors duration-150 hover:bg-danger-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 disabled:opacity-50">
+                @if (isSubmitting)
+                {
+                    <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Processing...</span>
+                }
+                else
+                {
+                    <span>Declare obsolete</span>
+                }
+            </button>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private class ScrapModel
+    {
+        public string DeviceId { get; set; } = "";
+        public string Note { get; set; } = "";
+    }
+
+    private ScrapModel scrapModel = new();
+    private List<Device> availableDevices = new();
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var devices = await DeviceService.GetDevicesAsync();
+        availableDevices = devices.Where(d => d.Status != DeviceStatus.WrittenOff).ToList();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (scrapModel.DeviceId == "0") return;
+
+        isSubmitting = true;
+        try
+        {
+            var device = await DeviceService.GetDeviceByIdAsync(scrapModel.DeviceId);
+            if (device != null)
+            {
+                device.Status = DeviceStatus.WrittenOff;
+                device.Note = string.IsNullOrEmpty(device.Note) ? scrapModel.Note : $"{device.Note} | Written off: {scrapModel.Note}";
+                await DeviceService.UpdateDeviceAsync(device);
+                await OnSaved.InvokeAsync();
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

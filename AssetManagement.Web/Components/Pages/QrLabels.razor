@@ -1,0 +1,289 @@
+@page "/labels"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Devices.View)]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@inject DeviceService DeviceService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Asset tags & QR codes - PrimeTech Asset Manager</PageTitle>
+
+<style>
+    @@media print {
+        @@page { margin: 1cm; }
+        .no-print { display: none !important; }
+        body { background-color: #fff !important; }
+    }
+    .print-sheet {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+    }
+    .print-label {
+        display: flex !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        border: 1px solid #e5e7eb !important;
+    }
+</style>
+
+<div class="no-print">
+    <PageHeader Title="Asset tags & QR codes">
+        <Actions>
+            <button type="button" @onclick="SelectAll" class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                Select all shown (@filteredDevices.Count)
+            </button>
+            <button type="button" @onclick="ClearSelection" disabled="@(!selectedIds.Any())" class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50 disabled:hover:bg-transparent">
+                Clear selection
+            </button>
+            <button type="button" @onclick="PrintLabels" disabled="@(!selectedIds.Any())" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
+                Print @(selectedIds.Any() ? $"{selectedIds.Count} label(s)" : "labels")
+            </button>
+        </Actions>
+        <ChildContent>
+            <form @onsubmit="LookupDevice" class="mt-6 rounded-2xl border border-line-soft bg-surface p-4">
+                <label for="scan-input" class="flex items-center gap-2 text-sm font-medium text-txt-hi">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-400" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/><path d="M7 16h10"/></svg>
+                    Scan a tag or type an Asset ID / serial
+                </label>
+                <div class="mt-2.5 flex flex-wrap gap-2">
+                    <input id="scan-input" @bind="scanValue" @bind:event="oninput" placeholder="SYS-014, CMP-006, PF5DQ426…" class="max-w-sm font-mono w-full rounded-lg border border-line bg-elevated py-2 px-3 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" />
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                        Find asset
+                    </button>
+                </div>
+                <p class="mt-2 text-xs text-txt-lo">
+                    A barcode scanner types into this box, so scanning a tag jumps straight to the asset.
+                </p>
+                @if (!string.IsNullOrEmpty(scanError))
+                {
+                    <p class="mt-1.5 text-xs font-medium text-danger-400">@scanError</p>
+                }
+            </form>
+        </ChildContent>
+    </PageHeader>
+</div>
+
+<div class="no-print flex flex-wrap items-center gap-2.5 border-y border-line-soft bg-surface px-6 py-3 lg:px-9">
+    <div class="relative min-w-[15rem] flex-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-txt-lo" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="search" @bind="searchTerm" @bind:event="oninput" placeholder="Search assets to label…" aria-label="Search assets to label" class="w-full rounded-lg border border-line bg-elevated py-2 pl-9 pr-3 text-sm text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" />
+    </div>
+
+    <div class="flex items-center gap-3 rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-mid">
+        <label class="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-txt-hi">
+            <input type="checkbox" checked="@selectedKinds.Contains("system")" @onchange='(e) => ToggleKind("system", (bool)(e.Value ?? false))' class="h-3.5 w-3.5 accent-accent-500" />
+            Systems
+        </label>
+        <label class="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-txt-hi">
+            <input type="checkbox" checked="@selectedKinds.Contains("component")" @onchange='(e) => ToggleKind("component", (bool)(e.Value ?? false))' class="h-3.5 w-3.5 accent-accent-500" />
+            Components
+        </label>
+        <label class="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-txt-hi">
+            <input type="checkbox" checked="@selectedKinds.Contains("peripheral")" @onchange='(e) => ToggleKind("peripheral", (bool)(e.Value ?? false))' class="h-3.5 w-3.5 accent-accent-500" />
+            Peripherals
+        </label>
+    </div>
+
+    <select @bind="perRow" class="rounded-lg border border-line bg-elevated py-2 pl-2.5 pr-8 text-sm text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+        <option value="1">1 label per row</option>
+        <option value="2">2 labels per row</option>
+        <option value="3">3 labels per row</option>
+    </select>
+
+    <span class="tnum ml-auto text-xs text-txt-lo">
+        @selectedIds.Count selected for printing
+    </span>
+</div>
+
+<div class="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:px-9">
+    <section aria-label="Choose assets" class="no-print min-w-0">
+        <h2 class="text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+            Choose assets (@filteredDevices.Count)
+        </h2>
+        <ul class="mt-3 max-h-[42rem] space-y-1 overflow-y-auto pr-1">
+            @foreach (var item in filteredDevices)
+            {
+                var isSelected = selectedIds.Contains(item.Id);
+                var assetId = string.IsNullOrEmpty(item.AssetTag) ? item.Id.ToString() : item.AssetTag;
+                <li>
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-150 @(isSelected ? "border-accent-border bg-accent-soft" : "border-line-soft bg-surface hover:border-line")">
+                        <input type="checkbox" checked="@isSelected" @onchange="() => ToggleSelection(item.Id)" class="mt-0.5 h-3.5 w-3.5 accent-accent-500" />
+                        <span class="min-w-0">
+                            <span class="tnum block font-mono text-[11px] text-accent-400">@assetId</span>
+                            <span class="block truncate text-sm font-medium text-txt-hi">@item.Brand @item.DeviceName</span>
+                            <span class="block truncate text-xs text-txt-lo">@item.Category · @GetStatusLabel(item.Status)</span>
+                        </span>
+                    </label>
+                </li>
+            }
+        </ul>
+    </section>
+
+    <section aria-label="Label sheet" class="min-w-0">
+        <h2 class="no-print text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+            Label sheet preview
+        </h2>
+        
+        @if (!selectedIds.Any())
+        {
+            <p class="no-print mt-3 rounded-2xl border border-line-soft bg-surface p-6 text-sm text-txt-mid">
+                Pick one or more assets on the left to build a printable label sheet.
+            </p>
+        }
+        else
+        {
+            <div class="print-sheet mt-3 flex flex-wrap gap-3 rounded-2xl border border-line-soft bg-surface p-4">
+                @foreach (var item in selectedDevices)
+                {
+                    var assetId = string.IsNullOrEmpty(item.AssetTag) ? item.Id.ToString() : item.AssetTag;
+                    var qrUrl = GenerateQrCodeUrl(item);
+                    var widthPercent = perRow == "1" ? "100%" : perRow == "2" ? "calc(50% - 6px)" : "calc(33.333% - 8px)";
+
+                    <article class="print-label flex gap-3 rounded-xl border border-line bg-elevated p-3" style="width: @widthPercent;">
+                        <div class="shrink-0 rounded-lg border border-line bg-surface p-1.5 flex items-center justify-center">
+                            <img src="@qrUrl" alt="QR Code" class="w-full h-full object-contain" style="max-width: @(perRow == "1" ? "120px" : perRow == "2" ? "96px" : "76px")" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-semibold uppercase tracking-widest text-txt-lo">PrimeTech IT Asset</p>
+                            <p class="tnum mt-0.5 font-mono text-xs font-semibold text-txt-hi">@assetId</p>
+                            <p class="mt-0.5 truncate text-xs font-medium text-txt-hi">@item.Brand @item.DeviceName</p>
+                            <p class="tnum truncate font-mono text-[10px] text-txt-lo">SN @item.Serial</p>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<Device> allDevices = new();
+    private HashSet<string> selectedIds = new();
+    
+    private string searchTerm = "";
+    private HashSet<string> selectedKinds = new() { "system", "component", "peripheral" };
+    private string perRow = "3";
+    private string scanValue = "";
+    private string scanError = "";
+
+    [SupplyParameterFromQuery]
+    public string Ids { get; set; }
+
+    private List<Device> filteredDevices => allDevices
+        .Where(d => selectedKinds.Contains(GetItemKind(d)))
+        .Where(d => string.IsNullOrWhiteSpace(searchTerm) || 
+                    d.Brand.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    d.DeviceName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    (d.AssetTag != null && d.AssetTag.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+                    d.Serial.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    d.Id.ToString().Contains(searchTerm))
+        .ToList();
+
+    private IEnumerable<Device> selectedDevices => allDevices.Where(d => selectedIds.Contains(d.Id));
+
+    protected override async Task OnInitializedAsync()
+    {
+        allDevices = await DeviceService.GetDevicesAsync();
+
+        if (!string.IsNullOrEmpty(Ids))
+        {
+            var parsedIds = Ids.Split(',').Where(id => !string.IsNullOrWhiteSpace(id));
+            foreach (var id in parsedIds)
+            {
+                selectedIds.Add(id);
+            }
+        }
+    }
+
+    private string GetItemKind(Device device)
+    {
+        var category = device.Category?.ToLower() ?? "";
+        if (category.Contains("laptop") || category.Contains("desktop") || category.Contains("server") || category.Contains("macbook"))
+            return "system";
+        if (device.IsComponent)
+            return "component";
+        return "peripheral";
+    }
+
+    private void ToggleKind(string kind, bool isChecked)
+    {
+        if (isChecked) selectedKinds.Add(kind);
+        else selectedKinds.Remove(kind);
+    }
+
+    private string GetStatusLabel(DeviceStatus status) => status switch
+    {
+        DeviceStatus.InUse => "Issued",
+        DeviceStatus.InStore => "In inventory",
+        DeviceStatus.Returned => "In inventory",
+        DeviceStatus.WrittenOff => "Obsolete register",
+        DeviceStatus.Faulty => "Repair shop",
+        DeviceStatus.InRepair => "Repair shop",
+        _ => status.ToString()
+    };
+
+    private void ToggleSelection(string id)
+    {
+        if (selectedIds.Contains(id))
+            selectedIds.Remove(id);
+        else
+            selectedIds.Add(id);
+    }
+
+    private void SelectAll()
+    {
+        foreach (var item in filteredDevices)
+        {
+            selectedIds.Add(item.Id);
+        }
+    }
+
+    private void ClearSelection()
+    {
+        selectedIds.Clear();
+    }
+
+    private void LookupDevice()
+    {
+        var val = scanValue.Trim();
+        if (string.IsNullOrEmpty(val)) return;
+
+        var match = allDevices.FirstOrDefault(d => 
+            (d.AssetTag != null && d.AssetTag.Equals(val, StringComparison.OrdinalIgnoreCase)) ||
+            d.Serial.Equals(val, StringComparison.OrdinalIgnoreCase) ||
+            d.Id.ToString() == val ||
+            val.EndsWith($"/device/{d.Id}") ||
+            val.EndsWith($"/devices/{d.Id}")
+        );
+
+        if (match == null)
+        {
+            scanError = $"No asset found for '{val}'";
+            return;
+        }
+
+        scanError = "";
+        scanValue = "";
+        NavigationManager.NavigateTo($"/device/{match.Id}");
+    }
+
+    private async Task PrintLabels()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    // Cache of device tokens generated this session to avoid regenerating on every render
+    private readonly Dictionary<string, string> _tokenCache = new();
+
+    private string GenerateQrCodeUrl(Device device)
+    {
+        var payload = device.AssetTag ?? device.Id.ToString();
+        return $"https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=2&data={Uri.EscapeDataString(payload)}";
+    }
+}
+
+

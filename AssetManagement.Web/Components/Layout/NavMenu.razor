@@ -1,0 +1,331 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using AssetManagement.Infrastructure.Services
+@using AssetManagement.Core.Enums
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
+@inject IServiceScopeFactory ScopeFactory
+
+@if (IsMobileOpen)
+{
+    <div class="fixed inset-0 z-40 bg-black/50 lg:hidden" @onclick="CloseMobileMenu"></div>
+}
+
+<aside class="@(IsMobileOpen ? "flex fixed inset-y-0 left-0 z-50" : "hidden z-30") lg:sticky lg:top-0 lg:flex lg:inset-auto lg:z-30 h-screen shrink-0 flex-col border-r border-line-soft bg-surface transition-[width] duration-200 @(IsCollapsed ? "w-16" : "w-[15.5rem]")">
+    <div class="flex h-14 items-center justify-between gap-2.5 px-4 shrink-0 border-b border-line-soft/50">
+        <div class="flex items-center gap-2.5 overflow-hidden">
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-900" title="Prime Tech Solutions Ltd.">
+                <img src="/assets/SmallLogo.png?v=1" class="h-5 object-contain" alt="Logo" />
+            </span>
+            <span class="text-sm font-semibold tracking-tight text-txt-hi whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">
+                Prime Tech Solutions Ltd.
+            </span>
+        </div>
+
+    </div>
+
+    <nav aria-label="Main" class="flex-1 overflow-y-auto px-3 py-2">
+        
+        <!-- Home Group -->
+        <div class="pb-4">
+            @if (!IsCollapsed) { <p class="px-2.5 pb-1.5 pt-2 text-[11px] font-medium uppercase tracking-widest text-txt-lo">Home</p> }
+            <ul class="space-y-px">
+                <li>
+                    <NavLink href="" Match="NavLinkMatch.All" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Dashboard">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                        <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Dashboard</span>
+                    </NavLink>
+                </li>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.View">
+                    <li>
+                        <NavLink href="/devices" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="All assets">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">All assets</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@deviceCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+            </ul>
+        </div>
+
+        <!-- Daily Work Group -->
+        <div class="pb-4">
+            @if (!IsCollapsed) { <p class="px-2.5 pb-1.5 pt-2 text-[11px] font-medium uppercase tracking-widest text-txt-lo">Daily work</p> }
+            <ul class="space-y-px">
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Requisitions.View">
+                    <li>
+                        <NavLink href="/requisitions" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Asset Requisition">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Asset Requisition</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@requisitionCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.Create">
+                    <li>
+                        <NavLink href="/inventory-in" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Add new purchase">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Add new purchase</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@stockCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.Assign">
+                    <li>
+                        <NavLink href="/inventory-out" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Issue to employee">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="m18 9-6-6-6 6"/><path d="M12 3v14"/><path d="M5 21h14"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Issue to employee</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@issuedCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.Return">
+                    <li>
+                        <NavLink href="/store" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Receive returns">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Receive returns</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@returnsCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.Repair">
+                    <li>
+                        <NavLink href="/repairs" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Repair center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Repair center</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@repairCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.View">
+                    <li>
+                        <NavLink href="/obsolete" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Scrapped assets">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Scrapped assets</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@obsoleteCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+            </ul>
+        </div>
+
+        <!-- Track & verify Group -->
+        <div class="pb-4">
+            @if (!IsCollapsed) { <p class="px-2.5 pb-1.5 pt-2 text-[11px] font-medium uppercase tracking-widest text-txt-lo">Track &amp; verify</p> }
+            <ul class="space-y-px">
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.View">
+                    <li>
+                        <NavLink href="/warranty" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Warranty tracker">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Warranty tracker</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@expiringCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.View">
+                    <li>
+                        <NavLink href="/movements" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Transfer history">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Transfer history</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@handoversCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.View">
+                    <li>
+                        <NavLink href="/labels" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Asset tags & QR">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Asset tags &amp; QR</span>
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Employees.View">
+                    <li>
+                        <NavLink href="/employees" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Employees Vs Assets">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Employees Vs Assets</span>
+                            @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@employeeCount</span> }
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+            </ul>
+        </div>
+
+        <!-- Management Group -->
+        <div class="pb-4">
+            @if (!IsCollapsed) { <p class="px-2.5 pb-1.5 pt-2 text-[11px] font-medium uppercase tracking-widest text-txt-lo">Management</p> }
+            <ul class="space-y-px">
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Reports.View">
+                    <li>
+                        <NavLink href="/automation" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Automation Center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M12 2a10 10 0 1 0 10 10H12V2Z"/><path d="M21.18 8.02c-1-2.3-2.85-4.17-5.16-5.18"/></svg><span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Automation Center</span></NavLink><NavLink href="/reports" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Reports">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Reports</span>
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+                <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Settings.View">
+                    <li>
+                        <NavLink href="/settings" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">Settings</span>
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="p-3 shrink-0 flex items-center justify-center border-t border-line-soft/50 mt-auto">
+        @if (IsCollapsed)
+        {
+            <div class="flex flex-col items-center gap-2">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent-400" title="@userName">
+                    @userInitials
+                </div>
+                <form method="post" action="/Account/LogoutPost" data-enhance="false">
+                    <button type="submit" class="flex h-9 w-9 items-center justify-center rounded-lg text-txt-mid transition-colors hover:bg-danger-500/10 hover:text-danger-500 focus:outline-none" title="Logout">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </button>
+                </form>
+            </div>
+        }
+        else
+        {
+            <div class="flex items-center gap-2.5 rounded-lg border border-line-soft bg-elevated px-2.5 py-2 w-full overflow-hidden">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-400">
+                    @userInitials
+                </span>
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium text-txt-hi">
+                        @userName
+                    </span>
+                    <span class="block truncate text-[10px] text-txt-lo">
+                        @userEmail
+                    </span>
+                </span>
+                <form method="post" action="/Account/LogoutPost" data-enhance="false" class="shrink-0">
+                    <button type="submit" class="flex h-7 w-7 items-center justify-center rounded-md text-txt-mid transition-colors hover:bg-danger-500/10 hover:text-danger-500 focus:outline-none focus:ring-2 focus:ring-danger-500/50" title="Logout">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </button>
+                </form>
+            </div>
+        }
+    </div>
+</aside>
+
+@code {
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+    
+    [Parameter]
+    public EventCallback<bool> IsCollapsedChanged { get; set; }
+
+    [Parameter]
+    public bool IsMobileOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsMobileOpenChanged { get; set; }
+
+    private async Task ToggleSidebar()
+    {
+        await IsCollapsedChanged.InvokeAsync(!IsCollapsed);
+    }
+
+    private async Task CloseMobileMenu()
+    {
+        if (IsMobileOpen)
+        {
+            await IsMobileOpenChanged.InvokeAsync(false);
+        }
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (IsMobileOpen)
+        {
+            InvokeAsync(() => CloseMobileMenu());
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+    }
+
+    private int deviceCount = 0;
+    private int stockCount = 0;
+    private int issuedCount = 0;
+    private int returnsCount = 0;
+    private int repairCount = 0;
+    private int obsoleteCount = 0;
+    private int expiringCount = 0;
+    private int handoversCount = 0;
+    private int employeeCount = 0;
+    private int requisitionCount = 0;
+
+    private string userName = "User";
+    private string userEmail = "";
+    private string userInitials = "U";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            userEmail = user.Identity.Name ?? "";
+            var roleClaim = user.FindFirst(System.Security.Claims.ClaimTypes.Role);
+            if (roleClaim != null)
+            {
+                userName = roleClaim.Value;
+            }
+            if (!string.IsNullOrEmpty(userName) && userName.Length >= 1)
+            {
+                var parts = userName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1) userInitials = $"{parts[0][0]}{parts[1][0]}".ToUpper();
+                else if (userName.Length >= 2) userInitials = userName.Substring(0, 2).ToUpper();
+                else userInitials = userName.Substring(0, 1).ToUpper();
+            }
+        }
+
+        NavigationManager.LocationChanged += HandleLocationChanged;
+
+        using var scope = ScopeFactory.CreateScope();
+        var DeviceService = scope.ServiceProvider.GetRequiredService<DeviceService>();
+        var HandoverService = scope.ServiceProvider.GetRequiredService<HandoverService>();
+        var EmployeeService = scope.ServiceProvider.GetRequiredService<EmployeeService>();
+        var RequisitionService = scope.ServiceProvider.GetRequiredService<RequisitionService>();
+        var RepairService = scope.ServiceProvider.GetRequiredService<RepairService>();
+
+        var devices = await DeviceService.GetDevicesAsync();
+        var handovers = await HandoverService.GetHandoversAsync();
+        var devicesWithHistoryIds = handovers.Select(h => h.DeviceId).ToHashSet();
+
+        deviceCount = devices.Count;
+        
+        // Add new purchase (Stock items with no history)
+        stockCount = devices.Count(d => d.Status == DeviceStatus.InStore && !devicesWithHistoryIds.Contains(d.Id));
+        
+        // Issue to employee (Allocated devices)
+        var allocatedIds = handovers.Where(h => string.IsNullOrEmpty(h.ReturnDate)).Select(h => h.DeviceId).ToHashSet();
+        issuedCount = devices.Count(d => d.Status == DeviceStatus.InUse && allocatedIds.Contains(d.Id));
+        
+        // Receive returns (Items in store/returned that have history)
+        returnsCount = devices.Count(d => (d.Status == DeviceStatus.InStore || d.Status == DeviceStatus.Returned) && devicesWithHistoryIds.Contains(d.Id));
+        
+        repairCount = devices.Count(d => d.Status == DeviceStatus.Faulty || d.Status == DeviceStatus.InRepair);
+        obsoleteCount = devices.Count(d => d.Status == DeviceStatus.WrittenOff);
+        
+        // Simple mock for expiring for now (devices where warranty ends within 90 days)
+        expiringCount = devices.Count(d => d.HasWarranty && d.WarrantyMonths > 0 && d.ProcurementDate.HasValue && 
+                                           d.ProcurementDate.Value.AddMonths(d.WarrantyMonths.Value) <= DateTime.Now.AddDays(90) &&
+                                           d.ProcurementDate.Value.AddMonths(d.WarrantyMonths.Value) > DateTime.Now);
+
+        var allEmployees = await EmployeeService.GetEmployeesAsync(includeInactive: true);
+        employeeCount = allEmployees.Count;
+
+        handoversCount = handovers.Count;
+
+        requisitionCount = await RequisitionService.GetPendingCountAsync();
+    }
+}

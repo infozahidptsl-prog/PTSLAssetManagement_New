@@ -1,0 +1,1072 @@
+@page "/devices"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using AssetManagement.Core.Entities
+@using AssetManagement.Infrastructure.Services
+@using AssetManagement.Core.Enums
+@inject DeviceService DeviceService
+@inject AssetManagement.Core.Interfaces.ISettingsService SettingsService
+@inject EmployeeService EmployeeService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@using ClosedXML.Excel
+@using System.IO
+
+<PageTitle>All assets - PrimeTech Asset Manager</PageTitle>
+
+<div class="bg-surface pb-2 border-b border-line-soft">
+<PageHeader Title="All assets" 
+            Description="Every system, component and peripheral has its own Asset ID and QR tag, plus a holder, warranty clock and full movement history.">
+    <Actions>
+        <button type="button" @onclick="OpenRepairModal" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-elevated px-3 py-1.5 text-[13px] font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15.7 18.4-.7.7a3.5 3.5 0 0 1-4.9-4.9l7-7a2.8 2.8 0 0 1 4 4l-7 7Z"/><path d="M7 11V5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5V11"/></svg>
+            Send to repair
+        </button>
+        <button type="button" @onclick="OpenReturnModal" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-elevated px-3 py-1.5 text-[13px] font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Return
+        </button>
+        <button type="button" @onclick="OpenAllocateModal" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-elevated px-3 py-1.5 text-[13px] font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+            Allocate
+        </button>
+        <button type="button" @onclick="OpenReceiveModal" class="inline-flex items-center justify-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[13px] font-medium text-accent-on transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500 focus-visible:ring-offset-1 focus-visible:ring-offset-surface">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>
+            Inventory in
+        </button>
+    </Actions>
+    <ChildContent>
+        <div class="mt-3 flex flex-row gap-3">
+            <div @onclick='() => SetTab("All")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #f5f3ff; border: 1px solid #ddd6fe;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #5b21b6;">Total assets</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #7c3aed;">@(devices?.Count ?? 0)</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #6d28d9;">All categories</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #ede9fe; color: #7c3aed;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div @onclick='() => SetTab("In inventory")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #1e40af;">In inventory</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #1d4ed8;">@(devices?.Count(d => d.Status == DeviceStatus.InStore) ?? 0)</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #1d4ed8;">Ready to allocate</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #dbeafe; color: #2563eb;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div @onclick='() => SetTab("Issued")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #ecfdf5; border: 1px solid #a7f3d0;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #065f46;">Issued</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #047857;">@(devices?.Count(d => d.Status == DeviceStatus.InUse) ?? 0)</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #047857;">Currently active</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #d1fae5; color: #059669;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div @onclick='() => SetTab("Repair shop")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #fffbeb; border: 1px solid #fde68a;">
+                <div class="relative z-10 flex items-start justify-between p-2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #92400e;">Repair &amp; Obsolete</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #b45309;">@(devices?.Count(d => d.Status == DeviceStatus.InRepair || d.Status == DeviceStatus.WrittenOff) ?? 0)</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #92400e;">Action required</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #fef3c7; color: #d97706;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15.7 18.4-.7.7a3.5 3.5 0 0 1-4.9-4.9l7-7a2.8 2.8 0 0 1 4 4l-7 7Z"/><path d="M7 11V5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5V11"/></svg>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</PageHeader>
+</div>
+
+
+<AssetManagement.Web.Components.Shared.ReceiveDeviceModal @bind-IsOpen="showReceiveModal" OnReceived="HandleDeviceReceived" />
+<AssetManagement.Web.Components.Shared.AllocateDeviceModal @bind-IsOpen="showAllocateModal" AvailableDevices="devices?.Where(d => d.Status == DeviceStatus.InStore).ToList() ?? new()" ActiveEmployees="employees ?? new()" CurrentHoldings="devices?.Where(d => d.Status == DeviceStatus.InUse).ToList() ?? new()" OnAllocated="HandleDeviceAllocated" />
+<AssetManagement.Web.Components.Shared.ReturnDeviceModal @bind-IsOpen="showReturnModal" AssignedDevices="devices?.Where(d => d.Status == DeviceStatus.InUse).ToList() ?? new()" OnReturned="HandleDeviceReturned" />
+<AssetManagement.Web.Components.Shared.RepairDeviceModal @bind-IsOpen="showRepairModal" FaultyDevices="devices ?? new()" OnRepaired="HandleRepairAdded" />
+
+<div class="px-6 pb-2 pt-3 lg:px-9 flex flex-wrap items-center justify-between gap-3 border-b border-line-soft">
+    <!-- Search (left) -->
+    <div class="flex flex-wrap items-center gap-2">
+        <div class="relative w-48 sm:w-64">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" placeholder="Search..." @bind="SearchTerm" @bind:event="oninput" @bind:after="ResetPage" class="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-2 text-[13px] text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500" />
+        </div>
+        <select @bind="SelectedLocation" @bind:after="ResetPage" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
+            <option value="">All Offices</option>
+            @foreach (var loc in availableLocations)
+            {
+                <option value="@loc.Name">@loc.Name</option>
+            }
+        </select>
+        @if (HasActiveFilters)
+        {
+            <button type="button" @onclick="ClearFilters" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-danger-border bg-danger-soft px-2.5 py-1.5 text-[13px] font-medium text-danger-500 transition-colors duration-150 hover:bg-danger-500 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                Clear
+            </button>
+        }
+    </div>
+
+    <!-- Active filter label (right) -->
+    <div class="flex items-center gap-2">
+        @if (ActiveTab != "All")
+        {
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent-500">
+                @ActiveTab
+                <button type="button" @onclick='() => SetTab("All")' class="ml-0.5 rounded-full hover:text-accent-700 focus:outline-none" title="Clear filter">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </span>
+        }
+        else
+        {
+            <span class="text-[12px] text-txt-lo">Showing all <span class="font-semibold text-txt-mid">@(devices?.Count ?? 0)</span> assets — click a card above to filter</span>
+        }
+    </div>
+</div>
+
+<section aria-label="Device List" class="bg-surface">
+        <AppTable Items="PaginatedDevices" OnRowClick="@(async (Device device) => await ToggleExpand(device.Id))" IsRowExpanded="@((Device d) => d.Id == expandedDeviceId)">
+        <HeaderContent>
+            <th scope="col" class="py-2 pl-6 pr-3 lg:pl-9 w-[18rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Device")'>
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">ASSET ID & ITEM @RenderSortIcon("Device")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 w-[10rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Type")'>
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">TYPE @RenderSortIcon("Type")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 w-[16rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Specification")'>
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">SPECIFICATION @RenderSortIcon("Specification")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 w-[9rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Status")'>
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">STATUS @RenderSortIcon("Status")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 w-[14rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("User")'>
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">USER @RenderSortIcon("User")</div>
+            </th>
+            <th scope="col" class="px-3 py-2 w-[12rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Warranty")'>
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">WARRANTY @RenderSortIcon("Warranty")</div>
+            </th>
+            <th scope="col" class="relative py-2 pl-3 pr-6 lg:pr-9"><span class="sr-only">View</span></th>
+        </HeaderContent>
+        <RowTemplate Context="device">
+            <td class="py-3 pl-6 pr-3 text-left lg:pl-9">
+                <AssetManagement.Web.Components.Shared.AssetIdentityCell Device="device" />
+            </td>
+            <td class="py-3 px-3">
+                <AssetManagement.Web.Components.Shared.AssetTypeBadge Device="device" />
+            </td>
+            <td class="py-3 px-3">
+                <div class="flex flex-col gap-1.5">
+                    @if (!string.IsNullOrEmpty(device.Processor))
+                    {
+                        <div class="flex">
+                            <span class="inline-flex items-center gap-1 rounded bg-blue-50/50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-200 shadow-sm select-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+                                @device.Processor @(string.IsNullOrEmpty(device.ProcessorFamily) ? "" : $"({device.ProcessorFamily})")
+                            </span>
+                        </div>
+                    }
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        @if (!string.IsNullOrEmpty(device.Ram))
+                        {
+                            <span class="inline-flex items-center gap-1 rounded bg-emerald-50/50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200 shadow-sm select-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-500"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><path d="M4 9h16"/><path d="M4 15h16"/><path d="M9 4v16"/><path d="M15 4v16"/></svg>
+                                @device.Ram
+                            </span>
+                        }
+                        @if (!string.IsNullOrEmpty(device.Ssd))
+                        {
+                            <span class="inline-flex items-center gap-1 rounded bg-purple-50/50 px-1.5 py-0.5 text-[11px] font-medium text-purple-700 border border-purple-200 shadow-sm select-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-500"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                                @device.Ssd
+                            </span>
+                        }
+                        @if (!string.IsNullOrEmpty(device.Hdd))
+                        {
+                            <span class="inline-flex items-center gap-1 rounded bg-amber-50/50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 shadow-sm select-all">
+                                + @device.Hdd
+                            </span>
+                        }
+                        @if (!string.IsNullOrEmpty(device.MonitorDisplay))
+                        {
+                            <span class="inline-flex items-center gap-1 rounded bg-orange-50/50 px-1.5 py-0.5 text-[11px] font-medium text-orange-700 border border-orange-200 shadow-sm select-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                @device.MonitorDisplay
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-txt-lo">
+                    @{ var cond = device.Status == AssetManagement.Core.Enums.DeviceStatus.InRepair ? "Under Repair" : (string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition); }
+                    Condition: <span class="@(cond == "Good" ? "text-ok-500" : "text-warn-500")">@cond</span>
+                </div>
+            </td>
+            <td class="py-3 px-3">
+                <AssetManagement.Web.Components.Shared.StatusBadge Status="@device.Status" />
+            </td>
+            <td class="py-3 px-3">
+                @if (device.ParentDeviceId != null)
+                {
+                    <div class="flex items-center gap-2">
+                        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-elevated border border-line shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-mid"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        </div>
+                        <div>
+                            <span class="block text-txt-hi font-mono text-[11px] font-bold">@device.ParentDeviceId</span>
+                            <span class="block mt-0 text-[10px] text-txt-lo">@(!string.IsNullOrEmpty(device.EmployeeId) ? device.EmployeeId : "IT inventory")</span>
+                        </div>
+                    </div>
+                }
+                else if (device.Status == DeviceStatus.InStore)
+                {
+                    <div class="flex items-center gap-2">
+                        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-elevated border border-line shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-mid"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/><path d="M12 3v6"/></svg>
+                        </div>
+                        <div>
+                            <span class="text-txt-mid font-medium text-[12px] block">IT inventory</span>
+                            @if (!string.IsNullOrEmpty(device.Location))
+                            {
+                                <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">@device.Location</span>
+                            }
+                        </div>
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(device.UserName))
+                {
+                    var empLoc = device.Location ?? employees?.FirstOrDefault(e => e.Name == device.UserName || e.EmployeeId == device.EmployeeId)?.Location;
+                    <div class="flex items-center gap-2">
+                        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 text-teal-700 font-bold text-[11px] border border-teal-200 shadow-sm">
+                            @(device.UserName.Substring(0, 1).ToUpper())
+                        </div>
+                        <div>
+                            <span class="block text-txt-hi font-medium text-[12px] whitespace-nowrap">@device.UserName</span>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="text-[10px] text-txt-lo font-mono">@device.EmployeeId</span>
+                                @if (!string.IsNullOrEmpty(empLoc))
+                                {
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">@empLoc</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <span class="text-txt-mid">—</span>
+                }
+            </td>
+            <td class="py-3 px-3">
+                @if (device.HasWarranty && device.WarrantyEndDate.HasValue)
+                {
+                    var daysLeft = (device.WarrantyEndDate.Value - DateTime.Now).TotalDays;
+                    if (daysLeft > 0)
+                    {
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2 py-1 text-[11px] border border-ok-border">
+                            <span class="h-1.5 w-1.5 rounded-full bg-ok-500 shadow-[0_0_4px_currentColor] text-ok-500"></span>
+                            <span class="font-bold text-ok-600">@(Math.Ceiling(daysLeft))d left</span>
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2 py-1 text-[11px] border border-danger-border">
+                            <span class="h-1.5 w-1.5 rounded-full bg-danger-500"></span>
+                            <span class="font-bold text-danger-500">Expired</span>
+                        </span>
+                    }
+                }
+                else
+                {
+                    <span class="text-xs text-txt-mid">—</span>
+                }
+            </td>
+            <td class="py-3 px-3 text-right pr-6 lg:pr-9">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo transition-transform duration-200 @(expandedDeviceId == device.Id ? "rotate-180" : "")" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </td>
+        </RowTemplate>
+        <ExpandedRowTemplate Context="device">
+            <td colspan="7" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
+                <div class="px-2 lg:px-3">
+                    <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" OnStateChanged="OnInitializedAsync" IsInline="true" HideEmployeeProfileLink="false" />
+                </div>
+            </td>
+        </ExpandedRowTemplate>
+    </AppTable>
+    
+    @if (FilteredDevices.Any())
+    {
+        <div class="flex items-center justify-between border-t border-line-soft bg-surface px-6 py-3">
+            <div class="flex items-center gap-4 text-sm text-txt-mid">
+                <div class="flex items-center gap-2">
+                    <label for="pageSize">Rows per page:</label>
+                    <select id="pageSize" class="rounded border border-line bg-elevated py-1 px-2 text-txt-hi focus:border-accent-border focus:outline-none" @bind="PageSize" @bind:after="ResetPage">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <span>
+                    Showing @(((CurrentPage - 1) * PageSize) + 1) to @Math.Min(CurrentPage * PageSize, FilteredDevices.Count()) of @FilteredDevices.Count()
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" class="rounded border border-line bg-elevated px-3 py-1.5 text-sm font-medium text-txt-hi hover:bg-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled="@(CurrentPage <= 1)" @onclick="PrevPage">Previous</button>
+                <button type="button" class="rounded border border-line bg-elevated px-3 py-1.5 text-sm font-medium text-txt-hi hover:bg-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled="@(CurrentPage >= TotalPages)" @onclick="NextPage">Next</button>
+            </div>
+        </div>
+    }
+</section>
+
+@if (showAddModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @onclick="CloseAddModal">
+        <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-surface p-6 shadow-xl ring-1 ring-line-strong" @onclick:stopPropagation>
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-lg font-semibold text-txt-hi">
+                    @if (creationType == DeviceCreationType.None) { @("What are you adding?") }
+                    else if (creationType == DeviceCreationType.System) { @("Add System") }
+                    else if (creationType == DeviceCreationType.Component) { @("Add Component") }
+                    else if (creationType == DeviceCreationType.Peripheral) { @("Add Peripheral") }
+                </h2>
+                @if (creationType != DeviceCreationType.None)
+                {
+                    <button type="button" @onclick="() => creationType = DeviceCreationType.None" class="text-sm text-accent-500 hover:text-accent-600 font-medium">&larr; Change Type</button>
+                }
+            </div>
+            
+            @if (creationType == DeviceCreationType.None)
+            {
+                <p class="mt-1 text-sm text-txt-mid mb-6">Select the type of asset you want to add to the register.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <!-- System -->
+                    <button type="button" @onclick="() => SelectCreationType(DeviceCreationType.System)" class="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-line bg-surface hover:border-accent-500 hover:bg-accent-50 transition-all text-center group">
+                        <div class="h-16 w-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        </div>
+                        <h3 class="text-base font-bold text-txt-hi mb-1">System</h3>
+                        <p class="text-xs text-txt-mid">Laptop, desktop, or server assigned to an employee.</p>
+                    </button>
+                    
+                    <!-- Component -->
+                    <button type="button" @onclick="() => SelectCreationType(DeviceCreationType.Component)" class="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-line bg-surface hover:border-accent-500 hover:bg-accent-50 transition-all text-center group">
+                        <div class="h-16 w-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.611c-.94.94-2.469.94-3.408 0L8.73 19.73a.98.98 0 0 1-.276-.837c.07-.47.48-.802.925-.968a2.501 2.501 0 1 0-3.214-3.214c-.166-.446-.497-.855-.968-.925a.979.979 0 0 1-.837.276L2.748 15.67c-.94-.94-.94-2.469 0-3.408l1.611-1.611a.98.98 0 0 1 .837-.276c.47.07.802.48.968.925a2.501 2.501 0 1 0 3.214-3.214c-.446-.166-.855-.497-.925-.968a.979.979 0 0 1 .276-.837L10.34 2.748c.94-.94 2.469-.94 3.408 0l1.611 1.611c.23.23.556.338.878.289.438-.066.82-.416.985-.845a2.501 2.501 0 1 1 3.214 3.214c-.429.165-.779.547-.845.985Z"/></svg>
+                        </div>
+                        <h3 class="text-base font-bold text-txt-hi mb-1">Component</h3>
+                        <p class="text-xs text-txt-mid">RAM, SSD, or parts installed inside a system.</p>
+                    </button>
+                    
+                    <!-- Peripheral -->
+                    <button type="button" @onclick="() => SelectCreationType(DeviceCreationType.Peripheral)" class="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-line bg-surface hover:border-accent-500 hover:bg-accent-50 transition-all text-center group">
+                        <div class="h-16 w-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        </div>
+                        <h3 class="text-base font-bold text-txt-hi mb-1">Peripheral</h3>
+                        <p class="text-xs text-txt-mid">Mouse, keyboard, or monitor assigned to a user.</p>
+                    </button>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" @onclick="CloseAddModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                </div>
+            }
+            else
+            {
+                <p class="mt-1 text-sm text-txt-mid">Fill out the details to add this new asset to the register.</p>
+            
+            <EditForm Model="newDevice" OnValidSubmit="SaveDevice">
+                <DataAnnotationsValidator />
+                <div class="mt-5 space-y-6">
+                    <!-- General Information -->
+                    <div>
+                        <h3 class="inline-flex items-center rounded bg-blue-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-blue-600 mb-4 border border-blue-100 shadow-sm">General Information</h3>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Device Model</label>
+                                <InputText @bind-Value="newDevice.DeviceName" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. MacBook Pro 14" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Asset Tag (ID)</label>
+                                <InputText @bind-Value="newDevice.AssetTag" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="Auto-generated if left blank" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Brand <span class="text-danger-500">*</span></label>
+                                <InputText @bind-Value="newDevice.Brand" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. Apple" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Owner / Company <span class="text-danger-500">*</span></label>
+                                <InputSelect @bind-Value="newDevice.OwnerCompany" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                                    <option value="">Select Owner Company</option>
+                                    @foreach (var oc in availableOwnerCompanies)
+                                    {
+                                        <option value="@oc.Name">@oc.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Serial <span class="text-danger-500">*</span></label>
+                                <InputText @bind-Value="newDevice.Serial" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="Serial Number" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Category <span class="text-danger-500">*</span></label>
+                                <InputSelect @bind-Value="newDevice.Category" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                                    @if (!availableCategories.Any(c => c.Type == creationType.ToString()))
+                                    {
+                                        <option value="">-- Add @(creationType.ToString()) Categories in Settings --</option>
+                                    }
+                                    @foreach (var cat in availableCategories.Where(c => c.Type == creationType.ToString()))
+                                    {
+                                        <option value="@cat.Name">@cat.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (creationType == DeviceCreationType.System || creationType == DeviceCreationType.Component)
+                    {
+                        <!-- Specifications -->
+                        <div>
+                            <h3 class="inline-flex items-center rounded bg-emerald-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600 mb-4 border border-emerald-100 shadow-sm">Specifications</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                @if (creationType == DeviceCreationType.System)
+                                {
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-txt-hi">Processor</label>
+                                        <InputText @bind-Value="newDevice.Processor" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. Intel Core i7" />
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-txt-hi">Processor Family</label>
+                                        <InputText @bind-Value="newDevice.ProcessorFamily" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. 11th Gen" />
+                                    </div>
+                                }
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">RAM</label>
+                                    <InputText @bind-Value="newDevice.Ram" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. 16GB" />
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-txt-hi">SSD</label>
+                                        <InputText @bind-Value="newDevice.Ssd" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. 512GB" />
+                                    </div>
+                                    @if (creationType == DeviceCreationType.System)
+                                    {
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-txt-hi">HDD (Optional)</label>
+                                            <InputText @bind-Value="newDevice.Hdd" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. 1TB" />
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Allocation Details -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-txt-hi mb-3">Allocation Details</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Status <span class="text-danger-500">*</span></label>
+                                <InputSelect @bind-Value="newDevice.Status" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                                    @if (creationType == DeviceCreationType.Component)
+                                    {
+                                        <option value="@DeviceStatus.InStore">InStore</option>
+                                        <option value="@DeviceStatus.Returned">Returned</option>
+                                        <option value="@DeviceStatus.Faulty">Faulty</option>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var stat in Enum.GetValues(typeof(DeviceStatus)))
+                                        {
+                                            <option value="@stat">@stat</option>
+                                        }
+                                    }
+                                </InputSelect>
+                            </div>
+                            
+                            @if (creationType != DeviceCreationType.Component && newDevice.Status == DeviceStatus.InUse)
+                            {
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">Assign to existing user (Optional)</label>
+                                    <select @onchange="OnEmployeeSelected" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500">
+                                        <option value="">-- Select an employee --</option>
+                                        @if (employees != null)
+                                        {
+                                            @foreach (var emp in employees.OrderBy(e => e.Name))
+                                            {
+                                                <option value="@emp.Id">@emp.Name (@emp.Designation) - @emp.EmployeeId</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                            }
+                        </div>
+                        
+                        @if (creationType != DeviceCreationType.Component && newDevice.Status == DeviceStatus.InUse)
+                        {
+                            <div class="grid grid-cols-2 gap-4 mt-4 p-4 rounded-lg border border-line-soft bg-surface">
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">User Name <span class="text-danger-500">*</span></label>
+                                    <InputText @bind-Value="newDevice.UserName" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. John Doe" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">Employee ID <span class="text-danger-500">*</span></label>
+                                    <InputText @bind-Value="newDevice.EmployeeId" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. EMP001" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">Designation <span class="text-danger-500">*</span></label>
+                                    <InputText @bind-Value="newDevice.Designation" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. Software Engineer" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">Email <span class="text-danger-500">*</span></label>
+                                    <InputText @bind-Value="newDevice.Email" type="email" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. john@example.com" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">Contact</label>
+                                    <InputText @bind-Value="newDevice.Contact" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. +880 123456789" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-txt-hi">Received Date <span class="text-danger-500">*</span></label>
+                                    <InputText @bind-Value="newDevice.ReceivedDate" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="dd-MM-yy" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Additional Info -->
+                    <div>
+                        <h3 class="inline-flex items-center rounded bg-purple-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-purple-600 mb-4 border border-purple-100 shadow-sm">Additional Info</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Asset Amount (Price)</label>
+                                <InputNumber @bind-Value="newDevice.AssetAmount" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="0.00" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Condition</label>
+                                <InputText @bind-Value="newDevice.Condition" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. Good, New" />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Procurement Date</label>
+                                <InputDate @bind-Value="newDevice.ProcurementDate" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" />
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <label class="flex items-center gap-2 mt-4 text-sm font-medium text-txt-hi cursor-pointer">
+                                    <InputCheckbox @bind-Value="newDevice.HasWarranty" class="rounded text-accent-500 focus:ring-accent-500 h-4 w-4 border-line" />
+                                    Device has warranty
+                                </label>
+                            </div>
+                        </div>
+                        @if (newDevice.HasWarranty)
+                        {
+                            <div class="mt-4 p-4 rounded-lg border border-line-soft bg-surface">
+                                <label class="mb-1 block text-sm font-medium text-txt-hi">Warranty Period (Months)</label>
+                                <InputNumber @bind-Value="newDevice.WarrantyMonths" class="block w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500" placeholder="e.g. 12" />
+                            </div>
+                        }
+                    </div>
+                    
+                    <div class="mt-8 flex justify-end gap-3 pt-4 border-t border-line-soft">
+                        <button type="button" @onclick="CloseAddModal" class="rounded-lg px-4 py-2 text-sm font-medium text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">Cancel</button>
+                        <button type="submit" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-600 transition-colors">Save @(creationType.ToString())</button>
+                    </div>
+                </div>
+            </EditForm>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<Device> devices = new();
+    private IEnumerable<AssetManagement.Core.Entities.DeviceCategoryModel> availableCategories = new List<AssetManagement.Core.Entities.DeviceCategoryModel>();
+    private IEnumerable<AssetManagement.Core.Entities.Brand> availableBrands = new List<AssetManagement.Core.Entities.Brand>();
+    private IEnumerable<AssetManagement.Core.Entities.OwnerCompany> availableOwnerCompanies = new List<AssetManagement.Core.Entities.OwnerCompany>();
+    private IEnumerable<AssetManagement.Core.Entities.Location> availableLocations = new List<AssetManagement.Core.Entities.Location>();
+    private List<Employee>? employees;
+    private bool showAddModal = false;
+    private Device newDevice = new Device();
+    
+    private enum DeviceCreationType
+    {
+        None,
+        System,
+        Component,
+        Peripheral
+    }
+    private DeviceCreationType creationType = DeviceCreationType.None;
+
+    // Pagination State
+    private int CurrentPage { get; set; } = 1;
+    private int PageSize { get; set; } = 50;
+
+    // Filter State
+    private string SearchTerm { get; set; } = "";
+    private string ActiveTab { get; set; } = "All";
+    private string? SelectedCategory { get; set; } = null;
+    private string SelectedKind { get; set; } = "";
+    private string SelectedWarranty { get; set; } = "";
+    private string SelectedLocation { get; set; } = "";
+
+    private bool HasActiveFilters => !string.IsNullOrEmpty(SearchTerm) ||
+                                     !string.IsNullOrEmpty(SelectedCategory) ||
+                                     !string.IsNullOrEmpty(SelectedKind) ||
+                                     !string.IsNullOrEmpty(SelectedWarranty) ||
+                                     !string.IsNullOrEmpty(SelectedLocation) ||
+                                     ActiveTab != "All";
+
+    private void ClearFilters()
+    {
+        SearchTerm = "";
+        SelectedCategory = null;
+        SelectedKind = "";
+        SelectedWarranty = "";
+        SelectedLocation = "";
+        ActiveTab = "All";
+        ResetPage();
+    }
+
+    // Sort State
+    private string SortColumn { get; set; } = "Device";
+    private bool SortAscending { get; set; } = true;
+
+    // Dropdown Data
+    private IEnumerable<string> AvailableBrands => devices?.Select(d => d.Brand!).Where(b => !string.IsNullOrEmpty(b)).Distinct().OrderBy(b => b) ?? Enumerable.Empty<string>();
+    private IEnumerable<string> AvailableRams => devices?.Select(d => d.Ram!).Where(r => !string.IsNullOrEmpty(r)).Distinct().OrderBy(r => r) ?? Enumerable.Empty<string>();
+    private IEnumerable<string> AvailableUsers => devices?.Select(d => d.UserName!).Where(u => !string.IsNullOrEmpty(u)).Distinct().OrderBy(u => u) ?? Enumerable.Empty<string>();
+
+    private IEnumerable<Device> FilteredDevices
+    {
+        get
+        {
+            if (devices == null) return Enumerable.Empty<Device>();
+
+            var query = devices.AsQueryable();
+
+            if (ActiveTab == "In inventory") query = query.Where(d => d.Status == DeviceStatus.InStore);
+            else if (ActiveTab == "Issued") query = query.Where(d => d.Status == DeviceStatus.InUse && !d.IsComponent);
+            else if (ActiveTab == "Installed") query = query.Where(d => d.Status == DeviceStatus.InUse && d.IsComponent);
+            else if (ActiveTab == "Repair shop") query = query.Where(d => d.Status == DeviceStatus.Faulty || d.Status == DeviceStatus.InRepair);
+            else if (ActiveTab == "Obsolete") query = query.Where(d => d.Status == DeviceStatus.WrittenOff);
+
+            if (!string.IsNullOrEmpty(SelectedCategory))
+                query = query.Where(d => d.Category == SelectedCategory);
+
+            if (!string.IsNullOrEmpty(SelectedKind))
+            {
+                if (SelectedKind == "System") query = query.Where(d => !d.IsComponent);
+                else if (SelectedKind == "Component") query = query.Where(d => d.IsComponent);
+            }
+
+            if (!string.IsNullOrEmpty(SelectedWarranty))
+            {
+                if (SelectedWarranty == "In warranty")
+                    query = query.Where(d => d.HasWarranty && d.WarrantyEndDate.HasValue && d.WarrantyEndDate.Value > DateTime.Now);
+                else if (SelectedWarranty == "Expired")
+                    query = query.Where(d => d.HasWarranty && d.WarrantyEndDate.HasValue && d.WarrantyEndDate.Value <= DateTime.Now);
+            }
+
+            if (!string.IsNullOrEmpty(SelectedLocation))
+            {
+                query = query.Where(d => 
+                    (d.Location != null && d.Location == SelectedLocation) ||
+                    (employees != null && employees.Any(e => (e.Name == d.UserName || e.EmployeeId == d.EmployeeId) && e.Location == SelectedLocation)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(SearchTerm))
+            {
+                var cleanSearch = SearchTerm.ToLower();
+                var terms = cleanSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    query = query.Where(d => 
+                        (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
+                        (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
+                        (d.UserName != null && d.UserName.ToLower().Contains(term)) ||
+                        (d.Email != null && d.Email.ToLower().Contains(term)) ||
+                        (d.EmployeeId != null && d.EmployeeId.ToLower().Contains(term)) ||
+                        (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
+                        (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
+                        (d.ProcessorFamily != null && d.ProcessorFamily.ToLower().Contains(term)) ||
+                        (d.Ram != null && d.Ram.ToLower().Contains(term)) ||
+                        (d.Ssd != null && d.Ssd.ToLower().Contains(term)) ||
+                        (d.Hdd != null && d.Hdd.ToLower().Contains(term)) ||
+                        (d.Brand != null && d.Brand.ToLower().Contains(term))
+                    );
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(QuerySearch))
+            {
+                var cleanSearch = QuerySearch.ToLower();
+                var terms = cleanSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    query = query.Where(d => 
+                        (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
+                        (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
+                        (d.UserName != null && d.UserName.ToLower().Contains(term)) ||
+                        (d.Email != null && d.Email.ToLower().Contains(term)) ||
+                        (d.EmployeeId != null && d.EmployeeId.ToLower().Contains(term)) ||
+                        (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
+                        (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
+                        (d.ProcessorFamily != null && d.ProcessorFamily.ToLower().Contains(term)) ||
+                        (d.Ram != null && d.Ram.ToLower().Contains(term)) ||
+                        (d.Ssd != null && d.Ssd.ToLower().Contains(term)) ||
+                        (d.Hdd != null && d.Hdd.ToLower().Contains(term)) ||
+                        (d.Brand != null && d.Brand.ToLower().Contains(term))
+                    );
+                }
+            }
+
+            var result = query.ToList();
+
+            result = SortColumn switch
+            {
+                "Device" => SortAscending ? result.OrderBy(d => d.Brand).ThenBy(d => d.DeviceName).ToList() : result.OrderByDescending(d => d.Brand).ThenByDescending(d => d.DeviceName).ToList(),
+                "Specification" => SortAscending ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram).ToList() : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram).ToList(),
+                "Status" => SortAscending ? result.OrderBy(d => d.Status.ToString()).ToList() : result.OrderByDescending(d => d.Status.ToString()).ToList(),
+                "User" => SortAscending ? result.OrderBy(d => d.EmployeeId ?? string.Empty).ThenBy(d => d.UserName ?? string.Empty).ToList() : result.OrderByDescending(d => d.EmployeeId ?? string.Empty).ThenByDescending(d => d.UserName ?? string.Empty).ToList(),
+                "Designation" => SortAscending ? result.OrderBy(d => d.Designation ?? string.Empty).ToList() : result.OrderByDescending(d => d.Designation ?? string.Empty).ToList(),
+                "Contact" => SortAscending ? result.OrderBy(d => d.Email ?? string.Empty).ToList() : result.OrderByDescending(d => d.Email ?? string.Empty).ToList(),
+                "Received" => SortAscending ? result.OrderBy(d => d.ReceivedDate ?? string.Empty).ToList() : result.OrderByDescending(d => d.ReceivedDate ?? string.Empty).ToList(),
+                "AssetAmount" => SortAscending ? result.OrderBy(d => d.AssetAmount ?? 0).ToList() : result.OrderByDescending(d => d.AssetAmount ?? 0).ToList(),
+                _ => result
+            };
+
+            return result;
+        }
+    }
+
+    private IEnumerable<Device> PaginatedDevices => FilteredDevices.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private int TotalPages => (int)Math.Ceiling((double)FilteredDevices.Count() / PageSize);
+
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? QuerySearch { get; set; }
+
+    [SupplyParameterFromQuery(Name = "category")]
+    public string? QueryCategory { get; set; }
+
+    [SupplyParameterFromQuery(Name = "status")]
+    public string? QueryStatus { get; set; }
+
+    private bool showReceiveModal = false;
+    private bool showAllocateModal = false;
+    private bool showReturnModal = false;
+    private bool showRepairModal = false;
+
+    private void OpenReceiveModal() => showReceiveModal = true;
+    private void OpenAllocateModal() => showAllocateModal = true;
+    private void OpenReturnModal() => showReturnModal = true;
+    private void OpenRepairModal() => showRepairModal = true;
+
+    private async Task HandleDeviceReceived(Device newDevice)
+    {
+        await DeviceService.AddDeviceAsync(newDevice);
+        await OnInitializedAsync();
+        showReceiveModal = false;
+    }
+
+    private async Task HandleDeviceAllocated(List<Handover> handovers)
+    {
+        foreach (var handover in handovers)
+        {
+            if (!string.IsNullOrEmpty(handover.DeviceId))
+            {
+                var emp = employees?.FirstOrDefault(e => e.Name == handover.To);
+                var isTeam = emp?.IsTeamAccount == true || handover.Condition?.Contains("Common") == true || handover.Condition?.Contains("Team") == true || handover.To.Contains("Team") || handover.To.Contains("Pool") || handover.To.Contains("Room") || handover.To.Contains("Lab");
+
+                var newAssignmentData = new Device
+                {
+                    UserName = handover.To,
+                    EmployeeId = emp?.EmployeeId ?? (isTeam ? "TEAM" : null),
+                    Email = emp?.Email ?? "",
+                    Contact = emp?.Contact ?? "",
+                    Designation = emp?.Designation ?? (isTeam ? "Team / Common Use" : "Staff")
+                };
+                await DeviceService.TransferDeviceAsync(handover.DeviceId, "TransferToUser", newAssignmentData);
+            }
+        }
+        await OnInitializedAsync();
+        showAllocateModal = false;
+    }
+
+    private async Task HandleDeviceReturned(AssetManagement.Web.Components.Shared.ReturnDeviceModal.ReturnModel model)
+    {
+        // TODO: Actually return the device via service
+        await OnInitializedAsync();
+        showReturnModal = false;
+    }
+
+    private async Task HandleRepairAdded(RepairRecord record)
+    {
+        // TODO: Actually add repair record via service
+        await OnInitializedAsync();
+        showRepairModal = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        devices = await DeviceService.GetDevicesAsync();
+        employees = await EmployeeService.GetEmployeesAsync();
+        availableCategories = await SettingsService.GetCategoriesAsync();
+        availableBrands = await SettingsService.GetBrandsAsync();
+        availableOwnerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+        availableLocations = await SettingsService.GetLocationsAsync();
+        var defaultCompany = availableOwnerCompanies.FirstOrDefault(c => c.Name.Contains("Prime", StringComparison.OrdinalIgnoreCase))?.Name 
+            ?? availableOwnerCompanies.FirstOrDefault()?.Name 
+            ?? "PrimeTech Solutions Ltd.";
+        if (string.IsNullOrWhiteSpace(newDevice.OwnerCompany) || newDevice.OwnerCompany == "PTSL")
+        {
+            newDevice.OwnerCompany = defaultCompany;
+        }
+        
+        if (!string.IsNullOrEmpty(QueryCategory))
+        {
+            SelectedCategory = QueryCategory;
+        }
+
+        if (!string.IsNullOrEmpty(QueryStatus) && Enum.TryParse<DeviceStatus>(QueryStatus, out var stat))
+        {
+            if (stat == DeviceStatus.InStore) ActiveTab = "In inventory";
+            else if (stat == DeviceStatus.InUse) ActiveTab = "Issued";
+            else if (stat == DeviceStatus.Faulty || stat == DeviceStatus.InRepair) ActiveTab = "Repair shop";
+            else if (stat == DeviceStatus.WrittenOff) ActiveTab = "Obsolete";
+            else ActiveTab = stat.ToString();
+        }
+    }
+
+    private string? _lastQuerySearch;
+
+    protected override void OnParametersSet()
+    {
+        if (QuerySearch != _lastQuerySearch)
+        {
+            _lastQuerySearch = QuerySearch;
+            ResetPage();
+        }
+    }
+
+    private void ResetPage()
+    {
+        CurrentPage = 1;
+    }
+
+    private void PrevPage()
+    {
+        if (CurrentPage > 1) CurrentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages) CurrentPage++;
+    }
+
+    private void OnEmployeeSelected(ChangeEventArgs e)
+    {
+        var selectedId = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(selectedId) && employees != null)
+        {
+            var emp = employees.FirstOrDefault(x => x.Id == selectedId);
+            if (emp != null)
+            {
+                newDevice.UserName = emp.Name;
+                newDevice.EmployeeId = emp.EmployeeId;
+                newDevice.Designation = emp.Designation;
+                newDevice.Email = emp.Email;
+                newDevice.Contact = emp.Contact;
+            }
+        }
+    }
+
+    private string? expandedDeviceId = null;
+
+    private async Task ToggleExpand(string deviceId)
+    {
+        try
+        {
+            var selection = await JS.InvokeAsync<string>("eval", "window.getSelection().toString()");
+            if (!string.IsNullOrWhiteSpace(selection))
+            {
+                return; // Do not expand if text is selected
+            }
+        }
+        catch
+        {
+            // Fallback if eval fails
+        }
+        
+        if (expandedDeviceId == deviceId)
+            expandedDeviceId = null;
+        else
+            expandedDeviceId = deviceId;
+    }
+
+    private void SetTab(string tab)
+    {
+        ActiveTab = tab;
+        ResetPage();
+    }
+
+    private void OpenAddModal()
+    {
+        var defaultCompany = availableOwnerCompanies.FirstOrDefault(c => c.Name.Contains("Prime", StringComparison.OrdinalIgnoreCase))?.Name 
+            ?? availableOwnerCompanies.FirstOrDefault()?.Name 
+            ?? "PrimeTech Solutions Ltd.";
+        newDevice = new Device
+        {
+            OwnerCompany = defaultCompany
+        };
+        creationType = DeviceCreationType.None;
+        showAddModal = true;
+    }
+    
+    private void SelectCreationType(DeviceCreationType type)
+    {
+        creationType = type;
+        if (type == DeviceCreationType.Component)
+        {
+            newDevice.IsComponent = true;
+            newDevice.Category = "RAM";
+            newDevice.Status = DeviceStatus.InStore; // Components default to In Store
+        }
+        else if (type == DeviceCreationType.Peripheral)
+        {
+            newDevice.IsComponent = false;
+            newDevice.Category = "Mouse";
+            newDevice.Status = DeviceStatus.InUse;
+        }
+        else 
+        {
+            newDevice.IsComponent = false;
+            newDevice.Category = "Laptop";
+            newDevice.Status = DeviceStatus.InUse;
+        }
+    }
+
+    private void CloseAddModal() 
+    {
+        showAddModal = false;
+        creationType = DeviceCreationType.None;
+    }
+
+    private async Task SaveDevice()
+    {
+        await DeviceService.AddDeviceAsync(newDevice);
+        devices = await DeviceService.GetDevicesAsync();
+        CloseAddModal();
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        var parts = name.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, 1).ToUpper();
+        return (parts[0].Substring(0, 1) + parts[1].Substring(0, 1)).ToUpper();
+    }
+
+    private void SortBy(string column)
+    {
+        if (SortColumn == column)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            SortColumn = column;
+            SortAscending = true;
+        }
+        ResetPage();
+    }
+
+    private async Task ExportToExcel()
+    {
+        var itemsToExport = FilteredDevices;
+        
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Devices");
+        
+        worksheet.Cell(1, 1).Value = "Device Model";
+        worksheet.Cell(1, 2).Value = "Asset Tag";
+        worksheet.Cell(1, 3).Value = "Brand";
+        worksheet.Cell(1, 4).Value = "Serial";
+        worksheet.Cell(1, 5).Value = "Category";
+        worksheet.Cell(1, 6).Value = "Processor";
+        worksheet.Cell(1, 7).Value = "RAM";
+        worksheet.Cell(1, 8).Value = "SSD";
+        worksheet.Cell(1, 9).Value = "Status";
+        worksheet.Cell(1, 10).Value = "UserName";
+        worksheet.Cell(1, 11).Value = "Designation";
+        worksheet.Cell(1, 12).Value = "Contact";
+        worksheet.Cell(1, 13).Value = "Email";
+
+        int row = 2;
+        foreach (var item in itemsToExport)
+        {
+            worksheet.Cell(row, 1).Value = item.DeviceName;
+            worksheet.Cell(row, 2).Value = item.AssetTag;
+            worksheet.Cell(row, 3).Value = item.Brand;
+            worksheet.Cell(row, 4).Value = item.Serial;
+            worksheet.Cell(row, 5).Value = item.Category;
+            worksheet.Cell(row, 6).Value = item.Processor;
+            worksheet.Cell(row, 7).Value = item.Ram;
+            worksheet.Cell(row, 8).Value = item.Ssd;
+            worksheet.Cell(row, 9).Value = item.Status.ToString();
+            worksheet.Cell(row, 10).Value = item.UserName;
+            worksheet.Cell(row, 11).Value = item.Designation;
+            worksheet.Cell(row, 12).Value = item.Contact;
+            worksheet.Cell(row, 13).Value = item.Email;
+            row++;
+        }
+        
+        worksheet.Columns().AdjustToContents();
+
+        using var memoryStream = new MemoryStream();
+        workbook.SaveAs(memoryStream);
+        memoryStream.Position = 0;
+        
+        using var streamRef = new DotNetStreamReference(stream: memoryStream);
+        await JS.InvokeVoidAsync("downloadFileFromStream", "Devices.xlsx", streamRef);
+    }
+    
+    private RenderFragment RenderSortIcon(string column) => __builder =>
+    {
+        if (SortColumn == column)
+        {
+            if (SortAscending)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m5 15 7-7 7 7"/></svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m19 9-7 7-7-7"/></svg>
+            }
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-line-strong opacity-0 group-hover:opacity-100 transition-opacity"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        }
+    };
+}
+
+
+
+
+
+

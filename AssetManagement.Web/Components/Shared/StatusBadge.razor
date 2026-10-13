@@ -1,0 +1,47 @@
+@using AssetManagement.Core.Enums
+
+<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset @ClassName">
+    <span class="h-1.5 w-1.5 rounded-full @DotClassName" aria-hidden="true"></span>
+    @StatusLabel
+</span>
+
+@code {
+    [Parameter]
+    public DeviceStatus Status { get; set; }
+
+    private string ClassName => Status switch
+    {
+        DeviceStatus.InStore => "bg-emerald-500 text-white ring-emerald-600",
+        DeviceStatus.InUse => "bg-accent-soft text-accent-400 ring-accent-border",
+        DeviceStatus.Returned => "bg-elevated text-txt-mid ring-line",
+        DeviceStatus.Faulty => "bg-warn-soft text-warn-400 ring-warn-border",
+        DeviceStatus.WrittenOff => "bg-danger-soft text-danger-400 ring-danger-border",
+        DeviceStatus.Scrapped => "bg-danger-soft text-danger-400 ring-danger-border",
+        DeviceStatus.InRepair => "bg-warn-soft text-warn-400 ring-warn-border",
+        _ => "bg-elevated text-txt-mid ring-line"
+    };
+
+    private string DotClassName => Status switch
+    {
+        DeviceStatus.InStore => "bg-white",
+        DeviceStatus.InUse => "bg-accent-500",
+        DeviceStatus.Returned => "bg-accent-400",
+        DeviceStatus.Faulty => "bg-warn-500",
+        DeviceStatus.WrittenOff => "bg-danger-500",
+        DeviceStatus.Scrapped => "bg-danger-500",
+        DeviceStatus.InRepair => "bg-warn-500",
+        _ => "bg-txt-mid"
+    };
+
+    private string StatusLabel => Status switch
+    {
+        DeviceStatus.InStore => "In Stock",
+        DeviceStatus.InUse => "In Use",
+        DeviceStatus.Returned => "Returned",
+        DeviceStatus.Faulty => "Repair",
+        DeviceStatus.InRepair => "In Repair",
+        DeviceStatus.WrittenOff => "Obsolete",
+        DeviceStatus.Scrapped => "Scrapped",
+        _ => Status.ToString()
+    };
+}

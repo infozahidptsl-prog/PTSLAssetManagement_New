@@ -1,0 +1,240 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using AssetManagement.Core.Interfaces
+@using System.IO
+@inject IDocumentBundleService BundleService
+@inject IOcrService OcrService
+@inject IAiDocumentExtractionService AiService
+
+<div class="ai-capture-bundle-container">
+    @if (!isProcessing && bundle.Documents.Count == 0)
+    {
+        <!-- Upload Zone -->
+        <div class="rounded-2xl border-2 border-dashed border-line bg-surface hover:bg-elevated transition-colors p-10 text-center">
+            <div class="mb-4 flex justify-center">
+                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-50 text-accent-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-txt-hi mb-1">AI Purchase Document Capture</h3>
+            <p class="text-sm text-txt-mid mb-6">Upload invoices, continuation pages, and configuration images (all at once) to create a document bundle.</p>
+
+            <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <label for="fileUploadDesktopBundle" class="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 bg-accent-600 text-white rounded-xl font-semibold text-sm hover:bg-accent-700 transition-colors shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Documents
+                </label>
+                <InputFile id="fileUploadDesktopBundle" OnChange="HandleFilesSelected" multiple accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf,.jpg,.jpeg,.png" class="hidden" />
+            </div>
+            <p class="mt-4 text-xs text-txt-lo">Supported: JPG, JPEG, PNG, PDF &nbsp;·&nbsp; Max 10 MB per file</p>
+        </div>
+    }
+
+    @if (bundle.Documents.Count > 0)
+    {
+        <div class="mb-4 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-txt-hi">Document Bundle (@bundle.Documents.Count files)</h3>
+            @if (!isProcessing && !isComplete)
+            {
+                <div class="flex gap-2">
+                    <label for="addMoreFiles" class="cursor-pointer px-3 py-1.5 border border-line bg-surface text-txt-hi rounded-lg text-sm font-medium hover:bg-elevated transition-colors">
+                        Add More
+                    </label>
+                    <InputFile id="addMoreFiles" OnChange="HandleFilesSelected" multiple accept="image/*,application/pdf" class="hidden" />
+                    
+                    <button type="button" @onclick="ProcessBundle" class="px-4 py-1.5 bg-accent-600 text-white rounded-lg text-sm font-semibold hover:bg-accent-700 transition-colors">
+                        Process Bundle
+                    </button>
+                </div>
+            }
+        </div>
+
+        <div class="space-y-3 mb-6">
+            @foreach (var doc in bundle.Documents)
+            {
+                <div class="flex items-center justify-between p-4 bg-surface border border-line rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="text-accent-500">
+                            @if (doc.OriginalFileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            }
+                            else
+                            {
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            }
+                        </div>
+                        <div>
+                            <p class="font-medium text-sm text-txt-hi">@doc.OriginalFileName</p>
+                            @if (isComplete)
+                            {
+                                <p class="text-xs font-semibold text-accent-600 mt-0.5">@doc.Classification.ToString()</p>
+                            }
+                        </div>
+                    </div>
+                    
+                    <div class="text-right">
+                        @if (isProcessing)
+                        {
+                            <div class="flex items-center gap-4 text-xs font-mono text-txt-mid">
+                                <span>OCR: <span class="@GetStatusColor(doc.OcrStatus)">@doc.OcrStatus</span></span>
+                                <span>AI: <span class="@GetStatusColor(doc.AiStatus)">@doc.AiStatus</span></span>
+                            </div>
+                        }
+                        else if (isComplete)
+                        {
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-ok-50 text-ok-700">Processed</span>
+                        }
+                        else
+                        {
+                            <button type="button" @onclick="() => bundle.Documents.Remove(doc)" class="p-1.5 text-txt-muted hover:text-danger-500 rounded-md hover:bg-danger-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="mt-4 p-4 bg-danger-50 border border-danger-200 text-danger-700 rounded-xl text-sm flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>@errorMessage</div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<BundleProcessingResult> OnBundleProcessed { get; set; }
+
+    private DocumentBundle bundle = new();
+    private bool isProcessing = false;
+    private bool isComplete = false;
+    private string errorMessage = "";
+    private Dictionary<BundleDocument, (byte[] Bytes, string ContentType)> documentData = new();
+
+    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = "";
+        foreach (var file in e.GetMultipleFiles(20)) // allow up to 20 files
+        {
+            if (file.Size > 10 * 1024 * 1024)
+            {
+                errorMessage = $"File {file.Name} is too large. Max 10MB.";
+                return;
+            }
+            
+            try
+            {
+                using var ms = new MemoryStream();
+                await file.OpenReadStream(10 * 1024 * 1024).CopyToAsync(ms);
+                
+                var doc = new BundleDocument { OriginalFileName = file.Name };
+                bundle.Documents.Add(doc);
+                documentData[doc] = (ms.ToArray(), file.ContentType);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error loading {file.Name}: {ex.Message}";
+                return;
+            }
+        }
+    }
+
+    private async Task ProcessBundle()
+    {
+        if (bundle.Documents.Count == 0) return;
+        
+        isProcessing = true;
+        isComplete = false;
+        errorMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            // Process each file
+            foreach (var doc in bundle.Documents.ToList())
+            {
+                if (!documentData.TryGetValue(doc, out var data)) continue;
+                
+                var fileBytes = data.Bytes;
+                var contentType = data.ContentType;
+                
+                doc.OcrStatus = "Running...";
+                StateHasChanged();
+
+                var base64 = Convert.ToBase64String(fileBytes);
+                
+                // OCR
+                string ocrText = "";
+                try 
+                {
+                    using var streamForOcr = new MemoryStream(fileBytes);
+                    var ocrRes = await OcrService.ExtractTextAsync(streamForOcr, doc.OriginalFileName, contentType);
+                    ocrText = ocrRes.Text ?? "";
+                    doc.OcrStatus = ocrRes.IsSuccess ? "Success" : "Failed";
+                }
+                catch
+                {
+                    doc.OcrStatus = "Failed";
+                }
+
+                doc.AiStatus = "Running...";
+                StateHasChanged();
+
+                // AI Extraction
+                AiDocumentExtractionResult? aiResult = null;
+                try
+                {
+                    aiResult = await AiService.ExtractDocumentAsync(ocrText, base64);
+                    doc.AiStatus = aiResult.IsSuccess ? "Success" : "Failed";
+                }
+                catch
+                {
+                    doc.AiStatus = "Unavailable";
+                }
+
+                // Classify
+                var classifiedDoc = BundleService.ClassifyDocument(doc.OriginalFileName, 1, ocrText, aiResult);
+                doc.Classification = classifiedDoc.Classification;
+                doc.ClassificationReason = classifiedDoc.ClassificationReason;
+                doc.OcrText = ocrText;
+                doc.ExtractionResult = aiResult;
+                
+                StateHasChanged();
+            }
+
+            // Once all files are processed and classified, process the whole bundle
+            var result = await BundleService.ProcessBundleAsync(bundle);
+            
+            if (result.Errors.Any())
+            {
+                errorMessage = string.Join("\n", result.Errors);
+                isProcessing = false;
+                return;
+            }
+
+            isComplete = true;
+            await OnBundleProcessed.InvokeAsync(result);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing bundle: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetStatusColor(string status) => status switch
+    {
+        "Success" => "text-ok-600 font-bold",
+        "Failed" => "text-danger-600 font-bold",
+        "Running..." => "text-accent-600 animate-pulse",
+        "Unavailable" => "text-warn-600",
+        _ => "text-txt-muted"
+    };
+}

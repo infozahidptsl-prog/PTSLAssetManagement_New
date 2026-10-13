@@ -1,0 +1,813 @@
+@page "/device-registration"
+@page "/device-register"
+@page "/device-register/{PurchaseId}"
+@using Microsoft.AspNetCore.Authorization
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Interfaces
+@using AssetManagement.Infrastructure.Services
+@using System.IO
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@inject PurchaseService PurchaseService
+@inject DeviceService DeviceService
+@inject IAiDocumentExtractionService AiService
+@inject IOcrService OcrService
+@inject IAiFieldMappingService FieldMappingService
+@inject IAiValidationService ValidationService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@inject NavigationManager NavigationManager
+
+<PageTitle>Register Physical Asset - PrimeTech Asset Manager</PageTitle>
+
+<div class="bg-surface pb-3 mb-6 border-b border-line-soft">
+    <PageHeader Title="Register Physical Asset"
+                Description="Select an existing purchase, upload or paste device label/specs, review extracted identifiers, and register with unique AssetTags.">
+        <Actions>
+            <a href="/ai/invoice" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-elevated px-3 py-1.5 text-[13px] font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
+                &larr; Back to AI Intake / Invoice
+            </a>
+            @if (currentPurchase != null)
+            {
+                <button type="button" @onclick="ResetPurchase" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-elevated px-3 py-1.5 text-[13px] font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
+                    Switch Purchase
+                </button>
+            }
+        </Actions>
+    </PageHeader>
+</div>
+
+<div class="w-full space-y-6">
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="rounded-xl bg-danger-50 p-4 border border-danger-200 mb-6 flex justify-between items-start">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-danger-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/></svg>
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-danger-800">Registration Notice</h3>
+                    <p class="mt-0.5 text-sm text-danger-700">@errorMessage</p>
+                </div>
+            </div>
+            <button @onclick="() => errorMessage = null" class="text-danger-400 hover:text-danger-700 text-lg">&times;</button>
+        </div>
+    }
+
+    @if (currentPurchase == null)
+    {
+        <!-- STEP 1: Search / Select an Existing Purchase (NO Camera Required) -->
+        <div class="rounded-2xl border border-line bg-surface p-6 lg:p-8 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-txt-lo">Step 1 — Select an Existing Purchase</h2>
+                    <p class="text-xs text-txt-mid mt-0.5">Showing @((filteredPurchases.Count())) total purchases in the system.</p>
+                </div>
+
+                <!-- Status Filter Tabs -->
+                <div class="inline-flex p-1 bg-elevated border border-line rounded-xl text-xs">
+                    <button type="button" @onclick='() => SetPurchaseFilter("all")' class="px-3 py-1 rounded-lg font-semibold transition-all @(purchaseFilter == "all" ? "bg-surface text-txt-hi shadow-xs" : "text-txt-mid hover:text-txt-hi")">
+                        All (@allPurchases.Count)
+                    </button>
+                    <button type="button" @onclick='() => SetPurchaseFilter("pending")' class="px-3 py-1 rounded-lg font-semibold transition-all @(purchaseFilter == "pending" ? "bg-emerald-50 text-emerald-700 shadow-xs border border-emerald-200" : "text-txt-mid hover:text-txt-hi")">
+                        Pending Registration (@allPurchases.Count(p => p.Items.Any(i => i.RemainingQuantity > 0)))
+                    </button>
+                    <button type="button" @onclick='() => SetPurchaseFilter("completed")' class="px-3 py-1 rounded-lg font-semibold transition-all @(purchaseFilter == "completed" ? "bg-surface text-txt-hi shadow-xs" : "text-txt-mid hover:text-txt-hi")">
+                        Completed (@allPurchases.Count(p => p.Items.All(i => i.RemainingQuantity <= 0)))
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mb-5 flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <input type="text" @bind="searchQuery" @bind:event="oninput" @bind:after="ResetPurchasePage" class="w-full bg-elevated border border-line rounded-xl pl-10 pr-4 py-2.5 text-sm text-txt-hi focus:border-accent-500 outline-none" placeholder="Search by Purchase #, Supplier, or Invoice #..." />
+                </div>
+                <button type="button" @onclick="LoadRecentPurchases" class="px-4 py-2.5 bg-surface border border-line-strong rounded-xl text-xs font-semibold hover:bg-elevated text-txt-hi shadow-xs">
+                    Refresh List
+                </button>
+                <button type="button" @onclick="StartDirectRegistration" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Register Direct / No Invoice
+                </button>
+            </div>
+
+            @if (isLoadingPurchases)
+            {
+                <div class="p-8 text-center text-sm text-txt-mid">
+                    <svg class="animate-spin h-6 w-6 text-accent-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Loading existing purchases...
+                </div>
+            }
+            else if (!paginatedPurchases.Any())
+            {
+                <div class="p-8 text-center border-2 border-dashed border-line rounded-xl text-txt-mid text-sm">
+                    No purchases found matching your query or filter.
+                </div>
+            }
+            else
+            {
+                <div class="overflow-x-auto border border-line rounded-xl shadow-xs">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-elevated border-b border-line text-[11px] font-semibold uppercase tracking-wider text-txt-mid">
+                            <tr>
+                                <th class="px-5 py-3">Purchase #</th>
+                                <th class="px-5 py-3">Supplier</th>
+                                <th class="px-5 py-3">Invoice #</th>
+                                <th class="px-5 py-3">Date</th>
+                                <th class="px-5 py-3 text-center">Items Remaining</th>
+                                <th class="px-5 py-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @foreach (var p in paginatedPurchases)
+                            {
+                                var totalRemaining = p.Items.Sum(i => i.RemainingQuantity);
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-5 py-3 font-mono font-bold text-txt-hi">@p.PurchaseNumber</td>
+                                    <td class="px-5 py-3 font-medium text-txt-hi">@p.Supplier</td>
+                                    <td class="px-5 py-3 font-mono text-xs text-txt-mid">@(p.InvoiceNumber ?? "—")</td>
+                                    <td class="px-5 py-3 text-txt-mid">@(p.PurchaseDate?.ToShortDateString() ?? "—")</td>
+                                    <td class="px-5 py-3 text-center">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold @(totalRemaining > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600")">
+                                            @totalRemaining remaining
+                                        </span>
+                                    </td>
+                                    <td class="px-5 py-3 text-right">
+                                        <button type="button" @onclick="() => SelectPurchase(p)" class="px-3.5 py-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-semibold text-xs transition-colors shadow-xs">
+                                            Select Purchase &rarr;
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-3 border-t border-line-soft text-xs text-txt-mid">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1.5">
+                            <span>Rows per page:</span>
+                            <select @bind="pageSize" @bind:after="ResetPurchasePage" class="bg-elevated border border-line rounded px-2 py-1 text-txt-hi font-medium">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <span>
+                            Showing @((currentPage - 1) * pageSize + 1) to @(Math.Min(currentPage * pageSize, filteredPurchases.Count())) of @filteredPurchases.Count() purchases
+                        </span>
+                    </div>
+
+                    <div class="flex items-center gap-1">
+                        <button type="button" @onclick="() => GoToPurchasePage(1)" disabled="@(currentPage == 1)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                            First
+                        </button>
+                        <button type="button" @onclick="() => GoToPurchasePage(currentPage - 1)" disabled="@(currentPage == 1)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                            Prev
+                        </button>
+                        <span class="px-3 py-1 font-bold text-txt-hi">
+                            Page @currentPage of @TotalPurchasePages
+                        </span>
+                        <button type="button" @onclick="() => GoToPurchasePage(currentPage + 1)" disabled="@(currentPage >= TotalPurchasePages)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                            Next
+                        </button>
+                        <button type="button" @onclick="() => GoToPurchasePage(TotalPurchasePages)" disabled="@(currentPage >= TotalPurchasePages)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                            Last
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (selectedItem == null)
+    {
+        <!-- STEP 2: Purchase Line Items Grid & Remaining Quantities -->
+        <div class="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden mb-6">
+            <div class="px-6 py-5 border-b border-line bg-elevated flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-txt-hi">Purchase @currentPurchase.PurchaseNumber</h2>
+                    <p class="text-xs text-txt-mid mt-0.5">Supplier: <strong>@currentPurchase.Supplier</strong> &bull; Invoice: <strong>@(currentPurchase.InvoiceNumber ?? "—")</strong> &bull; Date: @(currentPurchase.PurchaseDate?.ToShortDateString() ?? "—")</p>
+                </div>
+                <button type="button" @onclick="ResetPurchase" class="text-xs font-semibold text-accent-600 hover:text-accent-700">
+                    &larr; Choose Different Purchase
+                </button>
+            </div>
+
+            <div class="p-0">
+                <table class="min-w-full divide-y divide-line text-sm">
+                    <thead class="bg-elevated text-[11px] font-semibold uppercase tracking-wider text-txt-mid">
+                        <tr>
+                            <th class="px-6 py-3 text-left">Purchased Item</th>
+                            <th class="px-6 py-3 text-center">Purchased Qty</th>
+                            <th class="px-6 py-3 text-center">Registered</th>
+                            <th class="px-6 py-3 text-center">Remaining</th>
+                            <th class="px-6 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-line-soft">
+                        @foreach (var item in currentPurchase.Items)
+                        {
+                            <tr>
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-txt-hi">@item.Manufacturer @item.ModelName</div>
+                                    <div class="text-xs text-txt-mid mt-0.5">Category: @item.Category &bull; Unit Cost: @(item.UnitCost?.ToString("C", new System.Globalization.CultureInfo("bn-BD")) ?? "—")</div>
+                                </td>
+                                <td class="px-6 py-4 text-center font-bold text-txt-hi">@item.Quantity</td>
+                                <td class="px-6 py-4 text-center text-txt-mid">@item.RegisteredQuantity</td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold @(item.RemainingQuantity > 0 ? "bg-emerald-100 text-emerald-800" : "bg-danger-100 text-danger-800")">
+                                        @item.RemainingQuantity
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    @if (item.RemainingQuantity > 0)
+                                    {
+                                        <button type="button" @onclick="() => SelectItem(item)" class="px-3.5 py-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-semibold text-xs shadow-xs transition-colors">
+                                            Register Next Asset &rarr;
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs font-semibold text-txt-lo">All Registered</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (!isAssetCreated)
+    {
+        <!-- STEP 3: Register Physical Device (Document Upload / Paste / Candidate Serials / Manual Edit) -->
+        <div class="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden mb-6">
+            <div class="px-6 py-5 border-b border-line bg-elevated flex items-center justify-between">
+                <div>
+                    @if (isDirectMode)
+                    {
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">Direct Registration</span>
+                            <h2 class="text-base font-bold text-txt-hi">Register Asset (Without Prior Invoice)</h2>
+                        </div>
+                        <p class="text-xs text-txt-mid mt-0.5">Upload device label/specs or enter identifiers. Invoice and purchase details can be linked later.</p>
+                    }
+                    else
+                    {
+                        <h2 class="text-base font-bold text-txt-hi">Registering: @selectedItem?.Manufacturer @selectedItem?.ModelName</h2>
+                        <p class="text-xs text-txt-mid mt-0.5">Remaining for this line item: <strong class="text-emerald-600">@selectedItem?.RemainingQuantity of @selectedItem?.Quantity</strong></p>
+                    }
+                </div>
+                <button type="button" @onclick="BackToItems" class="text-xs font-semibold text-txt-mid hover:text-txt-hi">
+                    &larr; @(isDirectMode ? "Back to Purchases" : "Back to Items")
+                </button>
+            </div>
+
+            <div class="p-6 lg:p-8 space-y-6">
+
+                <!-- Upload or Paste Device Label / Specification Image -->
+                <div class="rounded-xl border border-line-soft bg-elevated p-6 text-center">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo mb-2">AI Device Document / Label Assistant</h3>
+                    <p class="text-xs text-txt-mid mb-4">Upload or paste (Ctrl+V) a photo of the device serial label, box barcode, or specification sheet to automatically pre-populate.</p>
+
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-surface border border-line-strong rounded-xl text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors shadow-xs">
+                            <svg class="w-4 h-4 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            Browse Label / Spec Image
+                            <InputFile OnChange="HandleDeviceDocumentUpload" accept=".jpg,.jpeg,.png,.pdf" class="hidden" />
+                        </label>
+                        <span class="text-xs text-txt-lo font-medium">Or paste clipboard image directly (<kbd class="px-1.5 py-0.5 bg-surface border rounded text-[10px] font-mono">Ctrl+V</kbd>)</span>
+                    </div>
+
+                    @if (isExtractingDeviceDoc)
+                    {
+                        <div class="mt-4 flex items-center justify-center gap-2 text-xs font-semibold text-accent-600">
+                            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Analyzing device label / specs...
+                        </div>
+                    }
+                </div>
+
+                <!-- Candidate Serials Picker (from Purchase Item or Label) -->
+                @if (candidateSerials.Any())
+                {
+                    <div class="p-4 rounded-xl bg-accent-500/5 border border-accent-200">
+                        <div class="text-xs font-bold uppercase tracking-wider text-accent-800 mb-2">Available Candidate Serial Numbers</div>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var cand in candidateSerials)
+                            {
+                                <button type="button" @onclick="() => SelectCandidateSerial(cand)" class="px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all border @(newDevice.Serial == cand ? "bg-accent-600 text-white border-accent-600 shadow-xs" : "bg-surface text-txt-hi border-line hover:border-accent-400")">
+                                    @cand
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Editable Device Form -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Serial Number <span class="text-danger-500">* (Must be unique)</span></label>
+                        <input type="text" @bind="newDevice.Serial" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm font-mono font-bold text-txt-hi focus:border-accent-500 outline-none" placeholder="e.g. WINXLP02D79603E" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Manufacturer / Brand <span class="text-danger-500">*</span></label>
+                        <input type="text" @bind="newDevice.Brand" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Device Name / Model <span class="text-danger-500">*</span></label>
+                        <input type="text" @bind="newDevice.DeviceName" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Category</label>
+                        <select @bind="newDevice.Category" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none">
+                            <option value="Laptop">Laptop</option>
+                            <option value="Desktop">Desktop</option>
+                            <option value="Monitor">Monitor</option>
+                            <option value="Server">Server</option>
+                            <option value="Mobile">Mobile</option>
+                            <option value="Component">Component</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Owner Company</label>
+                        <input type="text" @bind="newDevice.OwnerCompany" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" placeholder="PrimeTech Solutions Ltd." />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Processor (CPU)</label>
+                        <input type="text" @bind="newDevice.Processor" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" placeholder="Intel Core Ultra 5 125H" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">RAM</label>
+                        <input type="text" @bind="newDevice.Ram" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" placeholder="16GB DDR5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">SSD</label>
+                        <input type="text" @bind="newDevice.Ssd" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" placeholder="512GB NVMe SSD" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Warranty (Months)</label>
+                        <input type="number" @bind="newDevice.WarrantyMonths" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" placeholder="36" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-txt-mid mb-1">Condition</label>
+                        <input type="text" @bind="newDevice.Condition" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" />
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-line-soft">
+                    <button type="button" @onclick="BackToItems" class="px-5 py-2.5 rounded-xl bg-surface border border-line text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" @onclick="RegisterPhysicalAsset" disabled="@isRegistering" class="px-7 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-2">
+                        @if (isRegistering)
+                        {
+                            <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>Registering Asset...</span>
+                        }
+                        else
+                        {
+                            <span>Register Physical Asset</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (createdDevice != null)
+    {
+        <!-- STEP 4: Registration Success, Generated Unique AssetTag & Company QR Display -->
+        <div class="bg-surface rounded-2xl border border-emerald-500 shadow-sm overflow-hidden mb-6">
+            <div class="bg-emerald-50 px-6 py-8 text-center border-b border-emerald-200">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 mb-3 shadow-xs">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-emerald-800">Asset Registered Successfully</h2>
+                <div class="mt-2 text-sm text-emerald-700">
+                    Unique Asset Tag: <strong class="font-mono text-base text-emerald-900 bg-emerald-100 px-3 py-1 rounded-lg">@createdDevice.AssetTag</strong>
+                </div>
+                <div class="mt-1 text-xs text-emerald-600">
+                    Serial: <span class="font-mono font-bold">@createdDevice.Serial</span> &bull; Model: <strong>@createdDevice.Brand @createdDevice.DeviceName</strong>
+                </div>
+            </div>
+
+            <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="text-center flex flex-col items-center justify-center">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo mb-3">Company Asset QR Tag</h3>
+                    <div class="p-4 bg-white rounded-2xl border border-line shadow-xs inline-block mb-3">
+                        <img src="@($"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={createdDevice.AssetTag}")" alt="Company Asset QR Code" class="w-44 h-44 mx-auto" />
+                    </div>
+                    <p class="text-xs text-txt-mid">Print and affix this tag to the physical device chassis.</p>
+                </div>
+
+                <div class="flex flex-col gap-3 justify-center">
+                    @if (selectedItem?.RemainingQuantity > 0)
+                    {
+                        <button type="button" @onclick="RegisterAnother" class="w-full py-3 px-4 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            Register Next Asset (@selectedItem.RemainingQuantity remaining)
+                        </button>
+                    }
+                    <button type="button" @onclick="BackToItems" class="w-full py-3 px-4 rounded-xl bg-surface border border-line-strong hover:bg-elevated text-txt-hi text-xs font-bold transition-colors">
+                        Back to Purchase Items
+                    </button>
+                    <a href="/devices" class="w-full py-3 px-4 rounded-xl bg-elevated hover:bg-raised text-txt-mid hover:text-txt-hi text-xs font-semibold text-center transition-colors">
+                        View All Registered Assets
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? PurchaseId { get; set; }
+
+    private Purchase? currentPurchase;
+    private PurchaseItem? selectedItem;
+    private List<Purchase> allPurchases = new();
+    private string searchQuery = "";
+    private bool isLoadingPurchases = false;
+    private bool isExtractingDeviceDoc = false;
+    private bool isRegistering = false;
+    private bool isAssetCreated = false;
+    private bool isDirectMode = false;
+    private string? errorMessage;
+
+    private Device newDevice = new Device { Condition = "New", Category = "Laptop", OwnerCompany = "PrimeTech Solutions Ltd." };
+    private Device? createdDevice;
+    private List<string> candidateSerials = new();
+
+    private DotNetObjectReference<AssetRegistration>? dotNetHelper;
+
+    private string purchaseFilter = "all";
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    private IEnumerable<Purchase> filteredPurchases
+    {
+        get
+        {
+            var query = allPurchases.AsEnumerable();
+
+            if (purchaseFilter == "pending")
+            {
+                query = query.Where(p => p.Items.Any(i => i.RemainingQuantity > 0));
+            }
+            else if (purchaseFilter == "completed")
+            {
+                query = query.Where(p => p.Items.All(i => i.RemainingQuantity <= 0));
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                query = query.Where(p =>
+                    p.PurchaseNumber.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    p.Supplier.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (p.InvoiceNumber ?? "").Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query;
+        }
+    }
+
+    private IEnumerable<Purchase> paginatedPurchases => filteredPurchases
+        .Skip((currentPage - 1) * pageSize)
+        .Take(pageSize);
+
+    private int TotalPurchasePages => Math.Max(1, (int)Math.Ceiling((double)filteredPurchases.Count() / pageSize));
+
+    private void SetPurchaseFilter(string filter)
+    {
+        purchaseFilter = filter;
+        ResetPurchasePage();
+    }
+
+    private void ResetPurchasePage()
+    {
+        currentPage = 1;
+    }
+
+    private void GoToPurchasePage(int page)
+    {
+        currentPage = Math.Clamp(page, 1, TotalPurchasePages);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRecentPurchases();
+
+        if (!string.IsNullOrEmpty(PurchaseId))
+        {
+            await LoadPurchaseAsync(PurchaseId);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetHelper = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("clipboardPasteHelper.initPaste", dotNetHelper);
+        }
+    }
+
+    private async Task LoadRecentPurchases()
+    {
+        isLoadingPurchases = true;
+        try
+        {
+            allPurchases = await PurchaseService.GetAllPurchasesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading purchases: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingPurchases = false;
+        }
+    }
+
+    private async Task LoadPurchaseAsync(string id)
+    {
+        try
+        {
+            var p = await PurchaseService.GetPurchaseByIdAsync(id);
+            if (p != null)
+            {
+                currentPurchase = p;
+                errorMessage = null;
+                var remainingItems = p.Items.Where(i => i.RemainingQuantity > 0).ToList();
+                if (remainingItems.Count == 1)
+                {
+                    SelectItem(remainingItems[0]);
+                }
+            }
+            else
+            {
+                errorMessage = $"Purchase '{id}' not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading purchase: {ex.Message}";
+        }
+    }
+
+    private void SelectPurchase(Purchase p)
+    {
+        currentPurchase = p;
+        selectedItem = null;
+        isAssetCreated = false;
+        errorMessage = null;
+    }
+
+    private void ResetPurchase()
+    {
+        currentPurchase = null;
+        selectedItem = null;
+        isAssetCreated = false;
+        createdDevice = null;
+        errorMessage = null;
+    }
+
+    private void SelectItem(PurchaseItem item)
+    {
+        selectedItem = item;
+        isAssetCreated = false;
+        createdDevice = null;
+        errorMessage = null;
+
+        candidateSerials.Clear();
+        if (!string.IsNullOrWhiteSpace(item.CandidateSerial))
+        {
+            var parts = item.CandidateSerial.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            candidateSerials.AddRange(parts);
+        }
+
+        newDevice = new Device
+        {
+            Brand = item.Manufacturer ?? "",
+            DeviceName = item.ModelName ?? "",
+            Category = !string.IsNullOrWhiteSpace(item.Category) ? item.Category : "Laptop",
+            Processor = item.Processor ?? "",
+            Ram = item.Ram ?? "",
+            Ssd = item.Ssd ?? "",
+            Hdd = item.Hdd ?? "",
+            WarrantyMonths = item.WarrantyMonths ?? 36,
+            OwnerCompany = !string.IsNullOrWhiteSpace(item.OwnerCompany) && item.OwnerCompany != "PTSL" ? item.OwnerCompany : "PrimeTech Solutions Ltd.",
+            Condition = "New",
+            Serial = candidateSerials.FirstOrDefault() ?? "",
+            PurchaseItemId = item.Id,
+            AssetAmount = item.UnitCost
+        };
+    }
+
+    private void SelectCandidateSerial(string sn)
+    {
+        newDevice.Serial = sn;
+    }
+
+    private void StartDirectRegistration()
+    {
+        isDirectMode = true;
+        currentPurchase = new Purchase { PurchaseNumber = "DIRECT-ENTRY", Supplier = "Direct Receipt / No Invoice" };
+        selectedItem = new PurchaseItem { Id = "", ModelName = "Direct Registration", Manufacturer = "" };
+        candidateSerials.Clear();
+        newDevice = new Device
+        {
+            Brand = "",
+            DeviceName = "",
+            Category = "Laptop",
+            OwnerCompany = "PrimeTech Solutions Ltd.",
+            Condition = "New",
+            Serial = "",
+            PurchaseItemId = null
+        };
+        isAssetCreated = false;
+        createdDevice = null;
+        errorMessage = null;
+    }
+
+    private void BackToItems()
+    {
+        if (isDirectMode)
+        {
+            ResetPurchase();
+            return;
+        }
+        selectedItem = null;
+        isAssetCreated = false;
+        createdDevice = null;
+        errorMessage = null;
+    }
+
+    private void RegisterAnother()
+    {
+        if (isDirectMode)
+        {
+            StartDirectRegistration();
+            return;
+        }
+        if (selectedItem != null)
+        {
+            SelectItem(selectedItem);
+        }
+    }
+
+    private async Task HandleDeviceDocumentUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > 10 * 1024 * 1024)
+        {
+            errorMessage = "File size exceeds 10MB limit.";
+            return;
+        }
+
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(10 * 1024 * 1024).CopyToAsync(ms);
+        await ProcessDeviceImageBytes(file.Name, file.ContentType, ms.ToArray());
+    }
+
+    [JSInvokable]
+    public async Task OnClipboardImagePasted(string fileName, string contentType, string base64Data)
+    {
+        if (selectedItem == null || isAssetCreated) return;
+        try
+        {
+            var bytes = Convert.FromBase64String(base64Data);
+            await ProcessDeviceImageBytes(fileName, contentType, bytes);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error analyzing pasted image: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcessDeviceImageBytes(string fileName, string contentType, byte[] bytes)
+    {
+        isExtractingDeviceDoc = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = new MemoryStream(bytes);
+            var ocrRes = await OcrService.ExtractTextAsync(stream, fileName, contentType);
+            var base64 = Convert.ToBase64String(bytes);
+
+            var aiResult = await AiService.ExtractDocumentAsync(ocrRes.Text ?? "", base64);
+            var mapped = await FieldMappingService.MapDeviceAsync(aiResult);
+
+            if (mapped.Data != null)
+            {
+                if (!string.IsNullOrWhiteSpace(mapped.Data.SerialNumber))
+                {
+                    newDevice.Serial = mapped.Data.SerialNumber;
+                    if (!candidateSerials.Contains(mapped.Data.SerialNumber))
+                        candidateSerials.Insert(0, mapped.Data.SerialNumber);
+                }
+
+                if (!string.IsNullOrWhiteSpace(mapped.Data.Manufacturer))
+                    newDevice.Brand = mapped.Data.Manufacturer;
+
+                if (!string.IsNullOrWhiteSpace(mapped.Data.Model))
+                    newDevice.DeviceName = mapped.Data.Model;
+
+                if (!string.IsNullOrWhiteSpace(mapped.Data.Processor))
+                    newDevice.Processor = mapped.Data.Processor;
+
+                if (!string.IsNullOrWhiteSpace(mapped.Data.Ram))
+                    newDevice.Ram = mapped.Data.Ram;
+
+                if (!string.IsNullOrWhiteSpace(mapped.Data.Ssd))
+                    newDevice.Ssd = mapped.Data.Ssd;
+
+                if (!string.IsNullOrWhiteSpace(mapped.Data.Hdd))
+                    newDevice.Hdd = mapped.Data.Hdd;
+
+                foreach (var cs in mapped.Data.CandidateSerials)
+                {
+                    if (!candidateSerials.Contains(cs))
+                        candidateSerials.Add(cs);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Extraction warning: {ex.Message}";
+        }
+        finally
+        {
+            isExtractingDeviceDoc = false;
+        }
+    }
+
+    private async Task RegisterPhysicalAsset()
+    {
+        if (selectedItem == null && !isDirectMode) return;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(newDevice.Serial))
+        {
+            errorMessage = "Serial number is required to register a physical asset.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newDevice.Brand))
+        {
+            errorMessage = "Manufacturer / Brand is required.";
+            return;
+        }
+
+        isRegistering = true;
+        try
+        {
+            if (isDirectMode)
+            {
+                newDevice.PurchaseItemId = null;
+                await DeviceService.AddDeviceAsync(newDevice);
+                createdDevice = newDevice;
+                isAssetCreated = true;
+            }
+            else
+            {
+                // Call transactional method to register and increment count atomically
+                createdDevice = await DeviceService.RegisterPhysicalAssetFromPurchaseAsync(newDevice, selectedItem!.Id);
+
+                // Reload line item & purchase to update remaining counts
+                selectedItem = await PurchaseService.GetPurchaseItemByIdAsync(selectedItem.Id);
+                if (currentPurchase != null)
+                {
+                    currentPurchase = await PurchaseService.GetPurchaseByIdAsync(currentPurchase.Id);
+                }
+
+                isAssetCreated = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Asset registration failed: {ex.Message}";
+        }
+        finally
+        {
+            isRegistering = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("clipboardPasteHelper.disposePaste");
+        }
+        catch { }
+        dotNetHelper?.Dispose();
+    }
+}

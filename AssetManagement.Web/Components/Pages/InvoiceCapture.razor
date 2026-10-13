@@ -1,0 +1,2238 @@
+@page "/ai/invoice"
+@using Microsoft.AspNetCore.Authorization
+@using AssetManagement.Core.Interfaces
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@using AssetManagement.Web.Components.Shared
+@using System.IO
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@inject PurchaseService PurchaseService
+@inject DeviceService DeviceService
+@inject NavigationManager NavigationManager
+@inject IAiDocumentExtractionService AiService
+@inject IOcrService OcrService
+@inject IAiFieldMappingService FieldMappingService
+@inject IAiValidationService ValidationService
+@inject IJSRuntime JS
+@inject IWebHostEnvironment Env
+@implements IAsyncDisposable
+
+<PageTitle>AI Intake & Invoices Registry - PrimeTech Asset Manager</PageTitle>
+
+<div class="bg-surface pb-2 border-b border-line-soft">
+    <PageHeader Title="AI Intake &amp; Invoices Registry" 
+                Description="Upload, extract, and manage supplier invoices, track remaining items, review attached documents, and register physical assets.">
+        <Actions>
+            @if (activeMainTab == "upload" && currentStep == 2)
+            {
+                <button type="button" @onclick="AnalyzeDocuments" disabled="@isAnalyzing" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
+                    <svg class="w-3.5 h-3.5 @(isAnalyzing ? "animate-spin" : "")" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Re-extract
+                </button>
+                <button type="button" @onclick="ResetForm" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
+                    New Upload
+                </button>
+                @if (captureMode == 1)
+                {
+                    <button type="button" @onclick="PostPurchase" disabled="@isPosting" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-md bg-accent-500 text-accent-on hover:bg-accent-600 shadow-xs transition-colors whitespace-nowrap shrink-0">
+                        Confirm &amp; Post Purchase
+                    </button>
+                }
+                else
+                {
+                    <button type="button" @onclick="RegisterDirectDevice" disabled="@isRegisteringDevice" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-colors whitespace-nowrap shrink-0">
+                        Register Device Directly
+                    </button>
+                }
+            }
+            else if (activeMainTab == "registry")
+            {
+                <button type="button" @onclick='() => SetActiveMainTab("upload")' class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-accent-300 bg-accent-soft text-accent-700 hover:bg-accent-100 transition-colors shadow-xs">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    + Scan / Upload Document
+                </button>
+                <button type="button" @onclick="OpenAddModal" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-accent-500 text-white hover:bg-accent-600 transition-colors shadow-xs">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Add Manual Purchase
+                </button>
+            }
+        </Actions>
+    </PageHeader>
+</div>
+
+<!-- Navigation Tabs Switcher -->
+<div class="px-6 pt-3 lg:px-9 flex items-center justify-between border-b border-line-soft bg-surface">
+    <div class="flex items-center gap-6">
+        <button type="button" @onclick='() => SetActiveMainTab("upload")' class="pb-3 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(activeMainTab == "upload" ? "border-accent-500 text-accent-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            AI Document Intake
+        </button>
+        <button type="button" @onclick='() => SetActiveMainTab("registry")' class="pb-3 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(activeMainTab == "registry" ? "border-accent-500 text-accent-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Invoices &amp; Purchases Registry
+            <span class="rounded-full bg-accent-soft text-accent-600 px-2 py-0.5 text-[10px] font-mono font-bold">@allPurchases.Count</span>
+        </button>
+    </div>
+</div>
+
+<div class="w-full pt-4 space-y-6">
+    @if (activeMainTab == "upload")
+    {
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="mb-6 p-4 rounded-xl bg-danger-50 text-danger-700 border border-danger-200 text-sm flex items-start gap-3">
+            <svg class="w-5 h-5 shrink-0 mt-0.5 text-danger-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01"/></svg>
+            <div class="flex-1">
+                <div class="font-bold">Extraction / Validation Alert</div>
+                <div>@errorMessage</div>
+            </div>
+            <button @onclick="() => errorMessage = null" class="text-danger-400 hover:text-danger-600">&times;</button>
+        </div>
+    }
+
+    @if (currentStep == 1)
+    {
+        <!-- STEP 1: Two Options Selector & Upload Card -->
+        <div class="rounded-2xl border border-line bg-surface p-6 sm:p-8 shadow-sm max-w-4xl mx-auto">
+
+            <!-- Mode Selector Switch -->
+            <div class="flex flex-col items-center justify-center mb-8">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-2">Choose Upload Document Type</div>
+                <div class="inline-flex p-1.5 bg-elevated border border-line rounded-2xl shadow-xs gap-1">
+                    <button type="button" @onclick="() => SetCaptureMode(1)" 
+                        class="px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 @(captureMode == 1 ? "bg-surface text-accent-600 shadow-sm border border-line-soft font-extrabold" : "text-txt-mid hover:text-txt-hi")">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Option 1: Supplier Invoice / Challan
+                    </button>
+                    <button type="button" @onclick="() => SetCaptureMode(2)" 
+                        class="px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 @(captureMode == 2 ? "bg-surface text-emerald-600 shadow-sm border border-line-soft font-extrabold" : "text-txt-mid hover:text-txt-hi")">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Option 2: Device Details / Label (No Invoice)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Header Description based on Mode -->
+            <div class="text-center mb-8">
+                <div class="inline-flex h-16 w-16 items-center justify-center rounded-2xl @(captureMode == 1 ? "bg-accent-50 text-accent-600" : "bg-emerald-50 text-emerald-600") mb-4 shadow-sm border border-line-soft">
+                    @if (captureMode == 1)
+                    {
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    }
+                    else
+                    {
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    }
+                </div>
+                <h2 class="text-xl font-bold text-txt-hi">
+                    @(captureMode == 1 ? "Upload Supplier Invoices & Delivery Challans" : "Upload Physical Device Label or Hardware Specs")
+                </h2>
+                <p class="text-sm text-txt-mid mt-1 max-w-md mx-auto">
+                    @(captureMode == 1 
+                        ? "AI extracts vendor, invoice number, line items, costs, and serials. Supports multi-page PDFs, scans, and photos." 
+                        : "No invoice available? Upload device back stickers, box serials, or system info screenshots to extract specs and register directly.")
+                </p>
+            </div>
+
+            <!-- Upload Area & Clipboard Target -->
+            <label class="group relative flex flex-col items-center justify-center border-2 border-dashed @(captureMode == 1 ? "border-accent-300/60 hover:border-accent-500 bg-accent-500/5 hover:bg-accent-500/10" : "border-emerald-300/60 hover:border-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10") p-10 rounded-2xl cursor-pointer transition-all duration-300 mb-6 text-center">
+                <div class="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-sm border border-line-soft group-hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6 @(captureMode == 1 ? "text-accent-600" : "text-emerald-600")" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                </div>
+                <span class="text-txt-hi font-bold text-base mb-1">
+                    @(captureMode == 1 ? "Click to browse or drag & drop invoice documents here" : "Click to browse or drag & drop device photos / screenshots here")
+                </span>
+                <span class="text-xs text-txt-mid">Or simply press <kbd class="px-2 py-0.5 bg-surface border border-line-strong rounded font-mono text-[11px] text-txt-hi shadow-xs">Ctrl + V</kbd> to paste clipboard images</span>
+                <InputFile OnChange="HandleFilesSelected" multiple accept=".jpg,.jpeg,.png,.pdf" class="hidden" />
+            </label>
+
+            @if (uploadedFiles.Any())
+            {
+                <div class="mb-6">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo mb-3 flex items-center justify-between">
+                        <span>Document Queue (@uploadedFiles.Count)</span>
+                        <span class="text-[11px] text-txt-mid font-normal">
+                            @(captureMode == 1 ? "All documents combined into a single extraction session" : "Ready for hardware spec extraction")
+                        </span>
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        @foreach (var file in uploadedFiles)
+                        {
+                            <div class="flex items-center justify-between p-3.5 bg-elevated rounded-xl border border-line shadow-xs group">
+                                <div class="flex items-center gap-3 overflow-hidden">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-accent-600 border border-line-soft">
+                                        @if (file.ContentType.Contains("pdf"))
+                                        {
+                                            <span class="text-[10px] font-black uppercase tracking-tighter">PDF</span>
+                                        }
+                                        else
+                                        {
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        }
+                                    </div>
+                                    <div class="truncate">
+                                        <div class="text-xs font-semibold text-txt-hi truncate">@file.Name</div>
+                                        <div class="text-[10px] text-txt-lo">@((file.Bytes.Length / 1024.0).ToString("N0")) KB</div>
+                                    </div>
+                                </div>
+                                <button type="button" @onclick="() => RemoveFile(file)" class="text-txt-muted hover:text-danger-500 p-1.5 rounded-lg hover:bg-danger-50 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-line-soft">
+                    <button type="button" @onclick="AnalyzeDocuments" disabled="@isAnalyzing" style="padding: 12px 32px;" class="px-6 py-3 @(captureMode == 1 ? "bg-accent-500 hover:bg-accent-600" : "bg-emerald-600 hover:bg-emerald-700") text-white font-bold text-sm rounded-xl shadow-md disabled:opacity-50 transition-all inline-flex items-center gap-2.5 whitespace-nowrap cursor-pointer">
+                        @if (isAnalyzing)
+                        {
+                            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>Extracting Data...</span>
+                        }
+                        else
+                        {
+                            <svg class="w-4 h-4 shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            <span class="whitespace-nowrap">@(captureMode == 1 ? "Run AI Invoice Extraction" : "Run AI Device Extraction")</span>
+                        }
+                    </button>
+                </div>
+            }
+        </div>
+    }
+    else if (currentStep == 2 && captureMode == 1 && purchaseForm != null)
+    {
+        <!-- MODE 1: Invoice Review Workspace -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT COLUMN: Document Preview & Navigation -->
+            <div class="lg:col-span-5 flex flex-col gap-4">
+                <div class="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden sticky top-6">
+                    <div class="p-3 bg-elevated border-b border-line flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-txt-hi">Document Viewer</span>
+                            <span class="text-[11px] text-txt-lo">(@(selectedPreviewIndex + 1) of @uploadedFiles.Count)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" @onclick="PrevPreview" disabled="@(selectedPreviewIndex == 0)" title="@(selectedPreviewIndex == 0 ? "First document" : "Previous document")" class="px-2.5 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-txt-hi transition-colors">
+                                &larr; Prev
+                            </button>
+                            <button type="button" @onclick="NextPreview" disabled="@(selectedPreviewIndex >= uploadedFiles.Count - 1)" title="@(selectedPreviewIndex >= uploadedFiles.Count - 1 ? "Last document" : "Next document")" class="px-2.5 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-txt-hi transition-colors">
+                                Next &rarr;
+                            </button>
+                            <div class="h-4 w-px bg-line mx-1"></div>
+                            <button type="button" @onclick="ZoomOut" disabled="@(zoomScale <= 0.75)" title="Zoom Out" class="px-2 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 text-xs font-bold text-txt-hi">
+                                &minus;
+                            </button>
+                            <span class="text-[11px] font-mono font-bold text-txt-mid min-w-[38px] text-center">@((int)(zoomScale * 100))%</span>
+                            <button type="button" @onclick="ZoomIn" disabled="@(zoomScale >= 2.5)" title="Zoom In" class="px-2 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 text-xs font-bold text-txt-hi">
+                                +
+                            </button>
+                            <button type="button" @onclick="ResetZoom" title="Reset to 100%" class="px-2 py-1 rounded-lg bg-surface border border-line hover:bg-elevated text-xs font-semibold text-txt-mid">
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-slate-900/5 min-h-[480px] max-h-[750px] overflow-auto flex items-center justify-center">
+                        @if (uploadedFiles.Any())
+                        {
+                            var currentPreview = uploadedFiles[selectedPreviewIndex];
+                            if (currentPreview.ContentType.Contains("pdf"))
+                            {
+                                <embed src="@currentPreview.DataUrl" type="application/pdf" class="w-full h-[650px] rounded-lg border border-line-soft shadow-xs" />
+                            }
+                            else
+                            {
+                                <img src="@currentPreview.DataUrl" alt="Document Preview" style="transform: scale(@(zoomScale.ToString(System.Globalization.CultureInfo.InvariantCulture))); transform-origin: top center;" class="max-w-full rounded-lg shadow-sm transition-transform duration-150 cursor-zoom-in" @onclick="ToggleImageZoom" />
+                            }
+                        }
+                    </div>
+
+                    <div class="p-3 bg-surface border-t border-line flex items-center justify-between text-xs text-txt-mid">
+                        <span class="truncate max-w-[200px]">@uploadedFiles[selectedPreviewIndex].Name</span>
+                        <label class="cursor-pointer font-semibold text-accent-600 hover:text-accent-700">
+                            + Add Supporting Document
+                            <InputFile OnChange="HandleAdditionalFilesSelected" accept=".jpg,.jpeg,.png,.pdf" class="hidden" />
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Editable Invoice Header, Line Items, Reconciliation -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+
+                <!-- Validation Alerts & Duplicates -->
+                @if (validationWarnings.Any())
+                {
+                    <div class="p-4 rounded-xl bg-warn-50 border border-warn-200">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-warn-800 flex items-center gap-1.5 mb-2">
+                            <svg class="w-4 h-4 text-warn-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            Accuracy &amp; Business Rules Review
+                        </h4>
+                        <ul class="text-xs text-warn-700 space-y-1 list-disc list-inside">
+                            @foreach (var w in validationWarnings)
+                            {
+                                <li>@w</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (isDuplicate)
+                {
+                    <div class="p-4 rounded-xl bg-danger-50 border border-danger-200">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-danger-800 flex items-center gap-1.5 mb-1">
+                            <svg class="w-4 h-4 text-danger-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Duplicate Invoice Detected
+                        </h4>
+                        <p class="text-xs text-danger-700">An invoice with number <strong>@purchaseForm.InvoiceNumber</strong> from <strong>@purchaseForm.Supplier</strong> already exists in the system. Review carefully before posting.</p>
+                    </div>
+                }
+
+                <!-- Header Card -->
+                <div class="bg-surface rounded-2xl border border-line p-6 shadow-sm">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo mb-4">Invoice Header</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Vendor / Supplier <span class="text-danger-500">*</span></label>
+                            <input type="text" @bind="purchaseForm.Supplier" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi font-medium focus:border-accent-500 outline-none" placeholder="e.g. South Bangla Computers" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Invoice / Challan Number <span class="text-danger-500">*</span></label>
+                            <input type="text" @bind="purchaseForm.InvoiceNumber" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi font-mono focus:border-accent-500 outline-none" placeholder="e.g. SO-GBPAB-2026-0357 or INV-001" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Purchase Order (PO #)</label>
+                            <input type="text" @bind="poNumber" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi font-mono focus:border-accent-500 outline-none" placeholder="e.g. PNL/GBPL/03/08/26-094" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Invoice Date</label>
+                            <input type="date" @bind="purchaseForm.PurchaseDate" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Currency</label>
+                            <input type="text" @bind="currency" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi font-semibold focus:border-accent-500 outline-none" placeholder="BDT" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Payment Terms</label>
+                            <input type="text" @bind="paymentTerms" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-accent-500 outline-none" placeholder="e.g. Net 30" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Line Items Table -->
+                <div class="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden">
+                    <div class="p-4 bg-elevated border-b border-line flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo">Purchased Line Items (@purchaseForm.Items.Count)</h3>
+                            @if (purchaseForm.Items.Any(i => (i.Quantity ?? 1) > 1))
+                            {
+                                <button type="button" @onclick="SplitAllMultiQtyRows" title="Split lines with quantity > 1 into individual unit lines (Qty: 1 each)" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                    Auto-Split Multi-Qty Rows
+                                </button>
+                            }
+                        </div>
+                        <button type="button" @onclick="AddItemRow" class="text-xs font-bold text-accent-600 hover:text-accent-700 flex items-center gap-1">
+                            + Add Line Item
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-surface border-b border-line text-[11px] font-semibold uppercase tracking-wider text-txt-mid">
+                                <tr>
+                                    <th class="px-4 py-2.5">Category</th>
+                                    <th class="px-4 py-2.5">Product Description / Model</th>
+                                    <th class="px-4 py-2.5">Brand</th>
+                                    <th class="px-4 py-2.5 w-20 text-center">Qty</th>
+                                    <th class="px-4 py-2.5 w-28 text-right">Unit Price</th>
+                                    <th class="px-4 py-2.5 w-28 text-right">Subtotal</th>
+                                    <th class="px-4 py-2.5">Candidate Serials</th>
+                                    <th class="px-4 py-2.5 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-line-soft">
+                                @foreach (var item in purchaseForm.Items)
+                                {
+                                    <tr>
+                                        <td class="px-4 py-2">
+                                            <select @bind="item.Category" class="w-28 bg-elevated border border-line rounded px-2 py-1 text-xs text-txt-hi">
+                                                <option value="Laptop">Laptop</option>
+                                                <option value="Desktop">Desktop</option>
+                                                <option value="Monitor">Monitor</option>
+                                                <option value="Network Switch">Network Switch</option>
+                                                <option value="Access Point">Access Point</option>
+                                                <option value="Component">Component</option>
+                                                <option value="General">General</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <input type="text" @bind="item.ModelName" class="w-64 bg-elevated border border-line rounded px-2 py-1 text-xs text-txt-hi" placeholder="e.g. Cisco Catalyst C1300-24T-4G" />
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <input type="text" @bind="item.Manufacturer" class="w-24 bg-elevated border border-line rounded px-2 py-1 text-xs text-txt-hi" placeholder="e.g. Cisco" />
+                                        </td>
+                                        <td class="px-4 py-2 text-center">
+                                            <input type="number" min="1" @bind="item.Quantity" class="w-16 bg-elevated border border-line rounded px-2 py-1 text-xs text-center text-txt-hi" />
+                                            @if ((item.Quantity ?? 1) > 1)
+                                            {
+                                                <button type="button" @onclick="() => SplitRow(item)" title="Split into individual unit lines (Qty: 1 each)" class="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline block mx-auto mt-0.5">
+                                                    Split (1 ea)
+                                                </button>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-2 text-right">
+                                            <input type="number" step="0.01" @bind="item.UnitCost" class="w-24 bg-elevated border border-line rounded px-2 py-1 text-xs text-right text-txt-hi" />
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-mono font-medium text-txt-hi">
+                                            @(((item.Quantity ?? 1) * (item.UnitCost ?? 0m)).ToString("C", new System.Globalization.CultureInfo("bn-BD")))
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <input type="text" @bind="item.CandidateSerial" class="w-56 bg-elevated border border-line rounded px-2 py-1 text-xs text-txt-hi font-mono" placeholder="e.g. DT33003080Y" />
+                                        </td>
+                                        <td class="px-4 py-2 text-right">
+                                            <button type="button" @onclick="() => purchaseForm.Items.Remove(item)" class="text-txt-muted hover:text-danger-500 text-sm">&times;</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Financial Totals Reconciliation -->
+                <div class="bg-surface rounded-2xl border border-line p-6 shadow-sm">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo mb-3">Financial Reconciliation</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        <div class="p-3 bg-elevated rounded-xl border border-line">
+                            <div class="text-[11px] font-semibold text-txt-mid">Items Subtotal</div>
+                            <div class="text-sm font-bold text-txt-hi mt-1">@CalculatedSum.ToString("C", new System.Globalization.CultureInfo("bn-BD"))</div>
+                        </div>
+                        <div class="p-3 bg-elevated rounded-xl border border-line">
+                            <div class="text-[11px] font-semibold text-txt-mid">Taxes &amp; VAT</div>
+                            <div class="text-sm font-bold text-txt-hi mt-1">@taxAmount.ToString("C", new System.Globalization.CultureInfo("bn-BD"))</div>
+                        </div>
+                        <div class="p-3 bg-elevated rounded-xl border border-line">
+                            <div class="text-[11px] font-semibold text-txt-mid">Discount</div>
+                            <div class="text-sm font-bold text-txt-hi mt-1">@discountAmount.ToString("C", new System.Globalization.CultureInfo("bn-BD"))</div>
+                        </div>
+                        <div class="p-3 bg-accent-500/10 rounded-xl border border-accent-300">
+                            <div class="text-[11px] font-semibold text-accent-700">Net Total</div>
+                            <div class="text-base font-black text-accent-900 mt-1">@invoiceTotal.ToString("C", new System.Globalization.CultureInfo("bn-BD"))</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Actions -->
+                <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-line-soft">
+                    <button type="button" @onclick="ResetForm" class="px-5 py-2.5 text-xs font-semibold rounded-xl bg-surface border border-line-strong text-txt-hi hover:bg-elevated transition-colors whitespace-nowrap">
+                        Cancel &amp; Reset
+                    </button>
+                    <button type="button" @onclick="PostPurchase" disabled="@isPosting" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-semibold rounded-xl bg-accent-500 hover:bg-accent-600 text-white shadow-sm transition-colors whitespace-nowrap shrink-0">
+                        @if (isPosting)
+                        {
+                            <svg class="animate-spin h-3.5 w-3.5 text-white shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>Posting to Database...</span>
+                        }
+                        else
+                        {
+                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Confirm &amp; Post Purchase</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (currentStep == 2 && captureMode == 2 && directDevice != null)
+    {
+        <!-- MODE 2: Direct Physical Device Details Review (No Invoice) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT COLUMN: Physical Photo / Sticker Preview -->
+            <div class="lg:col-span-5 flex flex-col gap-4">
+                <div class="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden sticky top-6">
+                    <div class="p-3 bg-elevated border-b border-line flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-txt-hi">Physical Label Photo</span>
+                            <span class="text-[11px] text-txt-lo">(@(selectedPreviewIndex + 1) of @uploadedFiles.Count)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" @onclick="PrevPreview" disabled="@(selectedPreviewIndex == 0)" title="@(selectedPreviewIndex == 0 ? "First photo" : "Previous photo")" class="px-2.5 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-txt-hi transition-colors">
+                                &larr; Prev
+                            </button>
+                            <button type="button" @onclick="NextPreview" disabled="@(selectedPreviewIndex >= uploadedFiles.Count - 1)" title="@(selectedPreviewIndex >= uploadedFiles.Count - 1 ? "Last photo" : "Next photo")" class="px-2.5 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-txt-hi transition-colors">
+                                Next &rarr;
+                            </button>
+                            <div class="h-4 w-px bg-line mx-1"></div>
+                            <button type="button" @onclick="ZoomOut" disabled="@(zoomScale <= 0.75)" title="Zoom Out" class="px-2 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 text-xs font-bold text-txt-hi">
+                                &minus;
+                            </button>
+                            <span class="text-[11px] font-mono font-bold text-txt-mid min-w-[38px] text-center">@((int)(zoomScale * 100))%</span>
+                            <button type="button" @onclick="ZoomIn" disabled="@(zoomScale >= 2.5)" title="Zoom In" class="px-2 py-1 rounded-lg bg-surface border border-line hover:bg-elevated disabled:opacity-40 text-xs font-bold text-txt-hi">
+                                +
+                            </button>
+                            <button type="button" @onclick="ResetZoom" title="Reset to 100%" class="px-2 py-1 rounded-lg bg-surface border border-line hover:bg-elevated text-xs font-semibold text-txt-mid">
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-slate-900/5 min-h-[480px] max-h-[750px] overflow-auto flex items-center justify-center">
+                        @if (uploadedFiles.Any())
+                        {
+                            var currentPreview = uploadedFiles[selectedPreviewIndex];
+                            if (currentPreview.ContentType.Contains("pdf"))
+                            {
+                                <embed src="@currentPreview.DataUrl" type="application/pdf" class="w-full h-[650px] rounded-lg border border-line-soft shadow-xs" />
+                            }
+                            else
+                            {
+                                <img src="@currentPreview.DataUrl" alt="Device Label Preview" style="transform: scale(@(zoomScale.ToString(System.Globalization.CultureInfo.InvariantCulture))); transform-origin: top center;" class="max-w-full rounded-lg shadow-sm transition-transform duration-150 cursor-zoom-in" @onclick="ToggleImageZoom" />
+                            }
+                        }
+                    </div>
+
+                    <div class="p-3 bg-surface border-t border-line flex items-center justify-between text-xs text-txt-mid">
+                        <span class="truncate max-w-[200px]">@uploadedFiles[selectedPreviewIndex].Name</span>
+                        <label class="cursor-pointer font-semibold text-emerald-600 hover:text-emerald-700">
+                            + Add Additional Photo
+                            <InputFile OnChange="HandleAdditionalFilesSelected" accept=".jpg,.jpeg,.png,.pdf" class="hidden" />
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Direct Device Hardware Review & Register -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+
+                <!-- Direct Mode Banner -->
+                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
+                    <svg class="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-wider text-emerald-800">Direct Device Registration (No Upfront Invoice)</div>
+                        <p class="text-xs text-emerald-700 mt-0.5">This device will be immediately registered with a generated Asset Tag and QR code. An invoice or purchase record can be linked at any point in the future.</p>
+                    </div>
+                </div>
+
+                <!-- Hardware Identity Card -->
+                <div class="bg-surface rounded-2xl border border-line p-6 shadow-sm">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo mb-4">Device Identity &amp; Serial</h3>
+
+                    @if (candidateSerials.Any())
+                    {
+                        <div class="mb-4 p-3 bg-elevated rounded-xl border border-line">
+                            <span class="text-[11px] font-bold text-txt-mid block mb-1.5">Candidate Serials Detected by AI/OCR:</span>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var sn in candidateSerials)
+                                {
+                                    <button type="button" @onclick="() => directDevice.Serial = sn" class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all @(directDevice.Serial == sn ? "bg-emerald-600 text-white shadow-xs" : "bg-surface border border-line text-txt-hi hover:border-emerald-500")">
+                                        @sn
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Serial Number <span class="text-danger-500">*</span></label>
+                            <input type="text" @bind="directDevice.Serial" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi font-mono font-bold focus:border-emerald-500 outline-none" placeholder="e.g. DT33003080Y or 5CD2341..." />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Device Name / Model <span class="text-danger-500">*</span></label>
+                            <input type="text" @bind="directDevice.DeviceName" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi font-semibold focus:border-emerald-500 outline-none" placeholder="e.g. Cisco Catalyst C1300-24T-4G" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Brand / Manufacturer</label>
+                            <input type="text" @bind="directDevice.Brand" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none" placeholder="e.g. Cisco, ASUS, Dell" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Category</label>
+                            <select @bind="directDevice.Category" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none">
+                                <option value="Network Switch">Network Switch</option>
+                                <option value="Access Point">Access Point</option>
+                                <option value="Laptop">Laptop</option>
+                                <option value="Desktop">Desktop</option>
+                                <option value="Monitor">Monitor</option>
+                                <option value="Component">Component</option>
+                                <option value="Server">Server</option>
+                                <option value="IT Equipment">IT Equipment</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">MAC Address / IMEI</label>
+                            <input type="text" @bind="directDevice.MacAddress" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi font-mono focus:border-emerald-500 outline-none" placeholder="e.g. 00:1A:2B:3C:4D:5E" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Owner Company</label>
+                            <input type="text" @bind="directDevice.OwnerCompany" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none" placeholder="PrimeTech Solutions Ltd." />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Office / Location</label>
+                            <select @bind="directDevice.Location" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none">
+                                <option value="">Select Office Location</option>
+                                <option value="TK Bhaban">TK Bhaban</option>
+                                <option value="BSEC Bhaban">BSEC Bhaban</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hardware Specifications Card -->
+                <div class="bg-surface rounded-2xl border border-line p-6 shadow-sm">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo mb-4">Hardware Specifications (If Applicable)</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Processor (CPU)</label>
+                            <input type="text" @bind="directDevice.Processor" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none" placeholder="e.g. Core i5-1235U" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">RAM / Memory</label>
+                            <input type="text" @bind="directDevice.Ram" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none" placeholder="e.g. 16 GB" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">SSD Storage</label>
+                            <input type="text" @bind="directDevice.Ssd" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none" placeholder="e.g. 512 GB NVMe" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">HDD Storage</label>
+                            <input type="text" @bind="directDevice.Hdd" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none" placeholder="e.g. 1 TB" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Condition</label>
+                            <select @bind="directDevice.Condition" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none">
+                                <option value="New">New</option>
+                                <option value="Good">Good</option>
+                                <option value="Fair">Fair</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-txt-mid mb-1">Warranty (Months)</label>
+                            <input type="number" @bind="directDevice.WarrantyMonths" class="w-full bg-elevated border border-line rounded-lg px-3 py-2 text-sm text-txt-hi focus:border-emerald-500 outline-none" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Actions -->
+                <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-line-soft">
+                    <button type="button" @onclick="ResetForm" class="px-5 py-2.5 text-xs font-semibold rounded-xl bg-surface border border-line-strong text-txt-hi hover:bg-elevated transition-colors whitespace-nowrap">
+                        Cancel &amp; Reset
+                    </button>
+                    <button type="button" @onclick="RegisterDirectDevice" disabled="@isRegisteringDevice" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors whitespace-nowrap shrink-0">
+                        @if (isRegisteringDevice)
+                        {
+                            <svg class="animate-spin h-3.5 w-3.5 text-white shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>Saving Device to Inventory...</span>
+                        }
+                        else
+                        {
+                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Confirm &amp; Register Physical Asset</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (currentStep == 3)
+    {
+        <!-- Confirmation Step -->
+        <div class="rounded-2xl border border-line bg-surface p-10 shadow-sm max-w-xl mx-auto text-center">
+            <div class="mb-6 flex justify-center">
+                <div class="w-16 h-16 bg-emerald-50 border-4 border-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-xs">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+            </div>
+
+            @if (captureMode == 1)
+            {
+                <h2 class="text-2xl font-black text-txt-hi tracking-tight">Purchase Posted Successfully!</h2>
+                <p class="text-sm text-txt-mid mt-2">
+                    Purchase reference <strong class="text-txt-hi font-mono">@purchaseForm?.PurchaseNumber</strong> has been saved. The line items are now ready for physical asset serial onboarding.
+                </p>
+
+                <div class="my-6 p-6 bg-elevated rounded-2xl border border-line inline-block">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-3">Purchase Reference QR</div>
+                    <div class="bg-white p-3 rounded-xl border border-line inline-block shadow-xs">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=2&data=@(Uri.EscapeDataString(purchaseForm?.PurchaseNumber ?? ""))" alt="Purchase QR" class="w-40 h-40 object-contain mx-auto" />
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <a href="@($"/device-register/{purchaseForm?.Id}")" class="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-6 py-2.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">
+                        Register Physical Assets
+                    </a>
+                    <button type="button" @onclick="ResetForm" class="inline-flex items-center justify-center rounded-xl bg-surface border border-line-strong px-6 py-2.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
+                        Capture Another Invoice
+                    </button>
+                </div>
+            }
+            else
+            {
+                <h2 class="text-2xl font-black text-txt-hi tracking-tight">Physical Asset Registered!</h2>
+                <p class="text-sm text-txt-mid mt-2">
+                    Asset <strong class="text-txt-hi">@(createdDevice?.Brand) @(createdDevice?.DeviceName)</strong> with Serial <strong class="text-txt-hi font-mono">@(createdDevice?.Serial)</strong> has been successfully added to inventory.
+                </p>
+
+                <div class="my-6 p-6 bg-elevated rounded-2xl border border-line inline-block">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-2">Assigned Asset Tag</div>
+                    <div class="text-lg font-black font-mono text-emerald-600 mb-3">@(createdDevice?.AssetTag)</div>
+                    <div class="bg-white p-3 rounded-xl border border-line inline-block shadow-xs">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=2&data=@(Uri.EscapeDataString(createdDevice?.AssetTag ?? ""))" alt="Asset QR" class="w-40 h-40 object-contain mx-auto" />
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <a href="/devices" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors">
+                        View in Inventory
+                    </a>
+                    <button type="button" @onclick="ResetForm" class="inline-flex items-center justify-center rounded-xl bg-surface border border-line-strong px-6 py-2.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
+                        Register Another Device
+                    </button>
+                </div>
+            }
+        </div>
+    }
+    }
+    else if (activeMainTab == "registry")
+    {
+        <!-- KPI Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div @onclick='() => SetRegistryFilter("all")' class="cursor-pointer group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #f5f3ff; border: 1px solid #ddd6fe;">
+                <div class="relative z-10 flex items-start justify-between p-3">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #5b21b6;">Total Invoices / Purchases</p>
+                        <p class="tnum mt-1 text-2xl font-bold tracking-tight" style="color: #7c3aed;">@allPurchases.Count</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #6d28d9;">All recorded purchases</p>
+                    </div>
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style="background: #ede9fe; color: #7c3aed;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div @onclick='() => SetRegistryFilter("pending")' class="cursor-pointer group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #fffbeb; border: 1px solid #fde68a;">
+                <div class="relative z-10 flex items-start justify-between p-3">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #92400e;">Pending Device Registration</p>
+                        <p class="tnum mt-1 text-2xl font-bold tracking-tight" style="color: #b45309;">@allPurchases.Count(p => p.Items.Any(i => i.RemainingQuantity > 0))</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #92400e;">Awaiting physical tags</p>
+                    </div>
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style="background: #fef3c7; color: #d97706;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div @onclick='() => SetRegistryFilter("completed")' class="cursor-pointer group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #ecfdf5; border: 1px solid #a7f3d0;">
+                <div class="relative z-10 flex items-start justify-between p-3">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #065f46;">Completed Invoices</p>
+                        <p class="tnum mt-1 text-2xl font-bold tracking-tight" style="color: #047857;">@allPurchases.Count(p => p.Items.Any() && p.Items.All(i => i.RemainingQuantity <= 0))</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #047857;">All units tagged &amp; active</p>
+                    </div>
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style="background: #d1fae5; color: #059669;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="group relative overflow-hidden rounded-xl text-left shadow-sm" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+                <div class="relative z-10 flex items-start justify-between p-3">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #1e40af;">Total Hardware Units</p>
+                        <p class="tnum mt-1 text-2xl font-bold tracking-tight" style="color: #1d4ed8;">@allPurchases.Sum(p => p.Items.Sum(i => i.Quantity ?? 0))</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #1d4ed8;">Total purchased units</p>
+                    </div>
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style="background: #dbeafe; color: #2563eb;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar & Filter Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <!-- Left: Filter Tabs -->
+            <div class="inline-flex p-1 bg-elevated border border-line rounded-xl text-xs">
+                <button type="button" @onclick='() => SetRegistryFilter("all")' class="px-3 py-1 rounded-lg font-semibold transition-all @(registryStatusFilter == "all" ? "bg-surface text-txt-hi shadow-xs" : "text-txt-mid hover:text-txt-hi")">
+                    All (@allPurchases.Count)
+                </button>
+                <button type="button" @onclick='() => SetRegistryFilter("pending")' class="px-3 py-1 rounded-lg font-semibold transition-all @(registryStatusFilter == "pending" ? "bg-amber-50 text-amber-800 shadow-xs border border-amber-200" : "text-txt-mid hover:text-txt-hi")">
+                    Pending Registration (@allPurchases.Count(p => p.Items.Any(i => i.RemainingQuantity > 0)))
+                </button>
+                <button type="button" @onclick='() => SetRegistryFilter("completed")' class="px-3 py-1 rounded-lg font-semibold transition-all @(registryStatusFilter == "completed" ? "bg-emerald-50 text-emerald-800 shadow-xs border border-emerald-200" : "text-txt-mid hover:text-txt-hi")">
+                    Completed (@allPurchases.Count(p => p.Items.Any() && p.Items.All(i => i.RemainingQuantity <= 0)))
+                </button>
+            </div>
+
+            <!-- Right: Search, Date Filter & Action -->
+            <div class="flex flex-wrap items-center gap-3">
+                <AssetManagement.Web.Components.Shared.DateRangePicker 
+                    @bind-StartDate="registryStartDate" 
+                    @bind-EndDate="registryEndDate" 
+                    OnRangeChanged="ResetRegistryPage" 
+                    Placeholder="Filter by purchase date" />
+
+                <div class="relative w-56 sm:w-64">
+                    <svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-txt-lo" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke-width="2"/></svg>
+                    <input type="search" placeholder="Search supplier, invoice, purchase #..." @bind="registrySearchTerm" @bind:event="oninput" @bind:after="ResetRegistryPage" class="w-full rounded-xl border border-line bg-surface py-1.5 pl-9 pr-3 text-xs text-txt-hi placeholder:text-txt-lo hover:border-line-strong focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
+                </div>
+
+                <button type="button" @onclick="OpenAddModal" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-semibold shadow-xs transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    + Manual Purchase
+                </button>
+            </div>
+        </div>
+
+        <!-- Invoices & Purchases Table -->
+        <div class="rounded-2xl border border-line bg-surface shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-line-soft bg-elevated/70 text-txt-lo uppercase tracking-wider font-semibold">
+                            <th class="py-3 px-4 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortRegistryBy("Purchase")'>
+                                <div class="flex items-center gap-1.5">Purchase # &amp; Date @RenderRegistrySortIcon("Purchase")</div>
+                            </th>
+                            <th class="py-3 px-4 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortRegistryBy("Supplier")'>
+                                <div class="flex items-center gap-1.5">Supplier / Vendor @RenderRegistrySortIcon("Supplier")</div>
+                            </th>
+                            <th class="py-3 px-4 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortRegistryBy("Invoice")'>
+                                <div class="flex items-center gap-1.5">Invoice # @RenderRegistrySortIcon("Invoice")</div>
+                            </th>
+                            <th class="py-3 px-4 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortRegistryBy("Items")'>
+                                <div class="flex items-center gap-1.5">Line Items @RenderRegistrySortIcon("Items")</div>
+                            </th>
+                            <th class="py-3 px-4 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortRegistryBy("Status")'>
+                                <div class="flex items-center gap-1.5">Registration Status @RenderRegistrySortIcon("Status")</div>
+                            </th>
+                            <th class="py-3 px-4 text-center">Attached Invoice</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-line-soft">
+                        @if (!PaginatedRegistryPurchases.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="py-12 text-center text-txt-mid">
+                                    <svg class="w-10 h-10 mx-auto text-txt-lo mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    <p class="font-semibold text-txt-hi">No purchases or invoices found</p>
+                                    <p class="text-[11px] text-txt-lo mt-0.5">Try adjusting your filters, date range, or upload a new invoice.</p>
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var p in PaginatedRegistryPurchases)
+                        {
+                            var totalUnits = p.Items.Sum(i => i.Quantity ?? 0);
+                            var remainingUnits = p.Items.Sum(i => i.RemainingQuantity);
+                            var isCompleted = p.Items.Any() && remainingUnits <= 0;
+
+                            <tr class="hover:bg-elevated/40 transition-colors">
+                                <td class="py-3.5 px-4">
+                                    <span class="font-bold text-txt-hi font-mono text-[13px] block">@p.PurchaseNumber</span>
+                                    <span class="text-txt-lo text-[11px]">@(p.PurchaseDate?.ToString("dd-MMM-yyyy") ?? "—")</span>
+                                </td>
+                                <td class="py-3.5 px-4 font-semibold text-txt-hi">
+                                    @p.Supplier
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-txt-mid font-medium">
+                                    @(string.IsNullOrWhiteSpace(p.InvoiceNumber) ? "—" : p.InvoiceNumber)
+                                </td>
+                                <td class="py-3.5 px-4">
+                                    <div class="max-w-xs">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-elevated border border-line text-txt-hi mb-1">
+                                            @p.Items.Count item@(p.Items.Count != 1 ? "s" : "") &bull; @totalUnits unit@(totalUnits != 1 ? "s" : "")
+                                        </span>
+                                        <div class="text-[11px] text-txt-mid truncate" title="@string.Join(", ", p.Items.Select(i => $"{i.Manufacturer} {i.ModelName} (x{i.Quantity})"))">
+                                            @string.Join(", ", p.Items.Select(i => $"{i.Manufacturer} {i.ModelName} (x{i.Quantity})"))
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3.5 px-4">
+                                    @if (isCompleted)
+                                    {
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            All Registered
+                                        </span>
+                                    }
+                                    else if (remainingUnits > 0)
+                                    {
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                            @remainingUnits remaining of @totalUnits
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700">
+                                            No items
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3.5 px-4 text-center">
+                                    @if (!string.IsNullOrEmpty(p.InvoiceFilePath))
+                                    {
+                                        <button type="button" @onclick="() => OpenInvoiceViewer(p.InvoiceFilePath)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-line bg-elevated hover:bg-surface text-txt-mid hover:text-accent-600 transition-colors shadow-xs" title="View attached document">
+                                            <svg class="w-3.5 h-3.5 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            <span class="font-medium">View File</span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-txt-lo">—</span>
+                                    }
+                                </td>
+                                <td class="py-3.5 px-4 text-right">
+                                    <div class="inline-flex items-center gap-1.5">
+                                        <a href="/device-register/@p.Id" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-semibold transition-colors shadow-xs" title="Register physical devices with serial numbers">
+                                            <span>Register</span>
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                        </a>
+                                        <button type="button" @onclick="() => OpenEditModal(p)" class="p-1 rounded-lg border border-line bg-surface hover:bg-elevated text-txt-mid hover:text-txt-hi transition-colors" title="Edit purchase details">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                        </button>
+                                        <button type="button" @onclick="() => OpenDeleteModal(p)" class="p-1 rounded-lg border border-line bg-surface hover:bg-danger-50 text-txt-mid hover:text-danger-600 transition-colors" title="Delete purchase">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-line-soft text-xs text-txt-mid bg-elevated/30">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-1.5">
+                        <span>Rows per page:</span>
+                        <select @bind="registryPageSize" @bind:after="ResetRegistryPage" class="bg-surface border border-line rounded px-2 py-1 text-txt-hi font-medium">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <span>
+                        Showing @((registryPage - 1) * registryPageSize + 1) to @(Math.Min(registryPage * registryPageSize, FilteredRegistryPurchases.Count)) of @FilteredRegistryPurchases.Count purchases
+                    </span>
+                </div>
+
+                <div class="flex items-center gap-1">
+                    <button type="button" @onclick="() => GoToRegistryPage(1)" disabled="@(registryPage == 1)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                        First
+                    </button>
+                    <button type="button" @onclick="() => GoToRegistryPage(registryPage - 1)" disabled="@(registryPage == 1)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                        Prev
+                    </button>
+                    <span class="px-3 py-1 font-bold text-txt-hi">
+                        Page @registryPage of @TotalRegistryPages
+                    </span>
+                    <button type="button" @onclick="() => GoToRegistryPage(registryPage + 1)" disabled="@(registryPage >= TotalRegistryPages)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                        Next
+                    </button>
+                    <button type="button" @onclick="() => GoToRegistryPage(TotalRegistryPages)" disabled="@(registryPage >= TotalRegistryPages)" class="px-2.5 py-1 rounded border border-line bg-surface hover:bg-elevated disabled:opacity-40 disabled:cursor-not-allowed font-medium">
+                        Last
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- INVOICE VIEWER MODAL -->
+<AssetManagement.Web.Components.Shared.InvoiceViewerModal @bind-IsOpen="showInvoiceViewer" FilePath="@selectedInvoicePath" />
+
+<!-- EDIT PURCHASE MODAL -->
+@if (showEditModal && editingPurchase != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div class="bg-surface rounded-2xl border border-line p-6 shadow-2xl max-w-lg w-full space-y-4 animate-in fade-in zoom-in-95">
+            <div class="flex items-center justify-between border-b border-line-soft pb-3">
+                <h3 class="text-base font-bold text-txt-hi">Edit Purchase @editingPurchase.PurchaseNumber</h3>
+                <button type="button" @onclick="() => showEditModal = false" class="text-txt-lo hover:text-txt-hi text-lg leading-none">&times;</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(editErrorMessage))
+            {
+                <div class="p-3 rounded-lg bg-danger-50 text-danger-700 border border-danger-200 text-xs">@editErrorMessage</div>
+            }
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Supplier / Vendor</label>
+                    <input type="text" @bind="editingPurchase.Supplier" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-semibold text-txt-hi focus:border-accent-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Invoice Number</label>
+                    <input type="text" @bind="editingPurchase.InvoiceNumber" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-semibold text-txt-hi focus:border-accent-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Purchase Date</label>
+                    <input type="date" value="@(editingPurchase.PurchaseDate?.ToString("yyyy-MM-dd"))" @onchange="OnEditPurchaseDateChange" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-semibold text-txt-hi focus:border-accent-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Notes / Remarks</label>
+                    <textarea rows="2" @bind="editingPurchase.Notes" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs text-txt-hi focus:border-accent-500 focus:outline-none"></textarea>
+                </div>
+
+                <!-- Attached Invoice / Document -->
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Attached Invoice / Bill Document</label>
+                    @if (!string.IsNullOrEmpty(editingPurchase.InvoiceFilePath))
+                    {
+                        var isPdf = editingPurchase.InvoiceFilePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+                        var fileName = System.IO.Path.GetFileName(editingPurchase.InvoiceFilePath);
+                        <div class="flex items-center justify-between p-2.5 rounded-xl border border-line bg-elevated">
+                            <div class="flex items-center gap-2.5 overflow-hidden">
+                                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg @(isPdf ? "bg-danger-50 text-danger-600" : "bg-accent-50 text-accent-600")">
+                                    @if (isPdf)
+                                    {
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                    }
+                                    else
+                                    {
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    }
+                                </span>
+                                <div class="truncate">
+                                    <p class="text-xs font-semibold text-txt-hi truncate">@fileName</p>
+                                    <p class="text-[10px] text-txt-lo">Current attached invoice file</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" @onclick="() => OpenInvoiceViewer(editingPurchase.InvoiceFilePath)" class="px-2 py-1 rounded-lg border border-line bg-surface text-txt-mid hover:text-accent-600 text-[11px] font-semibold transition-colors">
+                                    Preview
+                                </button>
+                                <button type="button" @onclick="RemoveEditAttachedInvoice" class="px-2 py-1 rounded-lg border border-line bg-surface text-danger-600 hover:bg-danger-50 text-[11px] font-semibold transition-colors">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="mt-2">
+                        <label class="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line hover:border-accent-500 bg-elevated/40 hover:bg-elevated px-4 py-3 transition-colors text-center">
+                            <svg class="w-4 h-4 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            <span class="text-xs font-semibold text-txt-hi">@(string.IsNullOrEmpty(editingPurchase.InvoiceFilePath) ? "Upload Invoice / Document" : "Replace with new Invoice File")</span>
+                            <span class="text-[11px] text-txt-lo">(PDF, JPG, PNG up to 15MB)</span>
+                            <InputFile OnChange="HandleEditPurchaseFileUpload" accept=".pdf,.png,.jpg,.jpeg" class="sr-only" />
+                        </label>
+                        @if (isUploadingEditFile)
+                        {
+                            <p class="text-[11px] text-accent-600 mt-1 font-medium animate-pulse">Uploading file...</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-line-soft">
+                <button type="button" @onclick="() => showEditModal = false" class="px-4 py-2 rounded-xl border border-line text-xs font-semibold text-txt-mid hover:bg-elevated transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="SaveEditPurchase" class="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-semibold shadow-xs transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- DELETE PURCHASE MODAL -->
+@if (showDeleteModal && deletingPurchase != null)
+{
+    var hasRegisteredDevices = deletingPurchase.Items.Any(i => i.RegisteredQuantity > 0 || (i.Devices != null && i.Devices.Any()));
+
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div class="bg-surface rounded-2xl border border-line p-6 shadow-2xl max-w-md w-full space-y-4 animate-in fade-in zoom-in-95">
+            <div class="flex items-center gap-3 text-danger-600 border-b border-line-soft pb-3">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-100 text-danger-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </span>
+                <div>
+                    <h3 class="text-base font-bold text-txt-hi">Delete Purchase?</h3>
+                    <p class="text-xs text-txt-lo">@deletingPurchase.PurchaseNumber &bull; @deletingPurchase.Supplier</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(deleteErrorMessage))
+            {
+                <div class="p-3 rounded-lg bg-danger-50 text-danger-700 border border-danger-200 text-xs">@deleteErrorMessage</div>
+            }
+
+            @if (hasRegisteredDevices)
+            {
+                <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-1">
+                    <p class="font-bold">Cannot Delete This Purchase</p>
+                    <p>There are physical assets registered from this purchase. To delete it, you must first remove those registered devices from <strong>All assets</strong>.</p>
+                </div>
+            }
+            else
+            {
+                <p class="text-xs text-txt-mid">
+                    Are you sure you want to permanently delete purchase <strong>@deletingPurchase.PurchaseNumber</strong> (Invoice: @(deletingPurchase.InvoiceNumber ?? "—"))? This action will remove all associated line items and the uploaded document.
+                </p>
+            }
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-line-soft">
+                <button type="button" @onclick="() => showDeleteModal = false" class="px-4 py-2 rounded-xl border border-line text-xs font-semibold text-txt-mid hover:bg-elevated transition-colors cursor-pointer">
+                    @(hasRegisteredDevices ? "Close" : "Cancel")
+                </button>
+                @if (!hasRegisteredDevices)
+                {
+                    <button type="button" @onclick="ConfirmDeletePurchase" disabled="@isDeletingPurchase" class="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        <span>@(isDeletingPurchase ? "Deleting..." : "OK, Delete")</span>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ADD MANUAL PURCHASE MODAL -->
+@if (showAddModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div class="bg-surface rounded-2xl border border-line p-6 shadow-2xl max-w-2xl w-full space-y-4 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-line-soft pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-txt-hi">Record Manual Purchase</h3>
+                    <p class="text-xs text-txt-lo mt-0.5">Enter invoice details and line items without uploading a scan.</p>
+                </div>
+                <button type="button" @onclick="() => showAddModal = false" class="text-txt-lo hover:text-txt-hi text-lg leading-none">&times;</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(addErrorMessage))
+            {
+                <div class="p-3 rounded-lg bg-danger-50 text-danger-700 border border-danger-200 text-xs">@addErrorMessage</div>
+            }
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Supplier / Vendor *</label>
+                    <input type="text" @bind="newPurchaseSupplier" placeholder="e.g. Dell Technologies" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-semibold text-txt-hi focus:border-accent-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Invoice Number *</label>
+                    <input type="text" @bind="newPurchaseInvoiceNo" placeholder="e.g. INV-2026-001" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-semibold text-txt-hi focus:border-accent-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Purchase Date</label>
+                    <input type="date" @bind="newPurchaseDate" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-semibold text-txt-hi focus:border-accent-500 focus:outline-none" />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-txt-mid mb-1">Notes / Remarks</label>
+                <input type="text" @bind="newPurchaseNotes" placeholder="Optional purchase notes" class="w-full rounded-xl border border-line bg-elevated px-3 py-2 text-xs text-txt-hi focus:border-accent-500 focus:outline-none" />
+            </div>
+
+            <!-- Optional Attachment Upload for Manual Purchase -->
+            <div>
+                <label class="block text-xs font-semibold text-txt-mid mb-1">Attach Invoice / Bill Document (Optional)</label>
+                @if (!string.IsNullOrEmpty(newPurchaseFilePath))
+                {
+                    var isPdf = newPurchaseFilePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+                    var fileName = System.IO.Path.GetFileName(newPurchaseFilePath);
+                    <div class="flex items-center justify-between p-2.5 rounded-xl border border-line bg-elevated mb-2">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg @(isPdf ? "bg-danger-50 text-danger-600" : "bg-accent-50 text-accent-600")">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </span>
+                            <span class="text-xs font-semibold text-txt-hi truncate">@fileName</span>
+                        </div>
+                        <button type="button" @onclick="() => newPurchaseFilePath = null" class="text-danger-500 hover:text-danger-700 text-xs font-semibold">Remove</button>
+                    </div>
+                }
+                else
+                {
+                    <label class="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line hover:border-accent-500 bg-elevated/40 hover:bg-elevated px-4 py-2.5 transition-colors text-center">
+                        <svg class="w-4 h-4 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        <span class="text-xs font-semibold text-txt-hi">Upload Invoice Document</span>
+                        <span class="text-[11px] text-txt-lo">(PDF, JPG, PNG)</span>
+                        <InputFile OnChange="HandleManualPurchaseFileUpload" accept=".pdf,.png,.jpg,.jpeg" class="sr-only" />
+                    </label>
+                    @if (isUploadingManualFile)
+                    {
+                        <p class="text-[11px] text-accent-600 mt-1 font-medium animate-pulse">Uploading file...</p>
+                    }
+                }
+            </div>
+
+            <!-- Line Items section -->
+            <div class="border-t border-line-soft pt-3">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-txt-lo">Purchase Line Items</h4>
+                    <button type="button" @onclick="AddLineItemToNewPurchase" class="text-xs font-semibold text-accent-600 hover:text-accent-700">
+                        + Add Line Item
+                    </button>
+                </div>
+
+                <div class="space-y-2">
+                    @for (int idx = 0; idx < manualLineItems.Count; idx++)
+                    {
+                        var itemIndex = idx;
+                        var item = manualLineItems[itemIndex];
+                        <div class="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-line bg-elevated">
+                            <div class="flex-1 min-w-[140px]">
+                                <input type="text" @bind="item.Manufacturer" placeholder="Brand (e.g. Dell)" class="w-full rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs text-txt-hi focus:outline-none" />
+                            </div>
+                            <div class="flex-1 min-w-[160px]">
+                                <input type="text" @bind="item.ModelName" placeholder="Model (e.g. Latitude 5420)" class="w-full rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs text-txt-hi focus:outline-none" />
+                            </div>
+                            <div class="w-28">
+                                <select @bind="item.Category" class="w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-xs text-txt-hi focus:outline-none">
+                                    <option value="Laptop">Laptop</option>
+                                    <option value="Desktop">Desktop</option>
+                                    <option value="Monitor">Monitor</option>
+                                    <option value="Server">Server</option>
+                                    <option value="Network Device">Network Device</option>
+                                    <option value="Peripheral">Peripheral</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="w-16">
+                                <input type="number" min="1" @bind="item.Quantity" placeholder="Qty" class="w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-xs text-txt-hi text-center focus:outline-none" />
+                            </div>
+                            <div class="w-24">
+                                <input type="number" step="0.01" @bind="item.UnitCost" placeholder="Price" class="w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-xs text-txt-hi focus:outline-none" />
+                            </div>
+                            @if (manualLineItems.Count > 1)
+                            {
+                                <button type="button" @onclick="() => manualLineItems.RemoveAt(itemIndex)" class="text-danger-500 hover:text-danger-700 p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-line-soft">
+                <button type="button" @onclick="() => showAddModal = false" class="px-4 py-2 rounded-xl border border-line text-xs font-semibold text-txt-mid hover:bg-elevated transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="SaveManualPurchase" disabled="@isSavingManual" class="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-semibold shadow-xs transition-colors">
+                    @(isSavingManual ? "Saving..." : "Save Purchase")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string activeMainTab = "upload";
+    private void SetActiveMainTab(string tab)
+    {
+        activeMainTab = tab;
+        if (tab == "registry")
+        {
+            _ = LoadAllPurchasesAsync();
+        }
+        StateHasChanged();
+    }
+
+    // Registry Tab State
+    private List<Purchase> allPurchases = new();
+    private string registryStatusFilter = "all";
+    private string registrySearchTerm = "";
+    private DateTime? registryStartDate;
+    private DateTime? registryEndDate;
+    private int registryPage = 1;
+    private int registryPageSize = 10;
+
+    // Computed KPI Stats
+    private int PendingRegistrationCount => allPurchases.Count(p => p.Items.Any() && p.Items.Sum(i => i.RemainingQuantity) > 0);
+    private int CompletedInvoicesCount => allPurchases.Count(p => p.Items.Any() && p.Items.Sum(i => i.RemainingQuantity) <= 0);
+    private int TotalHardwareUnits => allPurchases.SelectMany(p => p.Items).Sum(i => i.Quantity ?? 0);
+
+    // Registry Filter & Pagination Computed Properties
+    private List<Purchase> FilteredRegistryPurchases
+    {
+        get
+        {
+            var q = allPurchases.AsEnumerable();
+
+            if (registryStatusFilter == "pending")
+            {
+                q = q.Where(p => p.Items.Any() && p.Items.Sum(i => i.RemainingQuantity) > 0);
+            }
+            else if (registryStatusFilter == "completed")
+            {
+                q = q.Where(p => p.Items.Any() && p.Items.Sum(i => i.RemainingQuantity) <= 0);
+            }
+
+            if (registryStartDate.HasValue)
+            {
+                q = q.Where(p => p.PurchaseDate.HasValue && p.PurchaseDate.Value.Date >= registryStartDate.Value.Date);
+            }
+            if (registryEndDate.HasValue)
+            {
+                q = q.Where(p => p.PurchaseDate.HasValue && p.PurchaseDate.Value.Date <= registryEndDate.Value.Date);
+            }
+
+            if (!string.IsNullOrWhiteSpace(registrySearchTerm))
+            {
+                var term = registrySearchTerm.Trim().ToLowerInvariant();
+                q = q.Where(p =>
+                    (p.PurchaseNumber != null && p.PurchaseNumber.ToLowerInvariant().Contains(term)) ||
+                    (p.Supplier != null && p.Supplier.ToLowerInvariant().Contains(term)) ||
+                    (p.InvoiceNumber != null && p.InvoiceNumber.ToLowerInvariant().Contains(term)) ||
+                    p.Items.Any(i => (i.ModelName != null && i.ModelName.ToLowerInvariant().Contains(term)) ||
+                                     (i.Manufacturer != null && i.Manufacturer.ToLowerInvariant().Contains(term))));
+            }
+
+            q = registrySortColumn switch
+            {
+                "Purchase" => registrySortAscending
+                    ? q.OrderBy(p => p.PurchaseDate ?? DateTime.MinValue).ThenBy(p => p.PurchaseNumber)
+                    : q.OrderByDescending(p => p.PurchaseDate ?? DateTime.MinValue).ThenByDescending(p => p.PurchaseNumber),
+                "Supplier" => registrySortAscending
+                    ? q.OrderBy(p => p.Supplier).ThenBy(p => p.PurchaseNumber)
+                    : q.OrderByDescending(p => p.Supplier).ThenByDescending(p => p.PurchaseNumber),
+                "Invoice" => registrySortAscending
+                    ? q.OrderBy(p => p.InvoiceNumber ?? string.Empty)
+                    : q.OrderByDescending(p => p.InvoiceNumber ?? string.Empty),
+                "Items" => registrySortAscending
+                    ? q.OrderBy(p => p.Items.Sum(i => i.Quantity ?? 0))
+                    : q.OrderByDescending(p => p.Items.Sum(i => i.Quantity ?? 0)),
+                "Status" => registrySortAscending
+                    ? q.OrderBy(p => p.Items.Sum(i => i.RemainingQuantity))
+                    : q.OrderByDescending(p => p.Items.Sum(i => i.RemainingQuantity)),
+                _ => q.OrderByDescending(p => p.PurchaseDate ?? DateTime.MinValue).ThenByDescending(p => p.Id)
+            };
+
+            return q.ToList();
+        }
+    }
+
+    private string registrySortColumn = "Purchase";
+    private bool registrySortAscending = false;
+
+    private void SortRegistryBy(string col)
+    {
+        if (registrySortColumn == col)
+        {
+            registrySortAscending = !registrySortAscending;
+        }
+        else
+        {
+            registrySortColumn = col;
+            registrySortAscending = true;
+        }
+        registryPage = 1;
+    }
+
+    private RenderFragment RenderRegistrySortIcon(string col) => __builder =>
+    {
+        if (registrySortColumn == col)
+        {
+            if (registrySortAscending)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m5 15 7-7 7 7"/></svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-accent-500"><path d="m19 9-7 7-7-7"/></svg>
+            }
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-line-strong opacity-40 group-hover:opacity-100 transition-opacity"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        }
+    };
+
+    private List<Purchase> PaginatedRegistryPurchases =>
+        FilteredRegistryPurchases
+            .Skip((registryPage - 1) * registryPageSize)
+            .Take(registryPageSize)
+            .ToList();
+
+    private int TotalRegistryPages =>
+        Math.Max(1, (int)Math.Ceiling((double)Math.Max(1, FilteredRegistryPurchases.Count) / registryPageSize));
+
+    private void SetRegistryFilter(string filter)
+    {
+        registryStatusFilter = filter;
+        ResetRegistryPage();
+    }
+
+    private void ResetRegistryPage()
+    {
+        registryPage = 1;
+        StateHasChanged();
+    }
+
+    private void GoToRegistryPage(int page)
+    {
+        registryPage = Math.Clamp(page, 1, TotalRegistryPages);
+    }
+
+    private async Task LoadAllPurchasesAsync()
+    {
+        try
+        {
+            allPurchases = await PurchaseService.GetAllPurchasesAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading purchases: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllPurchasesAsync();
+    }
+
+    // Invoice Document Viewer
+    private bool showInvoiceViewer = false;
+    private string? selectedInvoicePath;
+    private void OpenInvoiceViewer(string? path)
+    {
+        selectedInvoicePath = path;
+        showInvoiceViewer = true;
+    }
+
+    // Edit Purchase Modal
+    private bool showEditModal = false;
+    private Purchase? editingPurchase;
+    private string? editErrorMessage;
+
+    private void OpenEditModal(Purchase p)
+    {
+        editingPurchase = new Purchase
+        {
+            Id = p.Id,
+            PurchaseNumber = p.PurchaseNumber,
+            Supplier = p.Supplier,
+            InvoiceNumber = p.InvoiceNumber,
+            PurchaseDate = p.PurchaseDate,
+            Notes = p.Notes,
+            InvoiceFilePath = p.InvoiceFilePath
+        };
+        editErrorMessage = null;
+        showEditModal = true;
+    }
+
+    private void OnEditPurchaseDateChange(ChangeEventArgs e)
+    {
+        if (editingPurchase != null && DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            editingPurchase.PurchaseDate = dt;
+        }
+    }
+
+    private bool isUploadingEditFile = false;
+
+    private async Task HandleEditPurchaseFileUpload(InputFileChangeEventArgs e)
+    {
+        if (editingPurchase == null) return;
+        var file = e.File;
+        if (file == null) return;
+
+        if (file.Size > 15 * 1024 * 1024)
+        {
+            editErrorMessage = "File size must be 15MB or less.";
+            return;
+        }
+
+        isUploadingEditFile = true;
+        editErrorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var uploadsDir = Path.Combine(Env.WebRootPath, "uploads", "invoices");
+            Directory.CreateDirectory(uploadsDir);
+            var ext = Path.GetExtension(file.Name);
+            var safeName = $"{editingPurchase.PurchaseNumber}_{Guid.NewGuid().ToString("N").Substring(0, 8)}{ext}";
+            var fullPath = Path.Combine(uploadsDir, safeName);
+
+            await using (var fs = new FileStream(fullPath, FileMode.Create))
+            {
+                await file.OpenReadStream(15 * 1024 * 1024).CopyToAsync(fs);
+            }
+
+            editingPurchase.InvoiceFilePath = $"/uploads/invoices/{safeName}";
+        }
+        catch (Exception ex)
+        {
+            editErrorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isUploadingEditFile = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveEditAttachedInvoice()
+    {
+        if (editingPurchase != null)
+        {
+            editingPurchase.InvoiceFilePath = null;
+        }
+    }
+
+    private async Task SaveEditPurchase()
+    {
+        if (editingPurchase == null) return;
+        if (string.IsNullOrWhiteSpace(editingPurchase.Supplier))
+        {
+            editErrorMessage = "Supplier / Vendor name is required.";
+            return;
+        }
+
+        try
+        {
+            await PurchaseService.UpdatePurchaseAsync(editingPurchase);
+            await LoadAllPurchasesAsync();
+            showEditModal = false;
+        }
+        catch (Exception ex)
+        {
+            editErrorMessage = $"Failed to save: {ex.Message}";
+        }
+    }
+
+    // Delete Purchase Modal
+    private bool showDeleteModal = false;
+    private Purchase? deletingPurchase;
+    private string? deleteErrorMessage;
+    private bool isDeletingPurchase = false;
+
+    private void OpenDeleteModal(Purchase p)
+    {
+        deletingPurchase = p;
+        deleteErrorMessage = null;
+        showDeleteModal = true;
+    }
+
+    private async Task ConfirmDeletePurchase()
+    {
+        if (deletingPurchase == null) return;
+        isDeletingPurchase = true;
+        deleteErrorMessage = null;
+
+        try
+        {
+            var success = await PurchaseService.DeletePurchaseAsync(deletingPurchase.Id);
+            if (!success)
+            {
+                deleteErrorMessage = "Cannot delete: This purchase has registered physical devices. Remove registered devices first.";
+                return;
+            }
+
+            await LoadAllPurchasesAsync();
+            showDeleteModal = false;
+        }
+        catch (Exception ex)
+        {
+            deleteErrorMessage = $"Delete failed: {ex.Message}";
+        }
+        finally
+        {
+            isDeletingPurchase = false;
+            StateHasChanged();
+        }
+    }
+
+    // Add Manual Purchase Modal
+    private bool showAddModal = false;
+    private string newPurchaseSupplier = "";
+    private string newPurchaseInvoiceNo = "";
+    private DateTime? newPurchaseDate = DateTime.Today;
+    private string newPurchaseNotes = "";
+    private string? addErrorMessage;
+    private bool isSavingManual = false;
+    private List<ManualLineItem> manualLineItems = new();
+
+    public class ManualLineItem
+    {
+        public string Manufacturer { get; set; } = "";
+        public string ModelName { get; set; } = "";
+        public string Category { get; set; } = "Laptop";
+        public int Quantity { get; set; } = 1;
+        public decimal UnitCost { get; set; } = 0m;
+    }
+
+    private string? newPurchaseFilePath;
+    private bool isUploadingManualFile = false;
+
+    private async Task HandleManualPurchaseFileUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null) return;
+
+        if (file.Size > 15 * 1024 * 1024)
+        {
+            addErrorMessage = "File size must be 15MB or less.";
+            return;
+        }
+
+        isUploadingManualFile = true;
+        addErrorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var uploadsDir = Path.Combine(Env.WebRootPath, "uploads", "invoices");
+            Directory.CreateDirectory(uploadsDir);
+            var ext = Path.GetExtension(file.Name);
+            var safeName = $"PUR_MANUAL_{Guid.NewGuid().ToString("N").Substring(0, 8)}{ext}";
+            var fullPath = Path.Combine(uploadsDir, safeName);
+
+            await using (var fs = new FileStream(fullPath, FileMode.Create))
+            {
+                await file.OpenReadStream(15 * 1024 * 1024).CopyToAsync(fs);
+            }
+
+            newPurchaseFilePath = $"/uploads/invoices/{safeName}";
+        }
+        catch (Exception ex)
+        {
+            addErrorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isUploadingManualFile = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenAddModal()
+    {
+        newPurchaseSupplier = "";
+        newPurchaseInvoiceNo = "";
+        newPurchaseDate = DateTime.Today;
+        newPurchaseNotes = "";
+        newPurchaseFilePath = null;
+        addErrorMessage = null;
+        manualLineItems = new List<ManualLineItem>
+        {
+            new ManualLineItem()
+        };
+        showAddModal = true;
+    }
+
+    private void AddLineItemToNewPurchase()
+    {
+        manualLineItems.Add(new ManualLineItem());
+    }
+
+    private async Task SaveManualPurchase()
+    {
+        if (string.IsNullOrWhiteSpace(newPurchaseSupplier))
+        {
+            addErrorMessage = "Supplier / Vendor is required.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(newPurchaseInvoiceNo))
+        {
+            addErrorMessage = "Invoice number is required.";
+            return;
+        }
+        if (!manualLineItems.Any() || manualLineItems.All(i => string.IsNullOrWhiteSpace(i.ModelName)))
+        {
+            addErrorMessage = "Please add at least one line item with a model name.";
+            return;
+        }
+
+        isSavingManual = true;
+        addErrorMessage = null;
+
+        try
+        {
+            var p = new Purchase
+            {
+                PurchaseNumber = "PUR-" + DateTime.Now.ToString("yyMMdd") + new Random().Next(100, 999),
+                Supplier = newPurchaseSupplier.Trim(),
+                InvoiceNumber = newPurchaseInvoiceNo.Trim(),
+                PurchaseDate = newPurchaseDate ?? DateTime.Today,
+                Notes = string.IsNullOrWhiteSpace(newPurchaseNotes) ? "Manual Entry" : newPurchaseNotes.Trim(),
+                InvoiceFilePath = newPurchaseFilePath
+            };
+
+            foreach (var item in manualLineItems.Where(i => !string.IsNullOrWhiteSpace(i.ModelName)))
+            {
+                p.Items.Add(new PurchaseItem
+                {
+                    PurchaseId = p.Id,
+                    Category = item.Category,
+                    Manufacturer = item.Manufacturer.Trim(),
+                    ModelName = item.ModelName.Trim(),
+                    Quantity = item.Quantity > 0 ? item.Quantity : 1,
+                    UnitCost = item.UnitCost
+                });
+            }
+
+            await PurchaseService.AddPurchaseAsync(p);
+            await LoadAllPurchasesAsync();
+            showAddModal = false;
+        }
+        catch (Exception ex)
+        {
+            addErrorMessage = $"Error creating purchase: {ex.Message}";
+        }
+        finally
+        {
+            isSavingManual = false;
+            StateHasChanged();
+        }
+    }
+
+    private int currentStep = 1;
+    private int captureMode = 1; // 1 = Supplier Invoice / Challan First, 2 = Physical Device Label / Specs First
+    private bool isAnalyzing = false;
+    private bool isPosting = false;
+    private bool isRegisteringDevice = false;
+    private string? errorMessage;
+    private bool isDuplicate = false;
+    private List<string> validationWarnings = new();
+
+    // Mode 1 State
+    private Purchase? purchaseForm;
+    private string poNumber = "";
+    private string currency = "BDT";
+    private string paymentTerms = "";
+    private decimal taxAmount = 0m;
+    private decimal discountAmount = 0m;
+    private decimal invoiceTotal = 0m;
+
+    // Mode 2 State
+    private Device? directDevice;
+    private Device? createdDevice;
+    private List<string> candidateSerials = new();
+
+    private int selectedPreviewIndex = 0;
+    private double zoomScale = 1.0;
+
+    private List<FileUploadInfo> uploadedFiles = new();
+    private DotNetObjectReference<InvoiceCapture>? dotNetHelper;
+
+    private class FileUploadInfo
+    {
+        public string Name { get; set; } = "";
+        public byte[] Bytes { get; set; } = Array.Empty<byte>();
+        public string ContentType { get; set; } = "";
+        public string DataUrl => $"data:{ContentType};base64,{Convert.ToBase64String(Bytes)}";
+    }
+
+    private decimal CalculatedSum => purchaseForm?.Items.Sum(i => (i.Quantity ?? 0) * (i.UnitCost ?? 0m)) ?? 0m;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetHelper = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("clipboardPasteHelper.initPaste", dotNetHelper);
+        }
+    }
+
+    private void SetCaptureMode(int mode)
+    {
+        captureMode = mode;
+        errorMessage = null;
+    }
+
+    [JSInvokable]
+    public void OnClipboardImagePasted(string fileName, string contentType, string base64Data)
+    {
+        try
+        {
+            var bytes = Convert.FromBase64String(base64Data);
+            uploadedFiles.Add(new FileUploadInfo
+            {
+                Name = fileName,
+                Bytes = bytes,
+                ContentType = contentType
+            });
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing clipboard image: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        var files = e.GetMultipleFiles(10);
+        foreach (var file in files)
+        {
+            if (file.Size > 15 * 1024 * 1024)
+            {
+                errorMessage = $"File '{file.Name}' exceeds 15MB size limit.";
+                continue;
+            }
+
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(15 * 1024 * 1024).CopyToAsync(ms);
+            uploadedFiles.Add(new FileUploadInfo
+            {
+                Name = file.Name,
+                Bytes = ms.ToArray(),
+                ContentType = file.ContentType
+            });
+        }
+    }
+
+    private async Task HandleAdditionalFilesSelected(InputFileChangeEventArgs e)
+    {
+        await HandleFilesSelected(e);
+        if (uploadedFiles.Any())
+        {
+            selectedPreviewIndex = uploadedFiles.Count - 1;
+        }
+    }
+
+    private void RemoveFile(FileUploadInfo file)
+    {
+        uploadedFiles.Remove(file);
+        if (selectedPreviewIndex >= uploadedFiles.Count && uploadedFiles.Any())
+        {
+            selectedPreviewIndex = uploadedFiles.Count - 1;
+        }
+    }
+
+    private void PrevPreview()
+    {
+        if (selectedPreviewIndex > 0) selectedPreviewIndex--;
+    }
+
+    private void NextPreview()
+    {
+        if (selectedPreviewIndex < uploadedFiles.Count - 1) selectedPreviewIndex++;
+    }
+
+    private void ZoomIn()
+    {
+        if (zoomScale < 2.5) zoomScale = Math.Round(zoomScale + 0.25, 2);
+    }
+
+    private void ZoomOut()
+    {
+        if (zoomScale > 0.75) zoomScale = Math.Round(zoomScale - 0.25, 2);
+    }
+
+    private void ResetZoom()
+    {
+        zoomScale = 1.0;
+    }
+
+    private void ToggleImageZoom()
+    {
+        zoomScale = zoomScale > 1.0 ? 1.0 : 1.5;
+    }
+
+    private async Task AnalyzeDocuments()
+    {
+        if (!uploadedFiles.Any())
+        {
+            errorMessage = "Please upload or paste at least one document.";
+            return;
+        }
+
+        isAnalyzing = true;
+        errorMessage = null;
+        validationWarnings.Clear();
+        StateHasChanged();
+
+        try
+        {
+            string fullOcrText = "";
+            string firstBase64 = "";
+
+            foreach (var file in uploadedFiles)
+            {
+                using var stream = new MemoryStream(file.Bytes);
+                var ocrRes = await OcrService.ExtractTextAsync(stream, file.Name, file.ContentType);
+                if (ocrRes.IsSuccess && !string.IsNullOrWhiteSpace(ocrRes.Text))
+                {
+                    fullOcrText += ocrRes.Text + "\n\n";
+                }
+
+                if (string.IsNullOrEmpty(firstBase64) && !file.ContentType.Contains("pdf"))
+                {
+                    firstBase64 = Convert.ToBase64String(file.Bytes);
+                }
+            }
+
+            if (string.IsNullOrEmpty(firstBase64) && uploadedFiles.Any())
+            {
+                firstBase64 = Convert.ToBase64String(uploadedFiles.First().Bytes);
+            }
+
+            // Provider extraction pipeline
+            var aiResult = await AiService.ExtractDocumentAsync(fullOcrText, firstBase64);
+
+            if (captureMode == 1)
+            {
+                // MODE 1: Purchase / Invoice Mapping
+                var mapped = await FieldMappingService.MapPurchaseAsync(aiResult);
+                validationWarnings.AddRange(mapped.Warnings);
+
+                await ValidationService.ValidatePurchaseAsync(mapped);
+                validationWarnings.AddRange(mapped.Warnings);
+
+                purchaseForm = new Purchase
+                {
+                    PurchaseNumber = "PUR-" + DateTime.Now.ToString("yyMMdd") + new Random().Next(100, 999),
+                    Supplier = mapped.Data?.Vendor ?? aiResult.Vendor ?? "",
+                    InvoiceNumber = mapped.Data?.InvoiceNumber ?? aiResult.InvoiceNumber ?? aiResult.ChallanNumber ?? "",
+                    PurchaseDate = mapped.Data?.InvoiceDate ?? aiResult.DocumentDate ?? DateTime.Today,
+                    Notes = "Created via Dynamic AI Document Extraction"
+                };
+
+                poNumber = mapped.Data?.PurchaseOrderNumber ?? aiResult.PurchaseOrderNumber ?? "";
+                currency = mapped.Data?.Currency ?? aiResult.Currency ?? "BDT";
+                paymentTerms = mapped.Data?.PaymentTerms ?? aiResult.PaymentTerms ?? "";
+                invoiceTotal = mapped.Data?.Total ?? aiResult.TotalAmount ?? 0m;
+                taxAmount = mapped.Data?.Tax ?? aiResult.Tax ?? 0m;
+                discountAmount = mapped.Data?.Discount ?? aiResult.Discount ?? 0m;
+
+                if (mapped.Data?.Items != null && mapped.Data.Items.Any())
+                {
+                    foreach (var item in mapped.Data.Items)
+                    {
+                        var modelName = item.Description;
+                        if (!string.IsNullOrWhiteSpace(item.Model) && !item.Description.Contains(item.Model, StringComparison.OrdinalIgnoreCase))
+                        {
+                            modelName = $"{item.Description} ({item.Model})";
+                        }
+
+                        var qty = item.Quantity > 0 ? item.Quantity : 1;
+                        var serialsList = new List<string>();
+                        if (item.SerialNumbers != null && item.SerialNumbers.Any())
+                        {
+                            serialsList.AddRange(item.SerialNumbers);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(item.SerialNumber))
+                        {
+                            var splitSns = item.SerialNumber.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            serialsList.AddRange(splitSns);
+                        }
+
+                        // Auto-Split Rows in Invoice Table: Each individual physical unit gets its own row of Qty 1
+                        if (qty > 1)
+                        {
+                            for (int q = 0; q < qty; q++)
+                            {
+                                var assignedSerial = q < serialsList.Count ? serialsList[q] : "";
+                                purchaseForm.Items.Add(new PurchaseItem
+                                {
+                                    PurchaseId = purchaseForm.Id,
+                                    Category = InferCategory(item.Description, item.Model),
+                                    Manufacturer = item.Manufacturer,
+                                    ModelName = modelName,
+                                    Quantity = 1,
+                                    UnitCost = item.UnitPrice,
+                                    CandidateSerial = assignedSerial
+                                });
+                            }
+                        }
+                        else
+                        {
+                            purchaseForm.Items.Add(new PurchaseItem
+                            {
+                                PurchaseId = purchaseForm.Id,
+                                Category = InferCategory(item.Description, item.Model),
+                                Manufacturer = item.Manufacturer,
+                                ModelName = modelName,
+                                Quantity = 1,
+                                UnitCost = item.UnitPrice,
+                                CandidateSerial = serialsList.FirstOrDefault() ?? item.SerialNumber ?? ""
+                            });
+                        }
+                    }
+                }
+                else
+                {
+                    AddItemRow();
+                }
+
+                if (!string.IsNullOrWhiteSpace(purchaseForm.Supplier) && !string.IsNullOrWhiteSpace(purchaseForm.InvoiceNumber))
+                {
+                    isDuplicate = await PurchaseService.CheckDuplicateInvoiceAsync(purchaseForm.Supplier, purchaseForm.InvoiceNumber);
+                }
+
+                currentStep = 2;
+            }
+            else
+            {
+                // MODE 2: Physical Device Label / Specs Mapping
+                var mappedDevice = await FieldMappingService.MapDeviceAsync(aiResult);
+                candidateSerials.Clear();
+
+                if (!string.IsNullOrWhiteSpace(mappedDevice.Data?.SerialNumber))
+                {
+                    candidateSerials.Add(mappedDevice.Data.SerialNumber);
+                }
+                if (mappedDevice.Data?.CandidateSerials != null)
+                {
+                    foreach (var s in mappedDevice.Data.CandidateSerials)
+                    {
+                        if (!candidateSerials.Contains(s)) candidateSerials.Add(s);
+                    }
+                }
+                if (aiResult.CandidateSerials != null)
+                {
+                    foreach (var s in aiResult.CandidateSerials)
+                    {
+                        if (!candidateSerials.Contains(s)) candidateSerials.Add(s);
+                    }
+                }
+
+                directDevice = new Device
+                {
+                    Brand = mappedDevice.Data?.Manufacturer ?? aiResult.Manufacturer ?? "",
+                    DeviceName = mappedDevice.Data?.Model ?? aiResult.Model ?? "",
+                    Serial = mappedDevice.Data?.SerialNumber ?? candidateSerials.FirstOrDefault() ?? "",
+                    Processor = mappedDevice.Data?.Processor ?? aiResult.Processor ?? "",
+                    Ram = mappedDevice.Data?.Ram ?? aiResult.Ram ?? "",
+                    Ssd = mappedDevice.Data?.Ssd ?? aiResult.Ssd ?? "",
+                    Hdd = mappedDevice.Data?.Hdd ?? aiResult.Hdd ?? "",
+                    Category = InferCategory($"{fullOcrText} {mappedDevice.Data?.Model} {aiResult.Model}", mappedDevice.Data?.Manufacturer ?? aiResult.Manufacturer),
+                    OwnerCompany = "PrimeTech Solutions Ltd.",
+                    Condition = "New",
+                    Status = DeviceStatus.InStore,
+                    WarrantyMonths = 36,
+                    ReceivedDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                    Note = "Direct AI intake without upfront invoice"
+                };
+
+                currentStep = 2;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error during extraction pipeline: {ex.Message}";
+        }
+        finally
+        {
+            isAnalyzing = false;
+        }
+    }
+
+    private void AddItemRow()
+    {
+        if (purchaseForm != null)
+        {
+            purchaseForm.Items.Add(new PurchaseItem
+            {
+                PurchaseId = purchaseForm.Id,
+                Category = "General",
+                ModelName = "",
+                Manufacturer = "",
+                Quantity = 1,
+                UnitCost = 0m,
+                CandidateSerial = ""
+            });
+        }
+    }
+
+    private void SplitRow(PurchaseItem item)
+    {
+        if (purchaseForm == null || (item.Quantity ?? 1) <= 1) return;
+        var count = item.Quantity.Value;
+        var serials = (item.CandidateSerial ?? "")
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+
+        var list = purchaseForm.Items.ToList();
+        var index = list.IndexOf(item);
+        if (index < 0) return;
+
+        list.RemoveAt(index);
+
+        for (int i = 0; i < count; i++)
+        {
+            var sn = i < serials.Count ? serials[i] : "";
+            list.Insert(index + i, new PurchaseItem
+            {
+                PurchaseId = purchaseForm.Id,
+                Category = item.Category,
+                Manufacturer = item.Manufacturer,
+                ModelName = item.ModelName,
+                Quantity = 1,
+                UnitCost = item.UnitCost,
+                CandidateSerial = sn
+            });
+        }
+
+        purchaseForm.Items = list;
+    }
+
+    private void SplitAllMultiQtyRows()
+    {
+        if (purchaseForm == null) return;
+        var itemsToSplit = purchaseForm.Items.Where(i => (i.Quantity ?? 1) > 1).ToList();
+        foreach (var item in itemsToSplit)
+        {
+            SplitRow(item);
+        }
+    }
+
+    private static string InferCategory(string? desc, string? model)
+    {
+        var text = $"{desc} {model}".ToLowerInvariant();
+        if (text.Contains("switch") || text.Contains("catalyst") || text.Contains("sfp") || text.Contains("router") || text.Contains("gateway"))
+            return "Network Switch";
+        if (text.Contains("access point") || text.Contains("wifi") || text.Contains("ap") || text.Contains("cbw"))
+            return "Access Point";
+        if (text.Contains("laptop") || text.Contains("expertbook") || text.Contains("thinkpad") || text.Contains("latitude") || text.Contains("notebook") || text.Contains("macbook"))
+            return "Laptop";
+        if (text.Contains("desktop") || text.Contains("workstation") || text.Contains("optiplex") || text.Contains("tower"))
+            return "Desktop";
+        if (text.Contains("monitor") || text.Contains("display") || text.Contains("screen") || text.Contains("led") || text.Contains("lcd") || text.Contains("k202"))
+            return "Monitor";
+        if (text.Contains("ssd") || text.Contains("ram") || text.Contains("hdd") || text.Contains("drive") || text.Contains("memory"))
+            return "Component";
+        if (text.Contains("server"))
+            return "Server";
+        return "IT Equipment";
+    }
+
+    private async Task PostPurchase()
+    {
+        if (purchaseForm == null) return;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(purchaseForm.Supplier))
+        {
+            errorMessage = "Vendor / Supplier is required.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(purchaseForm.InvoiceNumber))
+        {
+            errorMessage = "Invoice number is required.";
+            return;
+        }
+        if (!purchaseForm.Items.Any())
+        {
+            errorMessage = "At least one line item is required.";
+            return;
+        }
+
+        isPosting = true;
+        StateHasChanged();
+        try
+        {
+            // If documents were uploaded in AI Intake, save them to wwwroot/uploads/invoices
+            if (uploadedFiles.Any() && string.IsNullOrEmpty(purchaseForm.InvoiceFilePath))
+            {
+                var uploadsDir = Path.Combine(Env.WebRootPath, "uploads", "invoices");
+                Directory.CreateDirectory(uploadsDir);
+
+                var savedPaths = new List<string>();
+                foreach (var upFile in uploadedFiles)
+                {
+                    var ext = Path.GetExtension(upFile.Name);
+                    if (string.IsNullOrEmpty(ext))
+                    {
+                        ext = upFile.ContentType.Contains("pdf") ? ".pdf" : ".png";
+                    }
+                    var safeName = $"{purchaseForm.PurchaseNumber}_{Guid.NewGuid().ToString("N").Substring(0, 8)}{ext}";
+                    var fullPath = Path.Combine(uploadsDir, safeName);
+                    await File.WriteAllBytesAsync(fullPath, upFile.Bytes);
+                    savedPaths.Add($"/uploads/invoices/{safeName}");
+                }
+
+                if (savedPaths.Any())
+                {
+                    purchaseForm.InvoiceFilePath = string.Join("|", savedPaths);
+                }
+            }
+
+            await PurchaseService.AddPurchaseAsync(purchaseForm);
+            await LoadAllPurchasesAsync();
+            currentStep = 3;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Database error saving purchase: {ex.Message}";
+        }
+        finally
+        {
+            isPosting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RegisterDirectDevice()
+    {
+        if (directDevice == null) return;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(directDevice.Serial))
+        {
+            errorMessage = "Serial number is required to register a physical asset.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(directDevice.DeviceName))
+        {
+            directDevice.DeviceName = "Physical Device";
+        }
+
+        isRegisteringDevice = true;
+        StateHasChanged();
+
+        try
+        {
+            directDevice.PurchaseItemId = null; // Unbilled / Direct intake
+            await DeviceService.AddDeviceAsync(directDevice);
+            createdDevice = directDevice;
+            currentStep = 3;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error registering device: {ex.Message}";
+        }
+        finally
+        {
+            isRegisteringDevice = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetForm()
+    {
+        currentStep = 1;
+        uploadedFiles.Clear();
+        purchaseForm = null;
+        directDevice = null;
+        createdDevice = null;
+        candidateSerials.Clear();
+        errorMessage = null;
+        isDuplicate = false;
+        validationWarnings.Clear();
+        selectedPreviewIndex = 0;
+        zoomScale = 1.0;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("clipboardPasteHelper.disposePaste");
+        }
+        catch { }
+        dotNetHelper?.Dispose();
+    }
+}

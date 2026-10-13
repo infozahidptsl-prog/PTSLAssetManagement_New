@@ -1,0 +1,995 @@
+@page "/employee/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Infrastructure.Services
+@using AssetManagement.Web.Models
+@inject EmployeeService EmployeeService
+@inject HandoverService HandoverService
+@inject DeviceService DeviceService
+@inject NavigationManager NavigationManager
+@inject AssetManagement.Core.Interfaces.ISettingsService SettingsService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(employee?.Name ?? "Employee") - PrimeTech Asset Manager</PageTitle>
+
+@if (employee == null)
+{
+    <div class="px-6 py-20 text-center lg:px-9">
+        <p class="text-sm font-medium text-txt-hi">Employee not found</p>
+        <a href="/employees" class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent-400 hover:text-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Back to employees
+        </a>
+    </div>
+}
+else
+{
+    <div class="px-4 pt-2 lg:px-4">
+        <a href="/employees" class="inline-flex items-center gap-1.5 text-sm text-txt-mid transition-colors duration-150 hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Employees
+        </a>
+
+        <div class="mt-3 flex flex-col gap-6 pb-6 lg:flex-row lg:items-stretch lg:flex-wrap xl:flex-nowrap">
+            <!-- Left Column: Image & Name -->
+            <div class="flex w-full shrink-0 flex-col rounded-2xl bg-surface p-5 border border-line shadow-sm md:w-[260px]">
+                <div class="group relative flex w-full flex-col items-center justify-center overflow-hidden rounded-xl bg-slate-100 border border-line-soft shadow-inner" style="aspect-ratio: 1/1;">
+                    @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
+                    {
+                        <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="h-full w-full object-cover" />
+                    }
+                    else
+                    {
+                        <span class="select-none text-7xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
+                    }
+                    
+                    <!-- Hover Overlay for Image Controls -->
+                    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white/70 opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
+                        <label class="relative flex cursor-pointer items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-txt-hi shadow-sm ring-1 ring-line transition-colors hover:bg-slate-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                            Upload
+                            <InputFile OnChange="HandleProfileUpload" class="absolute inset-0 h-full w-full opacity-0 cursor-pointer" accept="image/png, image/jpeg" />
+                        </label>
+                        <div class="flex gap-2">
+                            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-md bg-white text-txt-mid shadow-sm ring-1 ring-line transition-colors hover:bg-slate-50 hover:text-txt-hi" title="Edit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                            </button>
+                            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-md bg-white text-txt-mid shadow-sm ring-1 ring-line transition-colors hover:bg-slate-50 hover:text-txt-hi" title="Crop">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+                            </button>
+                            @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
+                            {
+                                <button type="button" @onclick="RemoveProfileImage" class="flex h-9 w-9 items-center justify-center rounded-md bg-white text-red-500 shadow-sm ring-1 ring-line transition-colors hover:bg-red-50 hover:text-red-600" title="Remove">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+                
+                <h2 class="mt-5 text-xl font-bold tracking-tight text-txt-hi text-center">@employee.Name</h2>
+                <p class="mt-0.5 text-sm font-medium text-txt-mid text-center">@employee.Designation</p>
+                
+                <div class="mt-6 flex justify-center gap-3">
+                    @if (!string.IsNullOrEmpty(employee.Email))
+                    {
+                        <a href="mailto:@employee.Email" class="flex h-10 w-10 items-center justify-center rounded-full border border-indigo-100 bg-indigo-50 text-indigo-600 shadow-sm transition-colors hover:bg-indigo-100 hover:border-indigo-200" title="Email">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        </a>
+                    }
+                    @if (!string.IsNullOrEmpty(employee.Contact))
+                    {
+                        <a href="https://wa.me/@(new string(employee.Contact.Where(char.IsDigit).ToArray()))" target="_blank" class="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm transition-colors hover:bg-emerald-100 hover:border-emerald-200" title="WhatsApp">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>
+                        </a>
+                    }
+                    @{
+                        var linkedInLink = !string.IsNullOrWhiteSpace(employee.LinkedInUrl) 
+                            ? employee.LinkedInUrl 
+                            : $"https://www.linkedin.com/search/results/people/?keywords={Uri.EscapeDataString(employee.Name)}";
+                        var linkedInTitle = !string.IsNullOrWhiteSpace(employee.LinkedInUrl) ? "LinkedIn Profile" : "Search on LinkedIn";
+                    }
+                    <a href="@linkedInLink" target="_blank" class="flex h-10 w-10 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-600 shadow-sm transition-colors hover:bg-blue-100 hover:border-blue-200" title="@linkedInTitle">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
+                    </a>
+                </div>
+
+                <div class="mt-4 flex flex-col items-center w-full">
+                    <button type="button" @onclick="OpenQrModal" 
+                            class="group relative flex flex-col items-center rounded-xl border border-line bg-canvas p-2.5 shadow-xs transition-all duration-200 hover:border-accent-border hover:bg-elevated hover:shadow-md focus:outline-none focus:ring-2 focus:ring-accent-500/20" 
+                            title="Click to enlarge & scan QR code">
+                        <div class="rounded-lg bg-white p-2 shadow-xs border border-line-soft transition-transform duration-200 group-hover:scale-105">
+                            <img src="@GetEmployeeQrUrl(employee, 240)" alt="Employee Profile QR" class="h-24 w-24 object-contain" />
+                        </div>
+                        <div class="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-txt-mid group-hover:text-accent-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                            <span>Click to enlarge / scan</span>
+                        </div>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Details Content -->
+            <div class="flex flex-none lg:flex-1 lg:min-w-[400px] flex-col rounded-2xl border border-line bg-surface p-5 lg:p-6 shadow-sm">
+                
+                <div class="mb-3 flex items-center justify-between border-b border-line-soft pb-3">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-base font-semibold text-txt-hi">Employee Information</h3>
+                        @if (employee.IsActive)
+                        {
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-600/20">
+                                <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span> Inactive
+                            </span>
+                        }
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" @onclick="OpenEditModal" class="flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-canvas text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors" title="Edit Employee">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        </button>
+                        <button type="button" @onclick="OpenDeleteModal" class="flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors" title="Delete Employee">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col min-w-0">
+                    <div class="flex flex-col w-full pb-6">
+                        <div class="flex flex-col w-full">
+                            <!-- Row 1 -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-3 px-4 rounded-lg bg-transparent">
+                                <!-- Employee ID -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Employee ID</span>
+                                    <span class="text-[13px] font-semibold text-txt-hi">@employee.EmployeeId</span>
+                                </div>
+                                <!-- Department -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Department</span>
+                                    <span class="text-[13px] font-medium text-txt-hi">@(string.IsNullOrEmpty(employee.Department) ? "—" : employee.Department)</span>
+                                </div>
+                            </div>
+
+                            <!-- Row 2 -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-3 px-4 rounded-lg bg-gray-50">
+                                <!-- Location -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Location</span>
+                                    <span class="text-[13px] font-medium text-txt-hi">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
+                                </div>
+                                <!-- Joining Date -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Joining Date</span>
+                                    <span class="text-[13px] font-medium text-txt-hi">@(employee.JoiningDate.HasValue && employee.JoiningDate.Value.Year > 1900 ? employee.JoiningDate.Value.ToString("MMM dd, yyyy") : "—")</span>
+                                </div>
+                            </div>
+
+                            <!-- Row 3 -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-3 px-4 rounded-lg bg-transparent">
+                                <!-- Team -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Team</span>
+                                    <span class="text-[13px] font-medium text-txt-hi">@(string.IsNullOrEmpty(employee.Team) ? "—" : employee.Team)</span>
+                                </div>
+                                <!-- Reports To -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Reports To</span>
+                                    <span class="text-[13px] font-medium text-txt-hi">@(string.IsNullOrEmpty(employee.Manager) ? "—" : employee.Manager)</span>
+                                </div>
+                            </div>
+
+                            <!-- Row 4 -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-3 px-4 rounded-lg bg-gray-50">
+                                <!-- Blood Group -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Blood Group</span>
+                                    <span class="text-[13px] font-medium text-txt-hi">@(string.IsNullOrEmpty(employee.BloodGroup) ? "—" : employee.BloodGroup)</span>
+                                </div>
+                                <!-- Phone -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Phone</span>
+                                    @if (!string.IsNullOrEmpty(employee.Contact))
+                                    {
+                                        <a href="tel:@employee.Contact" class="text-[13px] font-medium text-txt-hi hover:text-accent-500 hover:underline">@employee.Contact</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-[13px] font-medium text-txt-hi">—</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Row 5 -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-3 px-4 rounded-lg bg-transparent">
+                                <!-- Email -->
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Email</span>
+                                    @if (!string.IsNullOrEmpty(employee.Email))
+                                    {
+                                        <a href="mailto:@employee.Email" class="text-[13px] font-medium text-txt-hi hover:text-accent-500 hover:underline">@employee.Email</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-[13px] font-medium text-txt-hi">—</span>
+                                    }
+                                </div>
+                                <div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto flex flex-col gap-1 border-t border-line-soft pt-5">
+                        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Assets Currently Held</span>
+                        <div class="mt-1 flex flex-wrap items-center gap-3">
+                            <span class="text-2xl font-bold text-txt-hi">@heldItems.Count</span>
+                            @if (heldItems.Count > 0)
+                            {
+                                <span class="text-sm text-txt-mid">in physical possession.</span>
+                                <div class="flex flex-wrap items-center gap-2 ml-1">
+                                    @foreach (var group in heldItems.GroupBy(d => string.IsNullOrWhiteSpace(d.Category) ? "Other" : d.Category))
+                                    {
+                                        var isSelected = string.Equals(selectedCategoryFilter, group.Key, StringComparison.OrdinalIgnoreCase);
+                                        var colors = GetCategoryColors(group.Key);
+                                        <button type="button" 
+                                                @onclick="() => ToggleCategory(group.Key)" 
+                                                class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ring-1 transition-all cursor-pointer @(isSelected ? "ring-2 ring-accent-500 bg-accent-500 text-white shadow-md scale-105" : $"ring-inset shadow-xs hover:scale-105 hover:ring-accent-400 hover:shadow-sm {colors.mainClass}")"
+                                                title="@(isSelected ? $"Click to show all (remove {group.Key} filter)" : $"Click to filter by {group.Key}")">
+                                            @group.Key
+                                            <span class="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold @(isSelected ? "bg-white text-accent-600" : colors.badgeClass)">
+                                                @group.Count()
+                                            </span>
+                                        </button>
+                                    }
+                                    @if (!string.IsNullOrEmpty(selectedCategoryFilter))
+                                    {
+                                        <button type="button" @onclick="ClearCategoryFilter" class="inline-flex items-center gap-1 rounded-md bg-canvas px-2 py-1 text-xs font-medium text-txt-lo hover:text-danger-600 hover:bg-danger-soft border border-line-soft transition-colors cursor-pointer" title="Clear category filter">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                            <span>Clear</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-sm text-txt-lo">No devices currently in hand.</span>
+                            }
+                        </div>
+                        @if (repairItems.Count > 0)
+                        {
+                            <div class="mt-2.5 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-900 border border-amber-200/80">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 shrink-0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                                <span><strong>@repairItems.Count @(repairItems.Count == 1 ? "device" : "devices")</strong> currently in repair at vendor (temporarily surrendered).</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Third Column: About Card -->
+            @if (!string.IsNullOrWhiteSpace(employee.About))
+            {
+                <div class="flex flex-col rounded-3xl border border-line-soft bg-surface p-7 md:p-9 shadow-md w-full lg:w-[320px] shrink-0 relative overflow-hidden transition-all hover:shadow-lg">
+                    <!-- Elegant decorative background accent -->
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-[#DA943B]/10 to-transparent rounded-full -z-0 pointer-events-none"></div>
+                    
+                    <h3 class="text-xs font-bold text-txt-hi mb-5 uppercase tracking-widest border-b border-line-soft pb-4 relative z-10 flex items-center justify-between">
+                        <span>About</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#DA943B] opacity-70"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                    </h3>
+                    
+                    <div class="text-[13.5px] leading-[1.8] text-slate-700 text-justify relative z-10 
+                                [&>p]:mb-4 [&>p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic">
+                        @ParseAboutText(employee.About)
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <section aria-label="Assets held" class="bg-surface">
+        <div class="px-6 pt-5 pb-2 lg:px-9 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+                <h2 class="text-[11px] font-medium uppercase tracking-widest text-txt-lo">
+                    Currently issued
+                </h2>
+                @if (!string.IsNullOrEmpty(selectedCategoryFilter))
+                {
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-accent-50 px-2.5 py-0.5 text-xs font-semibold text-accent-700 border border-accent-200">
+                        <span>Category: <strong>@selectedCategoryFilter</strong></span>
+                        <button type="button" @onclick="ClearCategoryFilter" class="hover:text-accent-900 cursor-pointer ml-0.5" title="Remove filter">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </span>
+                }
+            </div>
+            <span class="text-xs text-txt-lo">
+                Showing @FilteredHeldItems.Count() of @allAssignedItems.Count item@(allAssignedItems.Count == 1 ? "" : "s")
+            </span>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 pb-4 lg:px-9">
+            <div class="relative w-full max-w-md">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="search" @bind="searchQuery" @bind:event="oninput" placeholder="Search currently issued assets..." class="w-full rounded-lg border border-line-soft bg-elevated pl-9 pr-4 py-1.5 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all" />
+            </div>
+            <button type="button" @onclick="ShowAllocateModal" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-accent-600 focus:outline-none whitespace-nowrap" style="padding: 7px 18px; white-space: nowrap;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                <span>Issue Asset</span>
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full whitespace-nowrap text-left text-sm">
+                <thead class="border-b border-line-soft bg-canvas">
+                    <tr>
+                        <th scope="col" class="py-2 pl-6 pr-3 text-[10px] font-semibold uppercase tracking-widest text-txt-mid lg:pl-9">Asset ID &amp; Item</th>
+                        <th scope="col" class="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-txt-mid">Type</th>
+                        <th scope="col" class="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-txt-mid">Specification</th>
+                        <th scope="col" class="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-txt-mid">Status</th>
+                        <th scope="col" class="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-txt-mid">USER</th>
+                        <th scope="col" class="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-txt-mid">Warranty</th>
+                        <th scope="col" class="px-3 py-2 w-4"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-line-soft bg-surface">
+                    @if (!FilteredHeldItems.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="py-10 text-center text-sm text-txt-lo">
+                                <div class="flex flex-col items-center justify-center gap-2">
+                                    <svg class="h-8 w-8 text-txt-lo/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>No assets found matching the current filter@(string.IsNullOrEmpty(selectedCategoryFilter) ? "" : $" ({selectedCategoryFilter})").</span>
+                                    @if (!string.IsNullOrEmpty(selectedCategoryFilter) || !string.IsNullOrEmpty(searchQuery))
+                                    {
+                                        <button type="button" @onclick="ResetFilters" class="text-xs font-semibold text-accent-600 hover:text-accent-700 hover:underline">
+                                            Clear all filters
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var device in FilteredHeldItems)
+                    {
+                        var isExpanded = expandedDeviceIds.Contains(device.Id);
+                        var catColors = GetCategoryColors(device.Category);
+                        <tr class="cursor-pointer bg-surface transition-colors hover:bg-elevated group border-b border-line-soft relative" @onclick="() => ToggleExpanded(device.Id)">
+                            <th scope="row" class="py-2 pl-6 pr-3 text-left align-middle lg:pl-9">
+                                <AssetManagement.Web.Components.Shared.AssetIdentityCell Device="device" />
+                            </th>
+                            <td class="px-3 py-3 align-middle">
+                                <AssetManagement.Web.Components.Shared.AssetTypeBadge Device="device" />
+
+                            </td>
+                            <td class="px-3 py-3 align-middle">
+                                <span class="block text-xs font-medium text-txt-mid truncate max-w-[250px]" title="@(string.Join(" - ", new[] { (device.Category == "Monitor" ? device.DeviceName : null), device.Processor, device.Ram, device.Ssd, device.Hdd, device.MonitorDisplay }.Where(s => !string.IsNullOrWhiteSpace(s))))">
+                                    @{
+                                        var specs = new[] { (device.Category == "Monitor" ? device.DeviceName : null), device.Processor, device.Ram, device.Ssd, device.Hdd, device.MonitorDisplay }.Where(s => !string.IsNullOrWhiteSpace(s));
+                                        var specStr = string.Join(" - ", specs);
+                                    }
+                                    @if (!string.IsNullOrEmpty(specStr))
+                                    {
+                                        @specStr
+                                    }
+                                    else
+                                    {
+                                        <span class="text-txt-lo">&mdash;</span>
+                                    }
+                                </span>
+                                <span class="block text-xs text-txt-lo mt-1">@(device.Status == AssetManagement.Core.Enums.DeviceStatus.InRepair ? "Under Repair" : (string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition))</span>
+                            </td>
+                            <td class="px-3 py-3 align-middle">
+                                <StatusBadge Status="device.Status" />
+                            </td>
+                            <td class="px-3 py-3 align-middle">
+                                @if (device.Status == AssetManagement.Core.Enums.DeviceStatus.InRepair)
+                                {
+                                    <span class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-300">
+                                        At Repair Center
+                                    </span>
+                                    <span class="block text-[10px] text-txt-lo mt-0.5">Assigned: @employee.Name</span>
+                                }
+                                else
+                                {
+                                    <span class="block text-xs font-medium text-txt-hi">@employee.Name</span>
+                                    <span class="tnum block font-mono text-[10px] text-txt-lo mt-0.5">@employee.EmployeeId</span>
+                                }
+                            </td>
+                            <td class="px-3 py-3 align-middle">
+                                @{
+                                    var end = device.WarrantyEndDate;
+                                    if (!end.HasValue)
+                                    {
+                                        <span class="text-xs text-txt-lo">&mdash;</span>
+                                    }
+                                    else if (end.Value < DateTime.Now)
+                                    {
+                                        <span class="text-xs font-medium text-red-500">Expired <span class="text-txt-lo font-normal">@end.Value.ToString("dd MMM yyyy")</span></span>
+                                    }
+                                    else
+                                    {
+                                        var left = (end.Value - DateTime.Now).Days;
+                                        <span class="text-xs text-txt-mid">In warranty <span class="font-medium text-txt-hi">@left d</span> left</span>
+                                    }
+                                }
+                            </td>
+                            <td class="px-3 py-3 text-right align-middle">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo transition-transform duration-200 @(isExpanded ? "rotate-180" : "")" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </td>
+                        </tr>
+                        @if (isExpanded)
+                        {
+                            <tr>
+                                <td colspan="7" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
+                                    <div class="px-2 lg:px-3">
+                                        <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" OnStateChanged="LoadData" IsInline="true" HideEmployeeProfileLink="true" />
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section aria-label="Movement audit history link" class="mt-8 border-t border-line-soft bg-surface px-6 py-4 lg:px-9 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-b-xl">
+        <div class="flex items-center gap-2.5 text-txt-mid text-xs">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </span>
+            <span>Historical handovers, allocations, and returns are tracked in the central audit ledger.</span>
+        </div>
+        <a href="/movements?search=@(Uri.EscapeDataString(employee?.Name ?? ""))" 
+           class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all duration-150 hover:shadow hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+           style="background: linear-gradient(135deg, #eff6ff 0%, #ede9fe 100%); border: 1.5px solid #c7d2fe; color: #4338ca;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: #6366f1;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span style="color: #4338ca; font-weight: 600;">View complete transfer history in audit log</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #6366f1;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+    </section>
+
+    @if (showAllocateModal)
+    {
+        <AllocateDeviceModal @bind-IsOpen="showAllocateModal" 
+                             OnAllocated="OnDeviceAllocated" 
+                             AvailableDevices="allDevices.Where(d => d.Status == AssetManagement.Core.Enums.DeviceStatus.InStore).ToList()"
+                             ActiveEmployees="allEmployees"
+                             CurrentHoldings="heldItems"
+                             PresetEmployeeName="@employee?.Name" />
+    }
+
+    <!-- Add / Edit Employee Modal -->
+    <AddEmployeeModal Show="showAddEditModal" Model="editModel" IsEdit="true"
+        OnClose="CloseEditModal" OnSave="SaveEmployee" />
+
+    <!-- Delete Confirmation Modal -->
+    @if (showDeleteModal && employee != null)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
+            <div class="w-full max-w-md rounded-2xl bg-surface shadow-xl border border-line-soft">
+                <div class="flex items-start gap-4 p-6">
+                    @if (heldItems.Count > 0)
+                    {
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-semibold text-txt-hi">Cannot delete — assets still held</h2>
+                            <p class="text-sm text-txt-mid mt-1">@employee.Name still holds @heldItems.Count asset@(heldItems.Count == 1 ? "" : "s"). Return them first before deleting this record.</p>
+                            <ul class="mt-3 space-y-1">
+                                @foreach (var a in heldItems)
+                                {
+                                    <li class="text-xs text-txt-mid font-medium">• @a.Brand @a.DeviceName <span class="font-mono text-txt-lo">@a.AssetTag</span></li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-semibold text-txt-hi">Delete @employee.Name?</h2>
+                            <p class="text-sm text-txt-mid mt-1">This will permanently remove their staff record. Past movements in the audit trail will keep their name. This cannot be undone.</p>
+                        </div>
+                    }
+                </div>
+                <div class="flex items-center justify-end gap-3 border-t border-line-soft bg-elevated px-6 py-4 rounded-b-2xl">
+                    <button type="button" @onclick="CloseDeleteModal" class="rounded-lg px-4 py-2.5 text-sm font-semibold text-txt-hi hover:bg-raised focus:outline-none border border-line">Cancel</button>
+                    @if (heldItems.Count > 0)
+                    {
+                        <a href="/store-returns" class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none">
+                            Go to Receive Returns
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="ConfirmDelete" class="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none">Delete employee</button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Employee Profile QR Modal -->
+    @if (showQrModal && employee != null)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-150" @onclick="CloseQrModal">
+            <div class="w-full max-w-md rounded-2xl bg-surface shadow-2xl border border-line-soft overflow-hidden" @onclick:stopPropagation>
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b border-line-soft px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-50 text-accent-600 border border-accent-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-txt-hi">Employee Profile QR</h3>
+                            <p class="text-xs text-txt-mid">@employee.Name &middot; <span class="font-mono font-medium text-accent-600">@(employee.EmployeeId ?? employee.Id)</span></p>
+                        </div>
+                    </div>
+                    <button type="button" @onclick="CloseQrModal" class="flex h-8 w-8 items-center justify-center rounded-lg text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="p-6 flex flex-col items-center">
+                    <!-- QR Box -->
+                    <div class="rounded-2xl border-2 border-line-soft bg-white p-4 shadow-sm">
+                        <img src="@GetEmployeeQrUrl(employee, 360)" alt="Employee QR Code" class="h-64 w-64 object-contain" />
+                    </div>
+
+                    <div class="mt-4 text-center">
+                        <p class="text-xs font-medium text-txt-hi">Scan with smartphone camera to view live profile & custody assets.</p>
+                        <p class="text-[11px] text-txt-lo mt-0.5">Scannable by any mobile device on the same local Wi-Fi / network.</p>
+                    </div>
+
+                    <!-- Scannable URL with Copy Button -->
+                    <div class="mt-4 w-full">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-semibold text-txt-mid">Direct Profile Link</label>
+                            @if (copiedLink)
+                            {
+                                <span class="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Copied to clipboard!
+                                </span>
+                            }
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" readonly value="@GetEmployeeProfileDeepLink(employee)" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-mono text-txt-hi select-all" />
+                            <button type="button" @onclick="CopyDeepLink" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-txt-hi shadow-xs hover:bg-elevated transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex items-center justify-between border-t border-line-soft bg-elevated px-6 py-3.5">
+                    <a href="@GetEmployeeProfileDeepLink(employee)" target="_blank" class="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-500 hover:text-accent-600 hover:underline">
+                        <span>Open preview in new tab</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                    </a>
+                    <button type="button" @onclick="CloseQrModal" class="rounded-lg border border-line bg-surface px-4 py-2 text-xs font-semibold text-txt-hi hover:bg-raised transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Search { get; set; }
+
+    private Employee? employee;
+    private List<Device> heldItems = new();
+    private List<Device> repairItems = new();
+    private List<Device> allAssignedItems = new();
+    private string searchQuery = "";
+    private string? selectedCategoryFilter = null;
+    
+    private IEnumerable<Device> FilteredHeldItems
+    {
+        get
+        {
+            var items = allAssignedItems.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(selectedCategoryFilter))
+            {
+                if (selectedCategoryFilter.Equals("Other", StringComparison.OrdinalIgnoreCase))
+                {
+                    items = items.Where(d => string.IsNullOrWhiteSpace(d.Category));
+                }
+                else
+                {
+                    items = items.Where(d => !string.IsNullOrWhiteSpace(d.Category) && 
+                        d.Category.Trim().Equals(selectedCategoryFilter.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                items = items.Where(d => 
+                    (d.AssetTag != null && d.AssetTag.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (d.DeviceName != null && d.DeviceName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (d.Brand != null && d.Brand.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (d.Serial != null && d.Serial.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (d.Category != null && d.Category.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
+                );
+            }
+
+            return items;
+        }
+    }
+
+    private void ToggleCategory(string category)
+    {
+        if (string.Equals(selectedCategoryFilter, category, StringComparison.OrdinalIgnoreCase))
+        {
+            selectedCategoryFilter = null;
+        }
+        else
+        {
+            selectedCategoryFilter = category;
+        }
+    }
+
+    private void ClearCategoryFilter()
+    {
+        selectedCategoryFilter = null;
+    }
+
+    private void ResetFilters()
+    {
+        selectedCategoryFilter = null;
+        searchQuery = "";
+    }
+    private List<MovementDto> movements = new();
+    private bool showAllocateModal = false;
+    
+    private List<Device> allDevices = new();
+    private List<Employee> allEmployees = new();
+
+    // Edit modal state
+    private bool showAddEditModal = false;
+    private Employee editModel = new();
+    
+    // UI State
+    private bool showMovementHistory = false;
+    private bool showDeleteModal = false;
+    private HashSet<string> expandedDeviceIds = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        allDevices = await DeviceService.GetDevicesAsync();
+        allEmployees = await EmployeeService.GetEmployeesAsync(true);
+        
+        employee = allEmployees.FirstOrDefault(e => e.Id.Equals(Id, StringComparison.OrdinalIgnoreCase));
+        if (employee == null) return;
+
+        var allHandovers = await HandoverService.GetHandoversAsync();
+        var employeeHandovers = allHandovers.Where(h => h.To == employee.Name).ToList();
+        
+        var inUseBase = allDevices.Where(d => 
+            ((!string.IsNullOrEmpty(d.EmployeeId) && d.EmployeeId == employee.EmployeeId) || 
+            (!string.IsNullOrEmpty(d.UserName) && d.UserName == employee.Name)) &&
+            d.Status == AssetManagement.Core.Enums.DeviceStatus.InUse
+        ).ToList();
+
+        var repairBase = allDevices.Where(d => 
+            ((!string.IsNullOrEmpty(d.EmployeeId) && d.EmployeeId == employee.EmployeeId) || 
+            (!string.IsNullOrEmpty(d.UserName) && d.UserName == employee.Name)) &&
+            d.Status == AssetManagement.Core.Enums.DeviceStatus.InRepair
+        ).ToList();
+
+        heldItems = inUseBase;
+        repairItems = repairBase;
+        allAssignedItems = inUseBase.Concat(repairBase).ToList();
+
+        // Generate movement feed for this employee
+        var employeeMovements = new List<MovementDto>();
+        foreach (var h in employeeHandovers)
+        {
+            var d = await DeviceService.GetDeviceByIdAsync(h.DeviceId);
+            var assetId = d != null ? (string.IsNullOrEmpty(d.AssetTag) ? d.Id.ToString() : d.AssetTag) : h.DeviceId.ToString();
+            
+            employeeMovements.Add(new MovementDto
+            {
+                Type = "allocate",
+                From = h.From,
+                To = h.To,
+                ItemId = assetId,
+                Note = "Allocated to employee",
+                Date = DateTime.TryParse(h.Released, out var dtRel) ? dtRel : DateTime.Now
+            });
+
+            if (!string.IsNullOrEmpty(h.ReturnDate))
+            {
+                employeeMovements.Add(new MovementDto
+                {
+                    Type = "return",
+                    From = employee.Name,
+                    To = "In stock",
+                    ItemId = assetId,
+                    Note = h.Condition ?? "Returned",
+                    Date = DateTime.TryParse(h.ReturnDate, out var dtRet) ? dtRet : DateTime.Now
+                });
+            }
+        }
+        
+        movements = employeeMovements.OrderByDescending(m => m.Date).ToList();
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "??";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+
+    private (string mainClass, string badgeClass, string iconClass, string typeBadgeClass) GetCategoryColors(string category)
+    {
+        return category?.ToLower() switch
+        {
+            "laptop" => ("bg-blue-50 text-blue-700 ring-blue-600/20", "bg-blue-100 text-blue-800", "text-blue-500", "bg-blue-50 text-blue-700 ring-blue-600/20"),
+            "desktop" => ("bg-indigo-50 text-indigo-700 ring-indigo-600/20", "bg-indigo-100 text-indigo-800", "text-indigo-500", "bg-indigo-50 text-indigo-700 ring-indigo-600/20"),
+            "monitor" => ("bg-purple-50 text-purple-700 ring-purple-600/20", "bg-purple-100 text-purple-800", "text-purple-500", "bg-purple-50 text-purple-700 ring-purple-600/20"),
+            "test server" => ("bg-rose-50 text-rose-700 ring-rose-600/20", "bg-rose-100 text-rose-800", "text-rose-500", "bg-rose-50 text-rose-700 ring-rose-600/20"),
+            "server" => ("bg-rose-50 text-rose-700 ring-rose-600/20", "bg-rose-100 text-rose-800", "text-rose-500", "bg-rose-50 text-rose-700 ring-rose-600/20"),
+            "mobile" => ("bg-emerald-50 text-emerald-700 ring-emerald-600/20", "bg-emerald-100 text-emerald-800", "text-emerald-500", "bg-emerald-50 text-emerald-700 ring-emerald-600/20"),
+            "peripheral" => ("bg-amber-50 text-amber-700 ring-amber-600/20", "bg-amber-100 text-amber-800", "text-amber-500", "bg-amber-50 text-amber-700 ring-amber-600/20"),
+            "ssd" => ("bg-cyan-50 text-cyan-700 ring-cyan-600/20", "bg-cyan-100 text-cyan-800", "text-cyan-500", "bg-cyan-50 text-cyan-700 ring-cyan-600/20"),
+            "hdd" => ("bg-teal-50 text-teal-700 ring-teal-600/20", "bg-teal-100 text-teal-800", "text-teal-500", "bg-teal-50 text-teal-700 ring-teal-600/20"),
+            "ram" => ("bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20", "bg-fuchsia-100 text-fuchsia-800", "text-fuchsia-500", "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20"),
+            "power supply" => ("bg-orange-50 text-orange-700 ring-orange-600/20", "bg-orange-100 text-orange-800", "text-orange-500", "bg-orange-50 text-orange-700 ring-orange-600/20"),
+            _ => ("bg-slate-50 text-slate-700 ring-slate-600/20", "bg-slate-200 text-slate-800", "text-slate-500", "bg-slate-50 text-slate-700 ring-slate-600/20")
+        };
+    }
+
+    private void ShowAllocateModal() => showAllocateModal = true;
+    
+    private void CloseAllocateModal() => showAllocateModal = false;
+
+    private async Task OnDeviceAllocated(List<Handover> handovers)
+    {
+        foreach (var handover in handovers)
+        {
+            if (!string.IsNullOrEmpty(handover.DeviceId))
+            {
+                var emp = allEmployees?.FirstOrDefault(e => e.Name == handover.To);
+                var newAssignmentData = new Device
+                {
+                    UserName = emp?.Name ?? handover.To,
+                    EmployeeId = emp?.EmployeeId,
+                    Email = emp?.Email,
+                    Contact = emp?.Contact,
+                    Designation = emp?.Designation
+                };
+                await DeviceService.TransferDeviceAsync(handover.DeviceId, "TransferToUser", newAssignmentData);
+            }
+        }
+        showAllocateModal = false;
+        await LoadData();
+    }
+
+    private void OpenEditModal()
+    {
+        if (employee == null) return;
+        editModel = new Employee
+        {
+            Id = employee.Id,
+            EmployeeId = employee.EmployeeId,
+            Name = employee.Name,
+            Email = employee.Email,
+            Contact = employee.Contact,
+            Designation = employee.Designation,
+            Department = employee.Department,
+            JoiningDate = employee.JoiningDate.HasValue && employee.JoiningDate.Value.Year > 1900 ? employee.JoiningDate : null,
+            IsActive = employee.IsActive,
+            IsTeamAccount = employee.IsTeamAccount,
+            Location = employee.Location,
+            Team = employee.Team,
+            Manager = employee.Manager,
+            BloodGroup = employee.BloodGroup,
+            ProfileImageUrl = employee.ProfileImageUrl,
+            LinkedInUrl = employee.LinkedInUrl,
+            About = employee.About
+        };
+        showAddEditModal = true;
+    }
+
+    private void CloseEditModal() => showAddEditModal = false;
+
+    private async Task SaveEmployee(Employee emp)
+    {
+        if (emp.JoiningDate.HasValue && emp.JoiningDate.Value.Year <= 1900)
+        {
+            emp.JoiningDate = null;
+        }
+        await EmployeeService.UpdateEmployeeAsync(emp);
+        showAddEditModal = false;
+        await LoadData();
+    }
+    
+    private async Task HandleProfileUpload(InputFileChangeEventArgs e)
+    {
+        if (employee == null) return;
+        
+        var file = e.File;
+        if (file == null) return;
+        
+        try 
+        {
+            var format = "image/jpeg";
+            var resizedImageFile = await file.RequestImageFileAsync(format, 400, 400);
+            
+            using var ms = new MemoryStream();
+            await resizedImageFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+            var buffer = ms.ToArray();
+            
+            var base64 = Convert.ToBase64String(buffer);
+            var imageUrl = $"data:{format};base64,{base64}";
+            
+            employee.ProfileImageUrl = imageUrl;
+            await EmployeeService.UpdateEmployeeAsync(employee);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error uploading image: {ex.Message}");
+        }
+        
+        StateHasChanged();
+    }
+    
+    private async Task RemoveProfileImage()
+    {
+        if (employee == null) return;
+        
+        employee.ProfileImageUrl = null;
+        await EmployeeService.UpdateEmployeeAsync(employee);
+        
+        StateHasChanged();
+    }
+
+    private void OpenDeleteModal()
+    {
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (employee == null) return;
+        await EmployeeService.DeleteEmployeeAsync(employee.Id);
+        showDeleteModal = false;
+        NavigationManager.NavigateTo("/employees");
+    }
+
+    private void ToggleExpanded(string id)
+    {
+        if (expandedDeviceIds.Contains(id))
+        {
+            expandedDeviceIds.Remove(id);
+        }
+        else
+        {
+            expandedDeviceIds.Add(id);
+        }
+    }
+
+    private MarkupString ParseAboutText(string? about)
+    {
+        if (string.IsNullOrWhiteSpace(about)) return new MarkupString("");
+        
+        // Auto-heal broken paragraphs that don't end with sentence-ending punctuation.
+        // This fixes legacy hard-wrapped text that got erroneously converted to separate <p> tags.
+        // It looks for a word character or comma just before the closing </p> and merges it with the next <p>.
+        about = System.Text.RegularExpressions.Regex.Replace(about, @"([a-zA-Z0-9,;-])\s*</p>\s*<p>", "$1 ");
+
+        // Also if it's completely legacy plain text (no HTML tags at all), heal the hard wraps
+        if (!about.Contains("<p>") && !about.Contains("<br>") && !about.Contains("<br/>") && !about.Contains("<strong>") && !about.Contains("<em>"))
+        {
+            about = System.Net.WebUtility.HtmlEncode(about);
+            about = System.Text.RegularExpressions.Regex.Replace(about, @"(\r?\n){2,}", "<br /><br />");
+            about = System.Text.RegularExpressions.Regex.Replace(about, @"\r?\n", " ");
+        }
+
+        // Replace the dynamic date tags
+        var result = System.Text.RegularExpressions.Regex.Replace(about, @"\{\{YearsSince:(\d{4})\}\}", match =>
+        {
+            if (int.TryParse(match.Groups[1].Value, out int year))
+            {
+                return (DateTime.Now.Year - year).ToString();
+            }
+            return match.Value;
+        });
+
+        // Add physical Drop Cap to the very first letter to guarantee perfect rendering
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"^((?:\s*<[^>]+>\s*)*\s*)([a-zA-Z])", match => 
+        {
+            return $"{match.Groups[1].Value}<span class=\"float-left text-5xl font-serif font-bold text-[#DA943B] mr-2 -mt-1.5 leading-none\">{match.Groups[2].Value}</span>";
+        });
+
+        return new MarkupString(result);
+    }
+
+    private bool showQrModal = false;
+    private bool copiedLink = false;
+
+    private void OpenQrModal()
+    {
+        copiedLink = false;
+        showQrModal = true;
+    }
+
+    private void CloseQrModal()
+    {
+        showQrModal = false;
+    }
+
+    private async Task CopyDeepLink()
+    {
+        if (employee == null) return;
+        var link = GetEmployeeProfileDeepLink(employee);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", link);
+            copiedLink = true;
+            StateHasChanged();
+            await Task.Delay(2500);
+            copiedLink = false;
+            StateHasChanged();
+        }
+        catch
+        {
+            // Clipboard fallback
+        }
+    }
+
+    private string GetEmployeeIdentifier(Employee emp)
+    {
+        if (!string.IsNullOrWhiteSpace(emp.EmployeeId)) return emp.EmployeeId.Trim();
+        return emp.Id;
+    }
+
+    private string GetEmployeeProfileDeepLink(Employee emp)
+    {
+        if (emp == null || string.IsNullOrEmpty(emp.Id)) return string.Empty;
+        var id = GetEmployeeIdentifier(emp);
+        return AssetManagement.Web.Helpers.NetworkHelper.ToScannableUri(NavigationManager.BaseUri, $"/e/{id}");
+    }
+
+    private string GetEmployeeQrUrl(Employee emp, int size = 300)
+    {
+        var deepLink = GetEmployeeProfileDeepLink(emp);
+        if (string.IsNullOrEmpty(deepLink)) return string.Empty;
+        return AssetManagement.Web.Helpers.NetworkHelper.GetQrCodeUrl(deepLink, size, 2);
+    }
+}
+
+

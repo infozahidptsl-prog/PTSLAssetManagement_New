@@ -1,0 +1,153 @@
+﻿@using AssetManagement.Core.Interfaces
+@using AssetManagement.Core.Entities
+
+<div class="ai-capture-review-container max-w-4xl mx-auto bg-surface p-6 rounded-xl border border-line shadow-sm text-left mt-8">
+    <div class="mb-6 flex justify-between items-center border-b border-line pb-4">
+        <div>
+            <h2 class="text-xl font-bold text-txt-hi">Review Extracted Data</h2>
+            <p class="text-sm text-txt-mid mt-1">Please verify the information extracted before confirming.</p>
+        </div>
+    </div>
+
+    @{
+        var allWarnings = new List<string>();
+        if (BundleResult != null)
+        {
+            allWarnings.AddRange(BundleResult.Warnings);
+            if (BundleResult.MappingResult != null) allWarnings.AddRange(BundleResult.MappingResult.Warnings);
+        }
+        else if (IsPurchaseDocument && PurchaseMapping != null)
+        {
+            allWarnings.AddRange(PurchaseMapping.Warnings);
+        }
+        else if (!IsPurchaseDocument && DeviceMapping != null)
+        {
+            allWarnings.AddRange(DeviceMapping.Warnings);
+        }
+    }
+
+    @if (allWarnings.Any())
+    {
+        <div class="mb-6 p-4 rounded-lg bg-warn-50 border border-warn-200">
+            <h4 class="text-sm font-bold text-warn-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                Warnings & Validation Errors
+            </h4>
+            <ul class="mt-2 text-sm text-warn-700 list-disc list-inside">
+                @foreach (var w in allWarnings)
+                {
+                    <li>@w</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (BundleResult != null && BundleResult.MergedPurchase != null)
+    {
+        <!-- Bundle Purchase Document Fields -->
+        <div class="mb-8">
+            <h3 class="text-sm font-bold text-txt-hi mb-4 uppercase tracking-wider">Document Details</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="p-3 bg-elevated rounded-lg border border-line">
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Vendor (Canonical)</label>
+                    <input type="text" @bind="BundleResult.MergedPurchase.Vendor" class="w-full bg-transparent border-b border-line-soft focus:border-accent-500 focus:outline-none text-sm py-1 font-medium @(string.IsNullOrEmpty(BundleResult.MergedPurchase.Vendor) ? "text-txt-lo italic" : "text-txt-hi")" placeholder="Not detected" />
+                </div>
+                <div class="p-3 bg-elevated rounded-lg border border-line">
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Invoice Number</label>
+                    <input type="text" @bind="BundleResult.MergedPurchase.InvoiceNumber" class="w-full bg-transparent border-b border-line-soft focus:border-accent-500 focus:outline-none text-sm py-1 font-medium @(string.IsNullOrEmpty(BundleResult.MergedPurchase.InvoiceNumber) ? "text-txt-lo italic" : "text-txt-hi")" placeholder="Not detected" />
+                </div>
+                <div class="p-3 bg-elevated rounded-lg border border-line">
+                    <label class="block text-xs font-semibold text-txt-mid mb-1">Purchase Order</label>
+                    <input type="text" @bind="BundleResult.MergedPurchase.PurchaseOrderNumber" class="w-full bg-transparent border-b border-line-soft focus:border-accent-500 focus:outline-none text-sm py-1 font-medium @(string.IsNullOrEmpty(BundleResult.MergedPurchase.PurchaseOrderNumber) ? "text-txt-lo italic" : "text-txt-hi")" placeholder="Not detected" />
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <h3 class="text-sm font-bold text-txt-hi mb-4 uppercase tracking-wider flex justify-between items-end">
+                <span>Purchase Items & Evidence</span>
+                <span class="text-xs font-normal text-txt-mid normal-case">@BundleResult.ItemMatches.Count items</span>
+            </h3>
+            
+            <div class="space-y-6">
+                @foreach (var match in BundleResult.ItemMatches)
+                {
+                    <div class="bg-surface border @(match.RequiresReview ? "border-warn-300" : "border-line") rounded-xl overflow-hidden shadow-sm">
+                        <div class="p-4 bg-elevated border-b @(match.RequiresReview ? "border-warn-200" : "border-line") flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-txt-hi">@match.Item.Model</h4>
+                                <p class="text-sm text-txt-mid">@match.Item.Description</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-semibold">Qty: @match.Item.Quantity</div>
+                                <div class="text-sm text-txt-mid">@match.Item.UnitPrice.ToString("C")</div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4">
+                            <h5 class="text-xs font-bold text-txt-mid uppercase tracking-wider mb-3">Attached Evidence</h5>
+                            
+                            @if (match.EvidenceMatches.Any())
+                            {
+                                <div class="space-y-2">
+                                    @foreach (var ev in match.EvidenceMatches)
+                                    {
+                                        <div class="flex items-start gap-3 p-3 rounded-lg border @(ev.IsAmbiguous ? "border-warn-200 bg-warn-50" : "border-line bg-surface")">
+                                            <div class="mt-0.5 text-accent-500">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="flex justify-between items-start">
+                                                    <div class="font-medium text-sm text-txt-hi">@ev.SourceFileName</div>
+                                                    <div class="text-xs font-semibold px-2 py-0.5 rounded-full @(ev.Confidence >= 0.8 ? "bg-ok-100 text-ok-700" : "bg-warn-100 text-warn-700")">
+                                                        @((ev.Confidence * 100).ToString("F0"))%
+                                                    </div>
+                                                </div>
+                                                <div class="text-xs text-txt-mid mt-1">@ev.EvidenceType — @ev.MatchMethod</div>
+                                                @if (!string.IsNullOrEmpty(ev.CandidateSerial))
+                                                {
+                                                    <div class="text-xs font-mono mt-2 p-1.5 bg-elevated rounded border border-line-soft">
+                                                        <span class="text-txt-lo">Serial:</span> @ev.CandidateSerial
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-sm text-txt-muted italic">No supporting evidence attached.</p>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    
+    <div class="flex justify-end gap-3 pt-6 border-t border-line mt-8">
+        <button type="button" class="px-5 py-2.5 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors" @onclick="OnCancel">
+            Cancel
+        </button>
+        <button type="button" class="px-5 py-2.5 text-sm font-medium border border-line rounded-xl hover:bg-elevated transition-colors" @onclick="OnReprocess">
+            Reprocess
+        </button>
+        <button type="button" class="px-6 py-2.5 text-sm font-semibold bg-accent-600 text-white rounded-xl hover:bg-accent-700 transition-colors shadow-sm" @onclick="() => OnConfirm.InvokeAsync(BundleResult != null ? BundleResult.MergedPurchase : null)">
+            Confirm & Save
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public AiDocumentExtractionResult? Result { get; set; }
+    [Parameter] public MappingValidationResult<CanonicalPurchaseDto>? PurchaseMapping { get; set; }
+    [Parameter] public MappingValidationResult<CanonicalDeviceDto>? DeviceMapping { get; set; }
+    [Parameter] public bool IsPurchaseDocument { get; set; }
+    
+    [Parameter] public BundleProcessingResult? BundleResult { get; set; }
+    
+    [Parameter] public EventCallback<object> OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnReprocess { get; set; }
+}

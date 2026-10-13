@@ -1,0 +1,89 @@
+@typeparam TItem
+
+<div class="overflow-x-auto">
+    <table class="w-full min-w-[64rem] border-collapse text-sm">
+        @if (!string.IsNullOrEmpty(Caption))
+        {
+            <caption class="sr-only">@Caption</caption>
+        }
+        <thead>
+            <tr class="border-y border-line text-left text-[10px] font-semibold uppercase tracking-widest text-txt-mid bg-elevated">
+                @if (HeaderContent != null)
+                {
+                    @HeaderContent
+                }
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-line-soft">
+            @if (Items == null || !Items.Any())
+            {
+                <tr>
+                    <td colspan="100%" class="px-6 py-20 text-center">
+                        <div class="flex flex-col items-center justify-center">
+                            <span class="flex h-11 w-11 items-center justify-center rounded-xl border border-line-soft bg-elevated">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-txt-lo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            </span>
+                            <p class="mt-4 text-sm font-medium text-txt-hi">Nothing here</p>
+                            <p class="mt-1 max-w-sm text-sm text-txt-mid">@EmptyHint</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Items)
+                {
+                    var customRowClass = RowClass?.Invoke(item) ?? "";
+                    @if (OnRowClick.HasDelegate)
+                    {
+                        <tr @onclick="() => OnRowClick.InvokeAsync(item)" class="group cursor-pointer transition-colors duration-150 hover:bg-elevated @customRowClass">
+                            @RowTemplate(item)
+                        </tr>
+                    }
+                    else
+                    {
+                        <tr class="group transition-colors duration-150 hover:bg-elevated @customRowClass">
+                            @RowTemplate(item)
+                        </tr>
+                    }
+
+                    @if (ExpandedRowTemplate != null && IsRowExpanded?.Invoke(item) == true)
+                    {
+                        <tr>
+                            @ExpandedRowTemplate(item)
+                        </tr>
+                    }
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter]
+    public IEnumerable<TItem> Items { get; set; } = Enumerable.Empty<TItem>();
+
+    [Parameter]
+    public RenderFragment HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment<TItem> RowTemplate { get; set; }
+
+    [Parameter]
+    public RenderFragment<TItem>? ExpandedRowTemplate { get; set; }
+
+    [Parameter]
+    public Func<TItem, bool>? IsRowExpanded { get; set; }
+
+    [Parameter]
+    public Func<TItem, string>? RowClass { get; set; }
+
+    [Parameter]
+    public EventCallback<TItem> OnRowClick { get; set; }
+
+    [Parameter]
+    public string Caption { get; set; } = string.Empty;
+
+    [Parameter]
+    public string EmptyHint { get; set; } = "Try a different kind, status, or search term.";
+}

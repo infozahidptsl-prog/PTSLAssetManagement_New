@@ -1,0 +1,17 @@
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        @if (routeData.PageType == typeof(Pages.Login))
+        {
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.EmptyLayout)" />
+        }
+        else
+        {
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+                <NotAuthorized>
+                    <AssetManagement.Web.Components.Shared.RedirectToLogin />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+        }
+        <!-- FocusOnNavigate removed to prevent stealing focus from the live search bar -->
+    </Found>
+</Router>

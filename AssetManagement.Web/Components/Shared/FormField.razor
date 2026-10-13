@@ -1,0 +1,29 @@
+<div class="@CssClass">
+    <label for="@Id" class="block text-xs font-medium uppercase tracking-widest text-txt-lo">
+        @Label
+    </label>
+    <div class="mt-1.5">
+        @ChildContent
+    </div>
+    @if (!string.IsNullOrEmpty(Hint))
+    {
+        <p class="mt-1 text-xs text-txt-lo">@Hint</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Hint { get; set; } = string.Empty;
+
+    [Parameter]
+    public string CssClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}
