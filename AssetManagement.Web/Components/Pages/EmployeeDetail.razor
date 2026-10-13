@@ -39,14 +39,14 @@ else
             <!-- Left Column: Compact Profile & Digital Pass -->
             <div class="flex w-full shrink-0 flex-col rounded-2xl bg-surface p-4 border border-line shadow-sm md:w-[260px] lg:w-[270px]">
                 <!-- Profile Image Container -->
-                <div class="group relative mx-auto flex h-32 w-32 shrink-0 flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner">
+                <div class="group relative w-full flex h-44 shrink-0 flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner">
                     @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
                     {
-                        <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="h-full w-full object-cover" />
+                        <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="h-full w-full object-cover" style="object-position: center 28%;" />
                     }
                     else
                     {
-                        <span class="select-none text-4xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
+                        <span class="select-none text-5xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
                     }
                     
                     <!-- Hover Overlay for Image Controls -->
