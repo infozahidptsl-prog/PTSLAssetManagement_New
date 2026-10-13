@@ -52,7 +52,9 @@ namespace AssetManagement.Infrastructure.Services
         // Categories
         public async Task<IEnumerable<DeviceCategoryModel>> GetCategoriesAsync()
         {
-            return await _context.DeviceCategories.ToListAsync();
+            var categories = await _context.DeviceCategories.ToListAsync();
+            CategoryTypeRegistry.Sync(categories);
+            return categories;
         }
 
         public async Task<DeviceCategoryModel> AddCategoryAsync(string name, string type = "System")
@@ -61,6 +63,7 @@ namespace AssetManagement.Infrastructure.Services
             var category = new DeviceCategoryModel { Name = name.Trim(), Type = type };
             _context.DeviceCategories.Add(category);
             await _context.SaveChangesAsync();
+            CategoryTypeRegistry.SetType(category.Name, category.Type);
             return category;
         }
 
@@ -75,6 +78,7 @@ namespace AssetManagement.Infrastructure.Services
             // If the name changed, cascade the change to all devices
             if (oldCategory != null && oldCategory.Name != category.Name)
             {
+                CategoryTypeRegistry.Remove(oldCategory.Name);
                 var devicesToUpdate = await _context.Devices
                     .Where(d => d.Category == oldCategory.Name)
                     .ToListAsync();
@@ -90,6 +94,8 @@ namespace AssetManagement.Infrastructure.Services
                     await _context.SaveChangesAsync();
                 }
             }
+
+            CategoryTypeRegistry.SetType(category.Name, category.Type);
             
             return category;
         }
@@ -99,6 +105,7 @@ namespace AssetManagement.Infrastructure.Services
             var category = await _context.DeviceCategories.FindAsync(id);
             if (category != null)
             {
+                CategoryTypeRegistry.Remove(category.Name);
                 _context.DeviceCategories.Remove(category);
                 await _context.SaveChangesAsync();
             }

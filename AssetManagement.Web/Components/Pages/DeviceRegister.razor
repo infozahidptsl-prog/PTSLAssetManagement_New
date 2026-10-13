@@ -791,8 +791,9 @@
 
             if (!string.IsNullOrEmpty(SelectedKind))
             {
-                if (SelectedKind == "System") query = query.Where(d => !d.IsComponent);
-                else if (SelectedKind == "Component") query = query.Where(d => d.IsComponent);
+                if (SelectedKind == "System") query = query.Where(d => d.DeviceTypeDisplay == "System");
+                else if (SelectedKind == "Component") query = query.Where(d => d.DeviceTypeDisplay == "Component");
+                else if (SelectedKind == "Peripheral") query = query.Where(d => d.DeviceTypeDisplay == "Peripheral");
             }
 
             if (!string.IsNullOrEmpty(SelectedWarranty))
@@ -861,6 +862,7 @@
             result = SortColumn switch
             {
                 "Device" => SortAscending ? result.OrderBy(d => d.Brand).ThenBy(d => d.DeviceName).ToList() : result.OrderByDescending(d => d.Brand).ThenByDescending(d => d.DeviceName).ToList(),
+                "Type" => SortAscending ? result.OrderBy(d => d.DeviceTypeDisplay).ThenBy(d => d.Category).ToList() : result.OrderByDescending(d => d.DeviceTypeDisplay).ThenByDescending(d => d.Category).ToList(),
                 "Specification" => SortAscending ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram).ToList() : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram).ToList(),
                 "Status" => SortAscending ? result.OrderBy(d => d.Status.ToString()).ToList() : result.OrderByDescending(d => d.Status.ToString()).ToList(),
                 "User" => SortAscending ? result.OrderBy(d => d.EmployeeId ?? string.Empty).ThenBy(d => d.UserName ?? string.Empty).ToList() : result.OrderByDescending(d => d.EmployeeId ?? string.Empty).ThenByDescending(d => d.UserName ?? string.Empty).ToList(),

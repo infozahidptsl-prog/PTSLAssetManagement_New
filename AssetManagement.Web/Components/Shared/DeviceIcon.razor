@@ -1,10 +1,11 @@
+@using AssetManagement.Core.Entities
 @using AssetManagement.Core.Enums
 
 @if (IsCategory("Laptop", "Notebook", "MacBook"))
 {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Laptop"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
 }
-else if (IsCategory("Desktop", "PC", "System Unit", "Tower", "Workstation", "Mobile", "Phone", "Smartphone", "Tablet"))
+else if (IsCategory("Desktop", "PC", "System Unit", "Tower", "Workstation", "Mini-PC", "Minipc", "PC-Server") || CategoryTypeRegistry.GetType(Category) == "System")
 {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Desktop"><rect width="14" height="18" x="5" y="3" rx="2" ry="2"/><line x1="9" x2="15" y1="7" y2="7"/><line x1="9" x2="15" y1="11" y2="11"/><line x1="9" x2="11" y1="15" y2="15"/></svg>
 }

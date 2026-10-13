@@ -111,6 +111,9 @@ using (var scope = app.Services.CreateScope())
         context.SaveChanges();
     }
 
+    var dbCategories = context.DeviceCategories.ToList();
+    AssetManagement.Core.Entities.CategoryTypeRegistry.Sync(dbCategories);
+
     if (!context.Designations.Any())
     {
         var existingDesignations = context.Employees.Select(e => e.Designation).Where(d => !string.IsNullOrEmpty(d)).Distinct().ToList();

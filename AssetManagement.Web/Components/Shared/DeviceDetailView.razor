@@ -1789,23 +1789,11 @@ else
 
     private async Task OnCategoryChanged()
     {
-        string newCategory = device?.Category ?? "Laptop";
         if (device != null)
         {
-            
-            // Check if IsComponent should be updated based on new category
-            if (newCategory == "Power Supply" || newCategory == "RAM" || newCategory == "SSD" || newCategory == "HDD")
-            {
-                device.IsComponent = true;
-            }
-            else if (newCategory == "Peripheral")
-            {
-                device.IsComponent = false;
-            }
-            else
-            {
-                device.IsComponent = false; // System
-            }
+            var catType = CategoryTypeRegistry.GetType(device.Category);
+            device.IsComponent = catType.Equals("Component", StringComparison.OrdinalIgnoreCase);
+            editItemKind = catType;
 
             device.AssetTag = await DeviceService.GenerateAssetTagAsync(device);
             StateHasChanged();

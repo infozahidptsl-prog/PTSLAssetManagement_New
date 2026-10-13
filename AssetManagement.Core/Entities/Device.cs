@@ -62,26 +62,22 @@ public class Device
         get
         {
             if (IsComponent) return "Component";
-            if (Category != null)
-            {
-                var lowerCat = Category.ToLowerInvariant();
-                if (lowerCat.Contains("laptop") || 
-                    lowerCat.Contains("desktop") || 
-                    lowerCat.Contains("server") || 
-                    lowerCat.Contains("macbook") ||
-                    lowerCat == "pc" ||
-                    lowerCat == "mobile" ||
-                    lowerCat == "phone" ||
-                    lowerCat == "tablet" ||
-                    lowerCat == "mobile phone" ||
-                    lowerCat == "smart phone")
-                {
-                    return "System";
-                }
-            }
-            return "Peripheral";
+            return CategoryTypeRegistry.GetType(Category);
         }
     }
+
+    public static void SyncCategoryTypes(IEnumerable<DeviceCategoryModel>? categories)
+        => CategoryTypeRegistry.Sync(categories);
+
+    public static void SetCategoryType(string categoryName, string categoryType)
+        => CategoryTypeRegistry.SetType(categoryName, categoryType);
+
+    public static void RemoveCategoryType(string categoryName)
+        => CategoryTypeRegistry.Remove(categoryName);
+
+    public static string GetDeviceTypeForCategory(string? category)
+        => CategoryTypeRegistry.GetType(category);
+
     
     public DateTime? WarrantyEndDate 
     { 

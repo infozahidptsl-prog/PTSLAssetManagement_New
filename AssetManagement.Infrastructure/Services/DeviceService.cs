@@ -19,11 +19,16 @@ public class DeviceService
 
     public async Task<List<Device>> GetDevicesAsync()
     {
+        var categories = await _context.DeviceCategories.AsNoTracking().ToListAsync();
+        CategoryTypeRegistry.Sync(categories);
         return await _context.Devices.AsNoTracking().ToListAsync();
     }
 
     public async Task<Device?> GetDeviceByIdAsync(string id)
     {
+        var categories = await _context.DeviceCategories.AsNoTracking().ToListAsync();
+        CategoryTypeRegistry.Sync(categories);
+
         return await _context.Devices
             .AsNoTracking()
             .Include(d => d.PurchaseItem)
@@ -50,6 +55,15 @@ public class DeviceService
         if (string.IsNullOrEmpty(device.Id))
         {
             device.Id = Guid.NewGuid().ToString();
+        }
+
+        if (!device.IsComponent && !string.IsNullOrWhiteSpace(device.Category))
+        {
+            var catType = CategoryTypeRegistry.GetType(device.Category);
+            if (catType.Equals("Component", StringComparison.OrdinalIgnoreCase))
+            {
+                device.IsComponent = true;
+            }
         }
         
         if (string.IsNullOrEmpty(device.AssetTag))
