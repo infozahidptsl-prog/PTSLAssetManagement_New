@@ -187,9 +187,13 @@ else
                                                 <span class="text-xs text-txt-mid font-mono font-medium">@(string.IsNullOrEmpty(device.AssetTag) ? device.Id.ToString() : device.AssetTag)</span>
                                             </div>
                                         </div>
-                                        <div class="flex items-center gap-2.5 pointer-events-auto">
-                                            <span class="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 ring-1 ring-inset ring-blue-300">
-                                                @(device.Status == DeviceStatus.InRepair ? "Under Repair" : (string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition))
+                                        @{
+                                            var condBadge = GetConditionBadge(device);
+                                        }
+                                        <div class="flex items-center gap-2 pointer-events-auto">
+                                            <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset @condBadge.badgeClass">
+                                                <span class="h-1.5 w-1.5 rounded-full @condBadge.dotClass"></span>
+                                                @condBadge.label
                                             </span>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo group-hover:text-accent-500 transition-transform group-open:rotate-90"><path d="m9 18 6-6-6-6"/></svg>
                                         </div>
@@ -287,6 +291,44 @@ else
             "power supply" => ("bg-orange-50 text-orange-700 ring-orange-600/20", "bg-orange-100 text-orange-800", "text-orange-500", "bg-orange-50 text-orange-700 ring-orange-600/20"),
             _ => ("bg-slate-50 text-slate-700 ring-slate-600/20", "bg-slate-200 text-slate-800", "text-slate-500", "bg-slate-50 text-slate-700 ring-slate-600/20")
         };
+    }
+
+    private (string label, string badgeClass, string dotClass) GetConditionBadge(Device device)
+    {
+        if (device.Status == DeviceStatus.InRepair)
+        {
+            return ("Under Repair", "bg-amber-50 text-amber-800 ring-amber-600/20", "bg-amber-500");
+        }
+
+        var cond = string.IsNullOrWhiteSpace(device.Condition) ? "Good" : device.Condition.Trim();
+        var lower = cond.ToLowerInvariant();
+
+        if (lower.Contains("new"))
+        {
+            return (cond, "bg-teal-50 text-teal-700 ring-teal-600/20", "bg-teal-500");
+        }
+        if (lower.Contains("problem") || lower.Contains("issue"))
+        {
+            return (cond, "bg-amber-50 text-amber-800 ring-amber-600/20", "bg-amber-500");
+        }
+        if (lower.Contains("good") || lower.Contains("excellent"))
+        {
+            return (cond, "bg-emerald-50 text-emerald-700 ring-emerald-600/20", "bg-emerald-500");
+        }
+        if (lower.Contains("fair") || lower.Contains("moderate") || lower.Contains("average"))
+        {
+            return (cond, "bg-amber-50 text-amber-800 ring-amber-600/20", "bg-amber-500");
+        }
+        if (lower.Contains("poor") || lower.Contains("bad") || lower.Contains("worn") || lower.Contains("slow") || lower.Contains("old"))
+        {
+            return (cond, "bg-rose-50 text-rose-700 ring-rose-600/20", "bg-rose-600");
+        }
+        if (lower.Contains("fault") || lower.Contains("damage") || lower.Contains("broken") || lower.Contains("dead") || lower.Contains("defect") || lower.Contains("fail"))
+        {
+            return (cond, "bg-red-50 text-red-700 ring-red-200", "bg-red-600");
+        }
+
+        return (cond, "bg-blue-50 text-blue-700 ring-blue-600/20", "bg-accent-500");
     }
 
     protected override async Task OnInitializedAsync()

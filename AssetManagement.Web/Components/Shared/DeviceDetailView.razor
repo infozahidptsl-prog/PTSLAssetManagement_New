@@ -284,8 +284,14 @@ else
                 }
                 <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
                     <span class="text-txt-mid">Condition</span>
-                    @{ var cond = string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition; }
-                    <span class="inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-text px-2.5 py-0.5 text-[11px] font-medium border @(cond == "Good" ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-orange-100 text-orange-800 border-orange-300")">@cond</span>
+                    @{ 
+                        var cond = string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition; 
+                        var (cBadge, cDot) = GetConditionBadgeClass(cond);
+                    }
+                    <span class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[11px] font-semibold @cBadge">
+                        <span class="h-1.5 w-1.5 rounded-full @cDot"></span>
+                        @cond
+                    </span>
                 </div>
                 <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
                     <span class="text-txt-mid">Supplier</span>
@@ -2027,6 +2033,19 @@ else
         }
         var deepLink = AssetManagement.Web.Helpers.NetworkHelper.ToScannableUri(NavigationManager.BaseUri, "/a/" + token);
         return $"https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=2&data={Uri.EscapeDataString(deepLink)}";
+    }
+
+    private static (string badgeClass, string dotClass) GetConditionBadgeClass(string? condition)
+    {
+        var cond = string.IsNullOrWhiteSpace(condition) ? "Good" : condition.Trim();
+        var lower = cond.ToLowerInvariant();
+        if (lower.Contains("new")) return ("bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-600/20", "bg-teal-500");
+        if (lower.Contains("problem") || lower.Contains("issue")) return ("bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/20", "bg-amber-500");
+        if (lower.Contains("good") || lower.Contains("excellent")) return ("bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20", "bg-emerald-500");
+        if (lower.Contains("fair") || lower.Contains("moderate") || lower.Contains("average")) return ("bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/20", "bg-amber-500");
+        if (lower.Contains("poor") || lower.Contains("bad") || lower.Contains("worn") || lower.Contains("slow") || lower.Contains("old")) return ("bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20", "bg-rose-600");
+        if (lower.Contains("fault") || lower.Contains("damage") || lower.Contains("broken") || lower.Contains("dead") || lower.Contains("defect") || lower.Contains("fail")) return ("bg-red-50 text-red-700 ring-1 ring-inset ring-red-200", "bg-red-600");
+        return ("bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20", "bg-accent-500");
     }
 }
 
