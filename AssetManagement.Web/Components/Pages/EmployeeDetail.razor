@@ -156,58 +156,58 @@ else
                     </div>
                 </div>
 
-                <!-- 9 Fields Organized into Responsive Grid (2 columns when About is present to prevent value clipping) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 @(hasAbout ? "" : "lg:grid-cols-3") gap-2">
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                <!-- 9 Fields Organized into Clean Property List (No bulky individual boxes) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 @(hasAbout ? "" : "lg:grid-cols-3") gap-x-6 gap-y-3 py-1">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Employee ID</span>
-                        <span class="text-xs font-semibold text-txt-hi font-mono">@employee.EmployeeId</span>
+                        <span class="text-xs font-semibold text-txt-hi font-mono mt-0.5">@employee.EmployeeId</span>
                     </div>
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Department</span>
-                        <span class="text-xs font-medium text-txt-hi" title="@employee.Department">@(string.IsNullOrEmpty(employee.Department) ? "—" : employee.Department)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Department">@(string.IsNullOrEmpty(employee.Department) ? "—" : employee.Department)</span>
                     </div>
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Team</span>
-                        <span class="text-xs font-medium text-txt-hi" title="@employee.Team">@(string.IsNullOrEmpty(employee.Team) ? "—" : employee.Team)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Team">@(string.IsNullOrEmpty(employee.Team) ? "—" : employee.Team)</span>
                     </div>
 
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Location</span>
-                        <span class="text-xs font-medium text-txt-hi" title="@employee.Location">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Location">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
                     </div>
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Joining Date</span>
-                        <span class="text-xs font-medium text-txt-hi">@(employee.JoiningDate.HasValue && employee.JoiningDate.Value.Year > 1900 ? employee.JoiningDate.Value.ToString("MMM dd, yyyy") : "—")</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5">@(employee.JoiningDate.HasValue && employee.JoiningDate.Value.Year > 1900 ? employee.JoiningDate.Value.ToString("MMM dd, yyyy") : "—")</span>
                     </div>
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Reports To</span>
-                        <span class="text-xs font-medium text-txt-hi" title="@employee.Manager">@(string.IsNullOrEmpty(employee.Manager) ? "—" : employee.Manager)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Manager">@(string.IsNullOrEmpty(employee.Manager) ? "—" : employee.Manager)</span>
                     </div>
 
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Blood Group</span>
-                        <span class="text-xs font-semibold text-txt-hi">@(string.IsNullOrEmpty(employee.BloodGroup) ? "—" : employee.BloodGroup)</span>
+                        <span class="text-xs font-semibold text-txt-hi mt-0.5">@(string.IsNullOrEmpty(employee.BloodGroup) ? "—" : employee.BloodGroup)</span>
                     </div>
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Phone</span>
                         @if (!string.IsNullOrEmpty(employee.Contact))
                         {
-                            <a href="tel:@employee.Contact" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline">@employee.Contact</a>
+                            <a href="tel:@employee.Contact" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline mt-0.5">@employee.Contact</a>
                         }
                         else
                         {
-                            <span class="text-xs font-medium text-txt-hi">—</span>
+                            <span class="text-xs font-medium text-txt-lo mt-0.5">—</span>
                         }
                     </div>
-                    <div class="flex flex-col gap-0.5 rounded-lg bg-slate-50/70 px-3 py-1.5 border border-line-soft/80 @(hasAbout ? "col-span-1 sm:col-span-2" : "")">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2 @(hasAbout ? "col-span-1 sm:col-span-2" : "")">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Email</span>
                         @if (!string.IsNullOrEmpty(employee.Email))
                         {
-                            <a href="mailto:@employee.Email" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline break-all sm:break-normal" title="@employee.Email">@employee.Email</a>
+                            <a href="mailto:@employee.Email" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline break-all sm:break-normal mt-0.5" title="@employee.Email">@employee.Email</a>
                         }
                         else
                         {
-                            <span class="text-xs font-medium text-txt-hi">—</span>
+                            <span class="text-xs font-medium text-txt-lo mt-0.5">—</span>
                         }
                     </div>
                 </div>
