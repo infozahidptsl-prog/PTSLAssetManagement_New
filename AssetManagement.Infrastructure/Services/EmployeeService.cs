@@ -257,6 +257,18 @@ public class EmployeeService
 
     public async Task UpdateEmployeeAsync(Employee employee)
     {
+        if (string.IsNullOrEmpty(employee.Id))
+        {
+            employee.Id = !string.IsNullOrEmpty(employee.EmployeeId) ? employee.EmployeeId : Guid.NewGuid().ToString();
+        }
+
+        var alreadyTracked = _context.ChangeTracker.Entries<Employee>()
+            .FirstOrDefault(e => e.Entity.Id == employee.Id);
+        if (alreadyTracked != null && alreadyTracked.Entity != employee)
+        {
+            alreadyTracked.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+        }
+
         var existing = await _context.Employees.FindAsync(employee.Id)
             ?? await _context.Employees.FirstOrDefaultAsync(e => (!string.IsNullOrEmpty(employee.EmployeeId) && e.EmployeeId == employee.EmployeeId) ||
                                                                  (!string.IsNullOrEmpty(employee.Name) && e.Name.ToLower() == employee.Name.ToLower()));

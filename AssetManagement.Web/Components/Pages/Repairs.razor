@@ -9,6 +9,7 @@
 @inject DeviceService DeviceService
 @inject HandoverService HandoverService
 @inject NavigationManager NavigationManager
+@inject NotificationService Notifications
 
 <PageTitle>Repair center - PrimeTech Asset Manager</PageTitle>
 
@@ -295,6 +296,7 @@
             await DeviceService.UpdateDeviceAsync(device);
         }
         
+        Notifications.ShowSuccess($"Repair ticket logged for asset {device?.AssetTag ?? record.DeviceId} successfully.");
         await OnInitializedAsync();
     }
 
@@ -348,6 +350,7 @@
             await DeviceService.UpdateDeviceAsync(device);
         }
         
+        Notifications.ShowSuccess("Repair marked as completed and asset status updated.");
         await OnInitializedAsync();
     }
 }

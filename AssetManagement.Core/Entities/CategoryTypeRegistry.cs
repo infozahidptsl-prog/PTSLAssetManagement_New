@@ -44,13 +44,14 @@ public static class CategoryTypeRegistry
         _map["Keyboard"] = "Peripheral";
         _map["Mouse"] = "Peripheral";
         _map["Printer"] = "Peripheral";
+        _map["Scanner"] = "Peripheral";
+        _map["Printer & Scanner"] = "Peripheral";
         _map["UPS"] = "Peripheral";
         _map["Headphone"] = "Peripheral";
         _map["Headset"] = "Peripheral";
         _map["Cable"] = "Peripheral";
         _map["Speaker"] = "Peripheral";
         _map["Webcam"] = "Peripheral";
-        _map["Scanner"] = "Peripheral";
     }
 
     public static void Sync(IEnumerable<DeviceCategoryModel>? categories)

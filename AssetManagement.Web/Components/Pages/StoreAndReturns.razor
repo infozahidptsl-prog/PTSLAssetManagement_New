@@ -9,6 +9,7 @@
 @inject HandoverService HandoverService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject NotificationService Notifications
 
 <PageTitle>Receive returns - PrimeTech Asset Manager</PageTitle>
 
@@ -403,6 +404,10 @@
         }
 
         showReturnModal = false;
+        if (device != null)
+        {
+            Notifications.ShowSuccess($"Asset {device.AssetTag ?? device.Id} returned to IT inventory successfully.");
+        }
         await LoadData();
     }
 }

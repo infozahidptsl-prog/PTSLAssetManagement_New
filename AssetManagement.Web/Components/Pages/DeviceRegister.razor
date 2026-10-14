@@ -106,7 +106,7 @@
     <div class="flex flex-wrap items-center gap-2">
         <div class="relative w-48 sm:w-64">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="search" placeholder="Search..." @bind="SearchTerm" @bind:event="oninput" @bind:after="ResetPage" class="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-2 text-[13px] text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500" />
+            <input type="search" placeholder="Search..." @bind="SearchTerm" @bind:event="oninput" @bind:after="OnSearchTermChanged" class="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-2 text-[13px] text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500" />
         </div>
         <select @bind="SelectedLocation" @bind:after="ResetPage" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
             <option value="">All Offices</option>
@@ -128,7 +128,7 @@
         </select>
         @if (HasActiveFilters)
         {
-            <button type="button" @onclick="ClearFilters" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-danger-border bg-danger-soft px-2.5 py-1.5 text-[13px] font-medium text-danger-500 transition-colors duration-150 hover:bg-danger-500 hover:text-white">
+            <button type="button" @onclick="ClearFilters" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-danger-border bg-danger-soft px-2.5 py-1.5 text-[13px] font-medium text-danger-500 transition-colors duration-150 hover:bg-danger-500 hover:text-white cursor-pointer" title="Clear all active filters">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 Clear
             </button>
@@ -136,7 +136,17 @@
     </div>
 
     <!-- Active filter label (right) -->
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
+        @if (!string.IsNullOrWhiteSpace(EffectiveSearch))
+        {
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span>Search: "@EffectiveSearch"</span>
+                <button type="button" @onclick="ClearSearch" class="ml-0.5 rounded-full hover:text-accent-700 focus:outline-none cursor-pointer" title="Clear search">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </span>
+        }
         @if (!string.IsNullOrEmpty(SelectedCategory))
         {
             <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[12px] font-semibold text-indigo-700">
@@ -144,7 +154,7 @@
                 <span class="rounded-full bg-indigo-200/70 px-1.5 py-0.2 text-[10px] font-bold text-indigo-800">
                     @(SelectedCategory.Equals("Other", StringComparison.OrdinalIgnoreCase) ? UncategorizedCount : devices?.Count(d => d.Category != null && d.Category.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase)) ?? 0)
                 </span>
-                <button type="button" @onclick='() => SelectCategoryFilter("")' class="ml-0.5 rounded-full hover:text-indigo-900 focus:outline-none" title="Clear category filter">
+                <button type="button" @onclick='() => SelectCategoryFilter("")' class="ml-0.5 rounded-full hover:text-indigo-900 focus:outline-none cursor-pointer" title="Clear category filter">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </span>
@@ -153,15 +163,22 @@
         {
             <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent-500">
                 @ActiveTab
-                <button type="button" @onclick='() => SetTab("All")' class="ml-0.5 rounded-full hover:text-accent-700 focus:outline-none" title="Clear status filter">
+                <button type="button" @onclick='() => SetTab("All")' class="ml-0.5 rounded-full hover:text-accent-700 focus:outline-none cursor-pointer" title="Clear status filter">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </span>
         }
-        else if (string.IsNullOrEmpty(SelectedCategory))
-        {
-            <span class="text-[12px] text-txt-lo">Showing all <span class="font-semibold text-txt-mid">@(devices?.Count ?? 0)</span> assets — click a card or category above to filter</span>
-        }
+
+        <span class="text-[12px] text-txt-lo">
+            @if (HasActiveFilters)
+            {
+                <span>Showing <span class="font-bold text-txt-hi">@FilteredDevices.Count()</span> of <span class="font-semibold text-txt-mid">@(devices?.Count ?? 0)</span> assets</span>
+            }
+            else
+            {
+                <span>Showing all <span class="font-semibold text-txt-mid">@(devices?.Count ?? 0)</span> assets — click a card or category above to filter</span>
+            }
+        </span>
     </div>
 </div>
 
@@ -176,7 +193,7 @@
 
         <!-- All Pill -->
         <button type="button" @onclick='() => SelectCategoryFilter("")'
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all @(string.IsNullOrEmpty(SelectedCategory) ? "bg-accent-500 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(string.IsNullOrEmpty(SelectedCategory) ? "bg-accent-500 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
             <span>All</span>
             <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(string.IsNullOrEmpty(SelectedCategory) ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
                 @(devices.Count)
@@ -188,7 +205,7 @@
         {
             var isSelected = SelectedCategory != null && SelectedCategory.Equals(cat.Name, StringComparison.OrdinalIgnoreCase);
             <button type="button" @onclick="() => SelectCategoryFilter(cat.Name)"
-                    class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all @(isSelected ? "bg-accent-500 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+                    class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(isSelected ? "bg-accent-500 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
                 <span>@GetCategoryIcon(cat.Name) @cat.Name</span>
                 <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(isSelected ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
                     @cat.Count
@@ -196,15 +213,34 @@
             </button>
         }
 
+        @if (!string.IsNullOrEmpty(SelectedCategory) && !CategoryCounts.Take(8).Any(c => c.Name.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase)))
+        {
+            <!-- Active pill for category selected from dropdown (e.g. Printer, Scanner) -->
+            <button type="button" @onclick='() => SelectCategoryFilter("")'
+                    class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all bg-accent-500 text-white shadow-2xs cursor-pointer"
+                    title="Click to remove category filter">
+                <span>@GetCategoryIcon(SelectedCategory) @SelectedCategory</span>
+                <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold bg-white/20 text-white">
+                    @(SelectedCategory.Equals("Other", StringComparison.OrdinalIgnoreCase) ? UncategorizedCount : devices?.Count(d => d.Category != null && d.Category.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase)) ?? 0)
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        }
+
         @if (CategoryCounts.Count() > 8)
         {
+            var isDropdownSelected = !string.IsNullOrEmpty(SelectedCategory) && !CategoryCounts.Take(8).Any(c => c.Name.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase));
             <div class="relative shrink-0">
                 <select @bind="SelectedCategory" @bind:after="ResetPage"
-                        class="inline-flex shrink-0 items-center rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-semibold text-txt-mid transition-all hover:bg-elevated focus:outline-none">
+                        class="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-semibold transition-all focus:outline-none cursor-pointer @(isDropdownSelected ? "border-accent-500 bg-accent-soft text-accent-700 font-bold" : "border-line bg-surface text-txt-mid hover:bg-elevated")">
                     <option value="">+@(CategoryCounts.Count() - 8) More Categories...</option>
                     @foreach (var cat in CategoryCounts.Skip(8))
                     {
                         <option value="@cat.Name">@cat.Name (@cat.Count)</option>
+                    }
+                    @if (UncategorizedCount > 0)
+                    {
+                        <option value="Other">Other / Uncategorized (@UncategorizedCount)</option>
                     }
                 </select>
             </div>
@@ -694,22 +730,49 @@
     private string SelectedWarranty { get; set; } = "";
     private string SelectedLocation { get; set; } = "";
 
-    private bool HasActiveFilters => !string.IsNullOrEmpty(SearchTerm) ||
+    private string EffectiveSearch => !string.IsNullOrWhiteSpace(SearchTerm) ? SearchTerm : (QuerySearch ?? "");
+
+    private bool HasActiveFilters => !string.IsNullOrWhiteSpace(EffectiveSearch) ||
                                      !string.IsNullOrEmpty(SelectedCategory) ||
                                      !string.IsNullOrEmpty(SelectedKind) ||
                                      !string.IsNullOrEmpty(SelectedWarranty) ||
                                      !string.IsNullOrEmpty(SelectedLocation) ||
                                      ActiveTab != "All";
 
+    private void OnSearchTermChanged()
+    {
+        QuerySearch = null;
+        _lastQuerySearch = null;
+        ResetPage();
+    }
+
+    private void ClearSearch()
+    {
+        SearchTerm = "";
+        QuerySearch = null;
+        _lastQuerySearch = null;
+        ResetPage();
+        if (NavigationManager.Uri.Contains("search="))
+        {
+            NavigationManager.NavigateTo("/devices");
+        }
+    }
+
     private void ClearFilters()
     {
         SearchTerm = "";
+        QuerySearch = null;
+        _lastQuerySearch = null;
         SelectedCategory = null;
         SelectedKind = "";
         SelectedWarranty = "";
         SelectedLocation = "";
         ActiveTab = "All";
         ResetPage();
+        if (NavigationManager.Uri.Contains("?") || NavigationManager.Uri.Contains("search=") || NavigationManager.Uri.Contains("category=") || NavigationManager.Uri.Contains("status="))
+        {
+            NavigationManager.NavigateTo("/devices");
+        }
     }
 
     // Sort State
@@ -752,6 +815,8 @@
         "keyboard" => "⌨️",
         "ups" => "🔋",
         "printer" => "🖨️",
+        "scanner" => "📠",
+        "printer & scanner" => "🖨️",
         "mobile" or "phone" or "smartphone" => "📱",
         "server" or "pc-server" => "🗄️",
         "mini-pc" => "📟",
@@ -811,9 +876,9 @@
                     (employees != null && employees.Any(e => (e.Name == d.UserName || e.EmployeeId == d.EmployeeId) && e.Location == SelectedLocation)));
             }
 
-            if (!string.IsNullOrWhiteSpace(SearchTerm))
+            if (!string.IsNullOrWhiteSpace(EffectiveSearch))
             {
-                var cleanSearch = SearchTerm.ToLower();
+                var cleanSearch = EffectiveSearch.ToLower();
                 var terms = cleanSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var term in terms)
                 {
@@ -824,29 +889,7 @@
                         (d.Email != null && d.Email.ToLower().Contains(term)) ||
                         (d.EmployeeId != null && d.EmployeeId.ToLower().Contains(term)) ||
                         (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
-                        (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
-                        (d.ProcessorFamily != null && d.ProcessorFamily.ToLower().Contains(term)) ||
-                        (d.Ram != null && d.Ram.ToLower().Contains(term)) ||
-                        (d.Ssd != null && d.Ssd.ToLower().Contains(term)) ||
-                        (d.Hdd != null && d.Hdd.ToLower().Contains(term)) ||
-                        (d.Brand != null && d.Brand.ToLower().Contains(term))
-                    );
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(QuerySearch))
-            {
-                var cleanSearch = QuerySearch.ToLower();
-                var terms = cleanSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var term in terms)
-                {
-                    query = query.Where(d => 
-                        (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
-                        (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
-                        (d.UserName != null && d.UserName.ToLower().Contains(term)) ||
-                        (d.Email != null && d.Email.ToLower().Contains(term)) ||
-                        (d.EmployeeId != null && d.EmployeeId.ToLower().Contains(term)) ||
-                        (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
+                        (d.Category != null && d.Category.ToLower().Contains(term)) ||
                         (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
                         (d.ProcessorFamily != null && d.ProcessorFamily.ToLower().Contains(term)) ||
                         (d.Ram != null && d.Ram.ToLower().Contains(term)) ||
@@ -982,6 +1025,13 @@
         if (QuerySearch != _lastQuerySearch)
         {
             _lastQuerySearch = QuerySearch;
+            SearchTerm = QuerySearch ?? "";
+            ResetPage();
+        }
+
+        if (!string.IsNullOrEmpty(QueryCategory) && SelectedCategory != QueryCategory)
+        {
+            SelectedCategory = QueryCategory;
             ResetPage();
         }
     }

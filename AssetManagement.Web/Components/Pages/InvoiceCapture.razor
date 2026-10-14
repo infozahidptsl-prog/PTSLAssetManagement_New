@@ -18,6 +18,7 @@
 @inject IAiValidationService ValidationService
 @inject IJSRuntime JS
 @inject IWebHostEnvironment Env
+@inject NotificationService Notifications
 @implements IAsyncDisposable
 
 <PageTitle>AI Intake & Invoices Registry - PrimeTech Asset Manager</PageTitle>
@@ -1682,10 +1683,12 @@
             await PurchaseService.AddPurchaseAsync(p);
             await LoadAllPurchasesAsync();
             showAddModal = false;
+            Notifications.ShowSuccess($"Purchase order '{p.PurchaseNumber}' created successfully.");
         }
         catch (Exception ex)
         {
             addErrorMessage = $"Error creating purchase: {ex.Message}";
+            Notifications.ShowError($"Failed to create purchase: {ex.Message}");
         }
         finally
         {
@@ -2162,10 +2165,12 @@
             await PurchaseService.AddPurchaseAsync(purchaseForm);
             await LoadAllPurchasesAsync();
             currentStep = 3;
+            Notifications.ShowSuccess($"Purchase #{purchaseForm.PurchaseNumber} committed to inventory with {purchaseForm.Items.Count} item(s).");
         }
         catch (Exception ex)
         {
             errorMessage = $"Database error saving purchase: {ex.Message}";
+            Notifications.ShowError($"Database error saving purchase: {ex.Message}");
         }
         finally
         {
@@ -2199,10 +2204,12 @@
             await DeviceService.AddDeviceAsync(directDevice);
             createdDevice = directDevice;
             currentStep = 3;
+            Notifications.ShowSuccess($"Asset '{directDevice.DeviceName}' ({directDevice.AssetTag ?? directDevice.Serial}) registered successfully.");
         }
         catch (Exception ex)
         {
             errorMessage = $"Error registering device: {ex.Message}";
+            Notifications.ShowError($"Error registering device: {ex.Message}");
         }
         finally
         {

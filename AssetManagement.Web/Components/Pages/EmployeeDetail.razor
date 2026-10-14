@@ -11,6 +11,8 @@
 @inject NavigationManager NavigationManager
 @inject AssetManagement.Core.Interfaces.ISettingsService SettingsService
 @inject IJSRuntime JSRuntime
+@inject NotificationService Notifications
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 
 <PageTitle>@(employee?.Name ?? "Employee") - PrimeTech Asset Manager</PageTitle>
 
@@ -38,21 +40,44 @@ else
         <div class="flex flex-col gap-4 pb-4 lg:flex-row lg:items-stretch lg:flex-wrap xl:flex-nowrap">
             <!-- Left Column: Compact Profile & Digital Pass -->
             <div class="flex w-full shrink-0 flex-col rounded-2xl bg-surface p-4 border border-line shadow-sm md:w-[260px] lg:w-[270px]">
+                <!-- Header with Action Button outside the image -->
+                <div class="mb-2.5 flex items-center justify-between">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-txt-lo">Profile</span>
+                    @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
+                    {
+                        <button type="button" 
+                                @onclick="OpenCropModalForExisting" 
+                                class="inline-flex items-center gap-1.5 rounded-md border border-line bg-canvas/70 hover:bg-elevated px-2 py-1 text-xs font-medium text-txt-mid hover:text-txt-hi transition-all shadow-2xs hover:border-line-strong active:scale-95 cursor-pointer" 
+                                title="Crop, resize or adjust photo">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+                            <span class="text-[11px]">Crop</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <InputFile id="empProfileUploadTop" OnChange="HandleFileSelectedForCrop" class="hidden" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp" />
+                        <label for="empProfileUploadTop" class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line bg-canvas/70 hover:bg-elevated px-2 py-1 text-xs font-medium text-txt-mid hover:text-txt-hi transition-all shadow-2xs hover:border-line-strong active:scale-95 cursor-pointer" title="Upload employee photo">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <span class="text-[11px]">Upload</span>
+                        </label>
+                    }
+                </div>
+
                 <!-- Profile Image Container -->
                 <div class="group relative w-full flex h-44 shrink-0 flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner">
                     @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
                     {
                         <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="h-full w-full object-cover object-center" />
-                        
-                        <!-- Floating Crop/Edit button badge (always accessible in bottom-right corner) -->
-                        <button type="button" @onclick="OpenCropModalForExisting" class="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 rounded-md bg-white/95 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200/90 backdrop-blur-xs transition-all hover:bg-white hover:text-accent-500 hover:shadow-md" title="Crop, resize or adjust photo">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
-                            <span>Crop</span>
-                        </button>
                     }
                     else
                     {
-                        <span class="select-none text-5xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
+                        <label for="empProfileUploadTop" class="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-200/60 transition-colors" title="Click to upload profile photo">
+                            <span class="select-none text-5xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
+                            <span class="text-[11px] font-medium text-slate-400 mt-1 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Upload Photo
+                            </span>
+                        </label>
                     }
                     
                     <!-- Hover Overlay for Image Controls -->
@@ -60,21 +85,21 @@ else
                         <div class="flex items-center gap-1.5">
                             @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
                             {
-                                <button type="button" @onclick="OpenCropModalForExisting" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100" title="Crop & Adjust current photo">
+                                <button type="button" @onclick="OpenCropModalForExisting" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100 cursor-pointer" title="Crop & Adjust current photo">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
                                     <span>Crop / Edit</span>
                                 </button>
                             }
 
-                            <label class="relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100" title="Upload new photo">
+                            <InputFile id="empProfileUploadOverlay" OnChange="HandleFileSelectedForCrop" class="hidden" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp" />
+                            <label for="empProfileUploadOverlay" class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100 cursor-pointer" title="Upload photo">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                                 <span>@(string.IsNullOrEmpty(employee.ProfileImageUrl) ? "Upload Photo" : "Upload New")</span>
-                                <InputFile OnChange="HandleFileSelectedForCrop" class="absolute inset-0 h-full w-full opacity-0 cursor-pointer" accept="image/png, image/jpeg, image/webp" />
                             </label>
 
                             @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
                             {
-                                <button type="button" @onclick="RemoveProfileImage" class="flex h-7 w-7 items-center justify-center rounded-lg bg-red-600 text-white shadow-md transition-all hover:bg-red-700" title="Remove photo">
+                                <button type="button" @onclick="RemoveProfileImage" class="flex h-7 w-7 items-center justify-center rounded-lg bg-red-600 text-white shadow-md transition-all hover:bg-red-700 cursor-pointer" title="Remove photo">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                 </button>
                             }
@@ -679,17 +704,20 @@ else
 
                 <!-- Modal Footer -->
                 <div class="flex items-center justify-between border-t border-line px-5 py-3.5 bg-canvas/60">
-                    <label class="relative inline-flex items-center gap-1.5 cursor-pointer rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
+                    <InputFile id="empProfileUploadModal" OnChange="HandleFileSelectedForCrop" class="hidden" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp" />
+                    <label for="empProfileUploadModal" class="relative inline-flex items-center gap-1.5 cursor-pointer rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         <span>Choose Different Photo</span>
-                        <InputFile OnChange="HandleFileSelectedForCrop" class="absolute inset-0 h-full w-full opacity-0 cursor-pointer" accept="image/png, image/jpeg, image/webp" />
                     </label>
 
                     <div class="flex items-center gap-2">
-                        <button type="button" @onclick="CloseCropModal" class="rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
+                        <button type="button" @onclick="CloseCropModal" class="rounded-lg border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors cursor-pointer">
                             Cancel
                         </button>
-                        <button type="button" @onclick="ApplyCropAndSave" disabled="@isSavingCrop" class="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-accent-600 transition-colors disabled:opacity-50">
+                        <button type="button" @onclick="SaveOriginalWithoutCrop" disabled="@isSavingCrop" class="rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-txt-mid hover:text-txt-hi hover:bg-elevated transition-colors cursor-pointer disabled:opacity-50" title="Skip cropping and save original photo">
+                            Save Original
+                        </button>
+                        <button type="button" @onclick="ApplyCropAndSave" disabled="@isSavingCrop" class="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-accent-600 transition-colors cursor-pointer disabled:opacity-50">
                             @if (isSavingCrop)
                             {
                                 <svg class="h-3.5 w-3.5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -950,13 +978,22 @@ else
 
     private async Task SaveEmployee(Employee emp)
     {
-        if (emp.JoiningDate.HasValue && emp.JoiningDate.Value.Year <= 1900)
+        try
         {
-            emp.JoiningDate = null;
+            if (emp.JoiningDate.HasValue && emp.JoiningDate.Value.Year <= 1900)
+            {
+                emp.JoiningDate = null;
+            }
+            await EmployeeService.UpdateEmployeeAsync(emp);
+            showAddEditModal = false;
+            await LoadData();
+            Notifications.ShowSuccess($"Profile for '{emp.Name}' updated successfully.");
         }
-        await EmployeeService.UpdateEmployeeAsync(emp);
-        showAddEditModal = false;
-        await LoadData();
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating employee: {ex.Message}");
+            Notifications.ShowError($"Failed to update profile: {ex.Message}");
+        }
     }
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -964,7 +1001,7 @@ else
         if (showCropModal && isCropperInitializing)
         {
             isCropperInitializing = false;
-            await Task.Delay(60);
+            await Task.Delay(100);
             try
             {
                 await JSRuntime.InvokeVoidAsync("imageCropperInterop.initCropper", "cropper-target-image", currentCropAspectRatio);
@@ -993,15 +1030,35 @@ else
 
         try
         {
-            var maxFileSize = 15 * 1024 * 1024; // 15MB
-            using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
+            var ext = System.IO.Path.GetExtension(file.Name).ToLowerInvariant();
+            var validExts = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".jfif" };
+            if (!validExts.Contains(ext) && !(file.ContentType?.ToLower().StartsWith("image/") ?? false))
+            {
+                Notifications.ShowError("Please select a valid image file (.jpg, .png, .webp).");
+                return;
+            }
+
+            IBrowserFile targetFile = file;
+            // Downscale high-resolution photos on client side (max 1600x1600) to keep memory & SignalR transfer instant and light
+            try
+            {
+                targetFile = await file.RequestImageFileAsync("image/jpeg", 1600, 1600);
+            }
+            catch
+            {
+                // Fallback to original file
+                targetFile = file;
+            }
+
+            var maxFileSize = 30 * 1024 * 1024; // 30MB
+            using var stream = targetFile.OpenReadStream(maxAllowedSize: maxFileSize);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             var buffer = ms.ToArray();
-            
-            var format = file.ContentType?.ToLower() ?? "image/jpeg";
+
+            var format = targetFile.ContentType?.ToLower() ?? "image/jpeg";
             if (!format.StartsWith("image/")) format = "image/jpeg";
-            
+
             cropModalImageSrc = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
             currentCropAspectRatio = 238.0 / 176.0;
             showCropModal = true;
@@ -1011,6 +1068,7 @@ else
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading photo for crop: {ex.Message}");
+            Notifications.ShowError($"Failed to process selected image: {ex.Message}");
         }
     }
 
@@ -1057,6 +1115,12 @@ else
         try { await JSRuntime.InvokeVoidAsync("imageCropperInterop.reset"); } catch { }
     }
 
+    private async Task SaveOriginalWithoutCrop()
+    {
+        if (employee == null || string.IsNullOrEmpty(cropModalImageSrc)) return;
+        await SaveImageSourceAsync(cropModalImageSrc);
+    }
+
     private async Task ApplyCropAndSave()
     {
         if (employee == null) return;
@@ -1065,24 +1129,118 @@ else
 
         try
         {
-            var croppedBase64 = await JSRuntime.InvokeAsync<string>("imageCropperInterop.getCroppedImage", 800, 800, 0.92);
+            var croppedBase64 = await JSRuntime.InvokeAsync<string>("imageCropperInterop.getCroppedImage", 800, 800, 0.90);
+            if (string.IsNullOrEmpty(croppedBase64))
+            {
+                croppedBase64 = cropModalImageSrc;
+            }
+
             if (!string.IsNullOrEmpty(croppedBase64))
             {
-                employee.ProfileImageUrl = croppedBase64;
-                await EmployeeService.UpdateEmployeeAsync(employee);
-                await JSRuntime.InvokeVoidAsync("imageCropperInterop.destroy");
-                showCropModal = false;
+                await SaveImageSourceAsync(croppedBase64);
+            }
+            else
+            {
+                Notifications.ShowError("Could not retrieve image data. Please try again.");
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error saving cropped image: {ex.Message}");
+            Notifications.ShowError($"Failed to save photo: {ex.Message}");
         }
         finally
         {
             isSavingCrop = false;
             StateHasChanged();
         }
+    }
+
+    private async Task SaveImageSourceAsync(string imageSrc)
+    {
+        try
+        {
+            isSavingCrop = true;
+            StateHasChanged();
+
+            // Ensure uploads/profiles folder exists
+            var uploadsDir = System.IO.Path.Combine(Env.WebRootPath, "uploads", "profiles");
+            if (!System.IO.Directory.Exists(uploadsDir))
+            {
+                System.IO.Directory.CreateDirectory(uploadsDir);
+            }
+
+            var safeEmployeeId = string.IsNullOrEmpty(employee.EmployeeId) ? employee.Id : employee.EmployeeId;
+            // Clean invalid filename characters
+            foreach (var c in System.IO.Path.GetInvalidFileNameChars())
+            {
+                safeEmployeeId = safeEmployeeId.Replace(c, '_');
+            }
+
+            var fileName = $"profile_{safeEmployeeId}_{DateTime.UtcNow.Ticks}.jpg";
+            var filePath = System.IO.Path.Combine(uploadsDir, fileName);
+
+            if (imageSrc.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                var commaIndex = imageSrc.IndexOf(',');
+                var base64Data = commaIndex >= 0 ? imageSrc.Substring(commaIndex + 1) : imageSrc;
+                var bytes = Convert.FromBase64String(base64Data);
+                await System.IO.File.WriteAllBytesAsync(filePath, bytes);
+
+                // Clean up previous profile image file if present
+                TryDeleteExistingProfileFile(employee.ProfileImageUrl);
+
+                employee.ProfileImageUrl = $"/uploads/profiles/{fileName}";
+            }
+            else if (imageSrc.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            {
+                // Already a hosted file path
+                employee.ProfileImageUrl = imageSrc;
+            }
+            else
+            {
+                employee.ProfileImageUrl = imageSrc;
+            }
+
+            await EmployeeService.UpdateEmployeeAsync(employee);
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("imageCropperInterop.destroy");
+            }
+            catch { }
+
+            showCropModal = false;
+            await LoadData();
+            Notifications.ShowSuccess("Profile photo updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving profile image: {ex.Message}");
+            Notifications.ShowError($"Failed to save profile photo: {ex.Message}");
+        }
+        finally
+        {
+            isSavingCrop = false;
+            StateHasChanged();
+        }
+    }
+
+    private void TryDeleteExistingProfileFile(string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !path.StartsWith("/uploads/profiles/", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        try
+        {
+            var cleanPath = path.TrimStart('/').Replace('/', System.IO.Path.DirectorySeparatorChar);
+            var fullPath = System.IO.Path.Combine(Env.WebRootPath, cleanPath);
+            if (System.IO.File.Exists(fullPath))
+            {
+                System.IO.File.Delete(fullPath);
+            }
+        }
+        catch { }
     }
 
     private async Task CloseCropModal()
@@ -1101,9 +1259,10 @@ else
     {
         if (employee == null) return;
         
+        TryDeleteExistingProfileFile(employee.ProfileImageUrl);
         employee.ProfileImageUrl = null;
         await EmployeeService.UpdateEmployeeAsync(employee);
-        
+        Notifications.ShowInfo("Profile photo removed.");
         StateHasChanged();
     }
 
@@ -1120,8 +1279,10 @@ else
     private async Task ConfirmDelete()
     {
         if (employee == null) return;
+        var name = employee.Name;
         await EmployeeService.DeleteEmployeeAsync(employee.Id);
         showDeleteModal = false;
+        Notifications.ShowSuccess($"Employee '{name}' deleted.");
         NavigationManager.NavigateTo("/employees");
     }
 

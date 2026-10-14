@@ -60,7 +60,21 @@ namespace AssetManagement.Infrastructure.Services
         public async Task<DeviceCategoryModel> AddCategoryAsync(string name, string type = "System")
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name cannot be empty");
-            var category = new DeviceCategoryModel { Name = name.Trim(), Type = type };
+            var trimmedName = name.Trim();
+            
+            // Check if category already exists (case-insensitive)
+            var existing = await _context.DeviceCategories
+                .FirstOrDefaultAsync(c => c.Name.ToLower() == trimmedName.ToLower());
+                
+            if (existing != null)
+            {
+                existing.Type = type;
+                await _context.SaveChangesAsync();
+                CategoryTypeRegistry.SetType(existing.Name, existing.Type);
+                return existing;
+            }
+
+            var category = new DeviceCategoryModel { Name = trimmedName, Type = type };
             _context.DeviceCategories.Add(category);
             await _context.SaveChangesAsync();
             CategoryTypeRegistry.SetType(category.Name, category.Type);

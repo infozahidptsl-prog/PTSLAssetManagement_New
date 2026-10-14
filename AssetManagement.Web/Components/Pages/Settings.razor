@@ -12,6 +12,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject SweetAlertService Swal
+@inject NotificationService Notifications
 
 <PageTitle>Settings - PrimeTech IT Assets</PageTitle>
 
@@ -1269,9 +1270,11 @@
     private async Task AddBrand()
     {
         if (string.IsNullOrWhiteSpace(newBrandName)) return;
-        await SettingsService.AddBrandAsync(newBrandName);
+        var name = newBrandName.Trim();
+        await SettingsService.AddBrandAsync(name);
         newBrandName = "";
         brands = await SettingsService.GetBrandsAsync();
+        Notifications.ShowSuccess($"Brand '{name}' added successfully.");
     }
 
     private void ShowDeleteBrandModal(string id)
@@ -1285,10 +1288,12 @@
     private async Task AddCategory()
     {
         if (string.IsNullOrWhiteSpace(newCategoryName)) return;
-        await SettingsService.AddCategoryAsync(newCategoryName, newCategoryType);
+        var name = newCategoryName.Trim();
+        await SettingsService.AddCategoryAsync(name, newCategoryType);
         newCategoryName = "";
         newCategoryType = "System";
         categories = await SettingsService.GetCategoriesAsync();
+        Notifications.ShowSuccess($"Category '{name}' added successfully.");
     }
 
     private void ShowDeleteCategoryModal(string id)
@@ -1302,9 +1307,11 @@
     private async Task AddDesignation()
     {
         if (string.IsNullOrWhiteSpace(newDesignationName)) return;
-        await SettingsService.AddDesignationAsync(newDesignationName);
+        var name = newDesignationName.Trim();
+        await SettingsService.AddDesignationAsync(name);
         newDesignationName = "";
         designations = await SettingsService.GetDesignationsAsync();
+        Notifications.ShowSuccess($"Designation '{name}' added successfully.");
     }
 
     private void ShowDeleteDesignationModal(string id)
@@ -1337,14 +1344,17 @@
         await SettingsService.UpdateProjectManagerAsync(pm);
         editingProjectManagerId = null;
         projectManagers = await SettingsService.GetProjectManagersAsync();
+        Notifications.ShowSuccess($"Project Manager '{pm.Name}' updated successfully.");
     }
 
     private async Task AddProjectManager()
     {
         if (string.IsNullOrWhiteSpace(newProjectManagerName)) return;
-        await SettingsService.AddProjectManagerAsync(newProjectManagerName);
+        var name = newProjectManagerName.Trim();
+        await SettingsService.AddProjectManagerAsync(name);
         newProjectManagerName = "";
         projectManagers = await SettingsService.GetProjectManagersAsync();
+        Notifications.ShowSuccess($"Project Manager '{name}' added successfully.");
     }
 
     private void ShowDeleteProjectManagerModal(string id)
@@ -1358,10 +1368,12 @@
     private async Task AddTeam()
     {
         if (string.IsNullOrWhiteSpace(newTeamName)) return;
-        await SettingsService.AddTeamAsync(newTeamName, newTeamPMId);
+        var name = newTeamName.Trim();
+        await SettingsService.AddTeamAsync(name, newTeamPMId);
         newTeamName = "";
         newTeamPMId = null;
         await LoadTeams();
+        Notifications.ShowSuccess($"Team '{name}' added successfully.");
     }
 
     private void StartEditTeam(Team tm)
@@ -1386,6 +1398,7 @@
         await SettingsService.UpdateTeamAsync(tm);
         editingTeamId = null;
         await LoadTeams();
+        Notifications.ShowSuccess($"Team '{tm.Name}' updated successfully.");
     }
 
     private void ShowDeleteTeamModal(string id)
@@ -1422,6 +1435,7 @@
         await SettingsService.UpdateOwnerCompanyAsync(oc);
         editingOwnerCompanyId = null;
         ownerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+        Notifications.ShowSuccess($"Company '{oc.Name}' updated successfully.");
     }
 
     
@@ -1520,11 +1534,13 @@
     private async Task AddOwnerCompany()
     {
         if (string.IsNullOrWhiteSpace(newOwnerCompanyName)) return;
-        await SettingsService.AddOwnerCompanyAsync(newOwnerCompanyName, newOwnerCompanyPrefix);
+        var name = newOwnerCompanyName.Trim();
+        await SettingsService.AddOwnerCompanyAsync(name, newOwnerCompanyPrefix);
         newOwnerCompanyName = "";
         newOwnerCompanyPrefix = "";
         _isPrefixManuallyEdited = false;
         ownerCompanies = await SettingsService.GetOwnerCompaniesAsync();
+        Notifications.ShowSuccess($"Company '{name}' added successfully.");
     }
 
     private void ShowDeleteOwnerCompanyModal(string id)
@@ -1543,10 +1559,16 @@
     private async Task AddRole()
     {
         if (string.IsNullOrWhiteSpace(newRoleName)) return;
-        if (!await RoleManager.RoleExistsAsync(newRoleName))
+        var rName = newRoleName.Trim();
+        if (!await RoleManager.RoleExistsAsync(rName))
         {
-            await RoleManager.CreateAsync(new IdentityRole(newRoleName));
+            await RoleManager.CreateAsync(new IdentityRole(rName));
             await LoadRolesAsync();
+            Notifications.ShowSuccess($"Role '{rName}' added successfully.");
+        }
+        else
+        {
+            Notifications.ShowWarning($"Role '{rName}' already exists.");
         }
         newRoleName = "";
     }
@@ -1574,9 +1596,10 @@
         var role = await RoleManager.FindByNameAsync(oldRoleName);
         if (role != null)
         {
-            role.Name = editRoleNameInput;
+            role.Name = editRoleNameInput.Trim();
             await RoleManager.UpdateAsync(role);
             await LoadRolesAsync();
+            Notifications.ShowSuccess($"Role renamed to '{role.Name}'.");
         }
         CancelEditRole();
     }
@@ -1654,7 +1677,9 @@
                 await LoadRolesAsync();
             }
         }
+        var deletedType = deleteActionType;
         CloseConfirmModal();
+        Notifications.ShowSuccess($"{deletedType} deleted successfully.");
     }
 
     private void StartEditBrand(Brand brand)
@@ -1670,6 +1695,7 @@
         await SettingsService.UpdateBrandAsync(brand);
         editingBrandId = null;
         brands = await SettingsService.GetBrandsAsync();
+        Notifications.ShowSuccess($"Brand '{brand.Name}' updated successfully.");
     }
 
     private void CancelEditBrand() => editingBrandId = null;
@@ -1689,6 +1715,7 @@
         await SettingsService.UpdateCategoryAsync(category);
         editingCategoryId = null;
         categories = await SettingsService.GetCategoriesAsync();
+        Notifications.ShowSuccess($"Category '{category.Name}' updated successfully.");
     }
 
     private void CancelEditCategory() => editingCategoryId = null;
@@ -1706,6 +1733,7 @@
         await SettingsService.UpdateDesignationAsync(designation);
         editingDesignationId = null;
         designations = await SettingsService.GetDesignationsAsync();
+        Notifications.ShowSuccess($"Designation '{designation.Name}' updated successfully.");
     }
 
     private void CancelEditDesignation() => editingDesignationId = null;
@@ -1714,9 +1742,11 @@
     private async Task AddDepartment()
     {
         if (string.IsNullOrWhiteSpace(newDepartmentName)) return;
-        await SettingsService.AddDepartmentAsync(newDepartmentName);
+        var name = newDepartmentName.Trim();
+        await SettingsService.AddDepartmentAsync(name);
         newDepartmentName = "";
         departments = await SettingsService.GetDepartmentsAsync();
+        Notifications.ShowSuccess($"Department '{name}' added successfully.");
     }
 
     private void ShowDeleteDepartmentModal(string id)
@@ -1740,6 +1770,7 @@
         await SettingsService.UpdateDepartmentAsync(department);
         editingDepartmentId = null;
         departments = await SettingsService.GetDepartmentsAsync();
+        Notifications.ShowSuccess($"Department '{department.Name}' updated successfully.");
     }
     
     private void CancelEditDepartment() => editingDepartmentId = null;
@@ -1799,6 +1830,7 @@
                 await UserManager.AddToRoleAsync(user, selectedRole);
                 CloseUserModal();
                 await LoadUsers();
+                Notifications.ShowSuccess($"User account '{user.Email}' created successfully.");
             }
             else
             {
@@ -1838,6 +1870,7 @@
                     
                     CloseUserModal();
                     await LoadUsers();
+                    Notifications.ShowSuccess($"User account '{user.Email}' updated successfully.");
                 }
                 else
                 {
@@ -1934,6 +1967,7 @@
             }
             
             permissionsMessage = $"Permissions updated successfully for role '{loadedPermissionRole}'.";
+            Notifications.ShowSuccess($"Permissions updated successfully for role '{loadedPermissionRole}'.");
         }
     }
 }

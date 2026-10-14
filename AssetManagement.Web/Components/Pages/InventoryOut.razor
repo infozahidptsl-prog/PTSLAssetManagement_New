@@ -10,6 +10,7 @@
 @inject EmployeeService EmployeeService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject NotificationService Notifications
 
 <PageTitle>Issue to employee - PrimeTech Asset Manager</PageTitle>
 
@@ -452,6 +453,9 @@
             }
         }
         showAllocateModal = false;
+        Notifications.ShowSuccess(handovers.Count == 1 
+            ? $"Asset allocated to {handovers[0].To} successfully." 
+            : $"{handovers.Count} assets allocated successfully.");
         await LoadData();
     }
 

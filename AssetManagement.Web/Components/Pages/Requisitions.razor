@@ -4,12 +4,14 @@
 @using AssetManagement.Core.Entities
 @using AssetManagement.Core.Interfaces
 @using AssetManagement.Infrastructure.Services
+@using AssetManagement.Web.Models
 @using Microsoft.AspNetCore.Components.Forms
 @inject RequisitionService RequisitionService
 @inject EmployeeService EmployeeService
 @inject ISettingsService SettingsService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject NotificationService Notifications
 
 <PageTitle>Asset Requisitions - PrimeTech Asset Manager</PageTitle>
 
@@ -244,25 +246,20 @@
                     @* Requested By *@
                     <div class="col-span-2 sm:col-span-1">
                         <label class="mb-1.5 block text-xs font-medium text-txt-mid">Requested By <span class="text-rose-500">*</span></label>
-                        <select @bind="newReq.RequestedByName" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
-                            <option value="">&#x2014; Select employee &#x2014;</option>
-                            @foreach (var emp in employees)
-                            {
-                                <option value="@emp.Name">@emp.Name (@emp.EmployeeId)</option>
-                            }
-                        </select>
+                        <SearchableSelect Value="@selectedEmployeeId"
+                                          ValueChanged="OnEmployeeSelected"
+                                          Options="@employeeOptions"
+                                          Placeholder="Select employee..."
+                                          AllowClear="true" />
                     </div>
 
                     @* Project Manager *@
                     <div class="col-span-2 sm:col-span-1">
                         <label class="mb-1.5 block text-xs font-medium text-txt-mid">Project Manager</label>
-                        <select @bind="newReq.ProjectManagerName" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
-                            <option value="">&#x2014; Select PM &#x2014;</option>
-                            @foreach (var mgr in managers)
-                            {
-                                <option value="@mgr">@mgr</option>
-                            }
-                        </select>
+                        <SearchableSelect @bind-Value="newReq.ProjectManagerName"
+                                          Options="@managerOptions"
+                                          Placeholder="Select PM..."
+                                          AllowClear="true" />
                     </div>
 
                     @* Requisition Received Date *@
@@ -274,41 +271,33 @@
                     @* Priority *@
                     <div>
                         <label class="mb-1.5 block text-xs font-medium text-txt-mid">Priority</label>
-                        <select @bind="newReq.Priority" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
-                            <option value="Normal">Normal</option>
-                            <option value="High">High</option>
-                            <option value="Low">Low</option>
-                        </select>
+                        <SearchableSelect @bind-Value="newReq.Priority"
+                                          Options="@priorityOptions"
+                                          Placeholder="Select priority..."
+                                          AllowClear="false"
+                                          AllowCustomValues="false" />
                     </div>
 
                     @* Asset Category *@
                     <div>
                         <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Category <span class="text-rose-500">*</span></label>
-                        <select @bind="newReq.AssetCategory" @bind:after="OnCategoryChanged" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
-                            <option value="">&#x2014; Select category &#x2014;</option>
-                            <option value="System">System</option>
-                            <option value="Component">Component</option>
-                            <option value="Peripheral">Peripheral</option>
-                        </select>
+                        <SearchableSelect Value="@newReq.AssetCategory"
+                                          ValueChanged="OnCategorySelected"
+                                          Options="@categoryOptions"
+                                          Placeholder="Select category..."
+                                          AllowClear="true"
+                                          AllowCustomValues="false" />
                     </div>
 
                     @* Asset Type *@
                     <div>
                         <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Type / Name <span class="text-rose-500">*</span></label>
-                        @if (filteredCategoryItems.Any())
-                        {
-                            <select @bind="newReq.AssetType" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
-                                <option value="">&#x2014; Select type &#x2014;</option>
-                                @foreach (var cat in filteredCategoryItems)
-                                {
-                                    <option value="@cat.Name">@cat.Name</option>
-                                }
-                            </select>
-                        }
-                        else
-                        {
-                            <input type="text" @bind="newReq.AssetType" placeholder="e.g. Laptop, Monitor 24&quot;, USB Hub" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none" />
-                        }
+                        <SearchableSelect Value="@newReq.AssetType"
+                                          ValueChanged="OnAssetTypeSelected"
+                                          Options="@assetTypeOptions"
+                                          Placeholder="Select or type asset type..."
+                                          AllowClear="true"
+                                          AllowCustomValues="true" />
                     </div>
 
                     @* Specification *@
@@ -585,6 +574,86 @@
             ? allCategories
             : allCategories.Where(c => c.Type?.Equals(newReq.AssetCategory, StringComparison.OrdinalIgnoreCase) == true).ToList();
 
+    private string selectedEmployeeId = "";
+
+    private List<SelectOption> employeeOptions => employees
+        .OrderBy(e => e.Name)
+        .Select(e => new SelectOption
+        {
+            Value = e.Id,
+            Text = string.IsNullOrWhiteSpace(e.EmployeeId)
+                ? e.Name
+                : $"{e.Name} ({e.EmployeeId})" + (!string.IsNullOrWhiteSpace(e.Designation) ? $" — {e.Designation}" : "")
+        })
+        .ToList();
+
+    private List<SelectOption> managerOptions => managers
+        .Select(m => new SelectOption { Value = m, Text = m })
+        .ToList();
+
+    private List<SelectOption> priorityOptions => new()
+    {
+        new SelectOption { Value = "Normal", Text = "Normal" },
+        new SelectOption { Value = "High", Text = "High" },
+        new SelectOption { Value = "Low", Text = "Low" }
+    };
+
+    private List<SelectOption> categoryOptions
+    {
+        get
+        {
+            var standard = new List<string> { "System", "Component", "Peripheral" };
+            var fromDb = allCategories
+                .Select(c => c.Type)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            return standard.Union(fromDb, StringComparer.OrdinalIgnoreCase)
+                .Select(c => new SelectOption { Value = c, Text = c })
+                .ToList();
+        }
+    }
+
+    private List<SelectOption> assetTypeOptions => filteredCategoryItems
+        .OrderBy(c => c.Name)
+        .Select(c => new SelectOption { Value = c.Name, Text = c.Name })
+        .ToList();
+
+    private void OnCategorySelected(string category)
+    {
+        newReq.AssetCategory = category;
+        newReq.AssetType = string.Empty;
+    }
+
+    private void OnAssetTypeSelected(string type)
+    {
+        newReq.AssetType = type;
+        if (string.IsNullOrEmpty(newReq.AssetCategory) && !string.IsNullOrEmpty(type))
+        {
+            var matched = allCategories.FirstOrDefault(c => c.Name.Equals(type, StringComparison.OrdinalIgnoreCase));
+            if (matched != null && !string.IsNullOrWhiteSpace(matched.Type))
+            {
+                newReq.AssetCategory = matched.Type;
+            }
+        }
+    }
+
+    private void OnEmployeeSelected(string empId)
+    {
+        selectedEmployeeId = empId;
+        var emp = employees.FirstOrDefault(e => e.Id == empId);
+        if (emp != null)
+        {
+            newReq.RequestedByName = emp.Name;
+            newReq.RequestedByEmployeeId = emp.EmployeeId;
+        }
+        else
+        {
+            newReq.RequestedByName = string.Empty;
+            newReq.RequestedByEmployeeId = null;
+        }
+    }
+
     // Modal state
     private bool showNewModal     = false;
     private bool showApproveModal = false;
@@ -637,6 +706,7 @@
     private void OpenNewModal()
     {
         newReq = new Requisition { Quantity = 1, Priority = "Normal" };
+        selectedEmployeeId = "";
         newReqReceivedDate = null;
         formError = null;
         uploadedFile = null;
@@ -695,6 +765,7 @@
         {
             await RequisitionService.DeleteAsync(selectedReq.Id);
             CloseModals();
+            Notifications.ShowSuccess("Requisition deleted successfully.");
             await LoadData();
         }
     }
@@ -720,6 +791,7 @@
     {
         showNewModal = showApproveModal = showRejectModal = showViewModal = showPreviewModal = showDeleteModal = false;
         selectedReq = null; formError = null;
+        selectedEmployeeId = "";
     }
 
     private async Task SubmitNewRequisition()
@@ -757,6 +829,7 @@
         await RequisitionService.CreateAsync(newReq);
         isSaving = false;
         CloseModals();
+        Notifications.ShowSuccess($"Requisition for {newReq.AssetType} submitted successfully.");
         await LoadData();
     }
 
@@ -764,7 +837,9 @@
     {
         if (string.IsNullOrWhiteSpace(approverName)) { formError = "Please enter the approver's name."; return; }
         await RequisitionService.ApproveAsync(selectedReq!.Id, approverName, approvalNote);
-        CloseModals(); await LoadData();
+        CloseModals();
+        Notifications.ShowSuccess("Requisition approved successfully.");
+        await LoadData();
     }
 
     private async Task ConfirmReject()
@@ -772,7 +847,9 @@
         if (string.IsNullOrWhiteSpace(approverName)) { formError = "Please enter your name."; return; }
         if (string.IsNullOrWhiteSpace(approvalNote)) { formError = "Please provide a reason for rejection."; return; }
         await RequisitionService.RejectAsync(selectedReq!.Id, approverName, approvalNote);
-        CloseModals(); await LoadData();
+        CloseModals();
+        Notifications.ShowWarning("Requisition has been rejected.");
+        await LoadData();
     }
 
     private void GoToPurchase(Requisition req)

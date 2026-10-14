@@ -7,68 +7,313 @@
 @inject HandoverService HandoverService
 @inject DeviceService DeviceService
 @inject NavigationManager Navigation
+@inject NotificationService Notifications
 
 <PageTitle>Employees Vs Assets - PrimeTech Asset Manager</PageTitle>
 
-<PageHeader Title="Employees Vs Assets">
+<div class="bg-surface pb-2 border-b border-line-soft">
+<PageHeader Title="Employees Vs Assets" 
+            Description="Employee staff directory and issued asset custody ledger. View equipment assigned to individuals and teams.">
     <Actions>
-        <button type="button" id="btn-add-employee" @onclick="OpenAddModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+        <button type="button" id="btn-add-employee" @onclick="OpenAddModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
             Add employee
         </button>
     </Actions>
-</PageHeader>
+    <ChildContent>
+        <div class="mt-3 flex flex-row gap-3">
+            <!-- Card 1: Total Employees -->
+            <div @onclick='() => SetCardFilter("All")' 
+                 class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(activeCardFilter == "All" ? "ring-2 ring-indigo-500 shadow-md" : "")" 
+                 style="background: #f5f3ff; border: 1px solid #ddd6fe;"
+                 title="Show all active staff members">
+                <div class="relative z-10 flex items-start justify-between p-2.5">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #5b21b6;">Total Employees</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #7c3aed;">@totalEmployeesCount</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #6d28d9;">@activeEmployeesCount active &middot; @totalTeamsCount teams</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #ede9fe; color: #7c3aed;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </span>
+                </div>
+            </div>
 
-<div class="flex flex-wrap items-center justify-between gap-3 border-y border-line-soft bg-surface px-6 py-3 lg:px-9">
-    <label class="flex items-center gap-2 text-sm text-txt-mid">
-        <span class="text-xs font-semibold uppercase tracking-wider text-txt-lo">Status:</span>
-        <select @bind="employeeStatusFilter" class="rounded-md border border-line bg-surface py-1 pl-2 pr-6 text-sm text-txt-hi focus:border-accent-border focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
-            <option value="Active">Active only</option>
-            <option value="Inactive">Inactive only</option>
-            <option value="Teams">Team accounts</option>
-            <option value="All">All employees</option>
-        </select>
-    </label>
-    <span class="tnum text-xs text-txt-lo">
-        @if (employeeStatusFilter == "Teams")
-        {
-            @($"{filteredEmployees.Count} team accounts")
-        }
-        else
-        {
-            @($"{filteredEmployees.Count} people")
-        }
-    </span>
+            <!-- Card 2: With Assets Assigned -->
+            <div @onclick='() => SetCardFilter("WithAssets")' 
+                 class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(activeCardFilter == "WithAssets" ? "ring-2 ring-emerald-500 shadow-md" : "")" 
+                 style="background: #ecfdf5; border: 1px solid #a7f3d0;"
+                 title="Filter to employees currently holding assets">
+                <div class="relative z-10 flex items-start justify-between p-2.5">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #065f46;">With Assets</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #047857;">@employeesWithAssetsCount</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #047857;">Holding company equipment</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #d1fae5; color: #059669;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Card 3: Without Assets -->
+            <div @onclick='() => SetCardFilter("WithoutAssets")' 
+                 class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(activeCardFilter == "WithoutAssets" ? "ring-2 ring-sky-500 shadow-md" : "")" 
+                 style="background: #eff6ff; border: 1px solid #bfdbfe;"
+                 title="Filter to employees with no assets issued">
+                <div class="relative z-10 flex items-start justify-between p-2.5">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #1e40af;">Without Assets</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #1d4ed8;">@employeesWithoutAssetsCount</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #1d4ed8;">No equipment issued</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #dbeafe; color: #2563eb;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="23" y1="11" y2="11"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Card 4: Total Assigned Assets -->
+            <div @onclick='ToggleSortMostAssets' 
+                 class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(SortColumn == "Assets" && !SortAscending ? "ring-2 ring-amber-500 shadow-md" : "")" 
+                 style="background: #fffbeb; border: 1px solid #fde68a;"
+                 title="Click to sort by highest assets held">
+                <div class="relative z-10 flex items-start justify-between p-2.5">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #92400e;">Assigned Assets</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #b45309;">@totalAssignedEquipmentCount</p>
+                        <p class="mt-0.5 text-[11px] font-medium" style="color: #92400e;">@totalAssignedSystemsCount Sys &middot; @totalAssignedPeripheralsCount Peri</p>
+                    </div>
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #fef3c7; color: #d97706;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</PageHeader>
 </div>
 
+<!-- Search & Filters Toolbar -->
+<div class="px-6 pb-2 pt-3 lg:px-9 flex flex-wrap items-center justify-between gap-3 border-b border-line-soft">
+    <!-- Left Filters -->
+    <div class="flex flex-wrap items-center gap-2">
+        <!-- Search Input -->
+        <div class="relative w-48 sm:w-64">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" placeholder="Search employee, ID, mail..." @bind="searchTerm" @bind:event="oninput" class="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-2 text-[13px] text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500" />
+        </div>
+
+        <!-- Office / Location Dropdown -->
+        <select @bind="selectedLocation" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
+            <option value="">All Offices</option>
+            @foreach (var loc in availableLocations)
+            {
+                <option value="@loc">@loc</option>
+            }
+        </select>
+
+        <!-- Department Dropdown -->
+        <select @bind="selectedDepartment" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
+            <option value="">All Departments</option>
+            @foreach (var dept in availableDepartments)
+            {
+                <option value="@dept">@dept</option>
+            }
+        </select>
+
+        <!-- Status Filter Dropdown -->
+        <select @bind="employeeStatusFilter" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
+            <option value="Active">Status: Active only</option>
+            <option value="Inactive">Status: Inactive only</option>
+            <option value="Teams">Status: Team accounts</option>
+            <option value="All">Status: All staff</option>
+        </select>
+
+        <!-- Sort By Dropdown -->
+        <select @bind="SortSelection" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
+            <option value="name-asc">Sort: Name (A - Z)</option>
+            <option value="name-desc">Sort: Name (Z - A)</option>
+            <option value="assets-desc">Sort: Most Assets First</option>
+            <option value="assets-asc">Sort: Least Assets First</option>
+            <option value="systems-desc">Sort: Most Systems (💻)</option>
+            <option value="empid-asc">Sort: Employee ID</option>
+            <option value="dept-asc">Sort: Department</option>
+        </select>
+
+        @if (HasActiveFilters)
+        {
+            <button type="button" @onclick="ClearFilters" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-danger-border bg-danger-soft px-2.5 py-1.5 text-[13px] font-medium text-danger-500 transition-colors duration-150 hover:bg-danger-500 hover:text-white cursor-pointer" title="Clear all active filters">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                Clear
+            </button>
+        }
+    </div>
+
+    <!-- Right Count & Active Filter Indicator -->
+    <div class="flex flex-wrap items-center gap-2">
+        @if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent-500">
+                <span>Search: "@searchTerm"</span>
+                <button type="button" @onclick='() => searchTerm = ""' class="ml-0.5 rounded-full hover:text-accent-700 focus:outline-none cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </span>
+        }
+        @if (activeCardFilter != "All")
+        {
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[12px] font-semibold text-indigo-700">
+                <span>@(activeCardFilter == "WithAssets" ? "Holding Assets" : activeCardFilter == "WithoutAssets" ? "No Assets" : "Teams")</span>
+                <button type="button" @onclick='() => activeCardFilter = "All"' class="ml-0.5 rounded-full hover:text-indigo-900 focus:outline-none cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </span>
+        }
+        <span class="text-[12px] text-txt-lo">
+            @if (HasActiveFilters)
+            {
+                <span>Showing <span class="font-bold text-txt-hi">@filteredEmployees.Count</span> of <span class="font-semibold text-txt-mid">@totalEmployeesCount</span> people</span>
+            }
+            else
+            {
+                <span>Showing all <span class="font-semibold text-txt-mid">@filteredEmployees.Count</span> people &middot; click a card or filter above</span>
+            }
+        </span>
+    </div>
+</div>
+
+<!-- Quick Filter Chips Bar with Live Counts -->
+<div class="px-6 py-2 lg:px-9 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-line-soft bg-canvas/30">
+    <span class="text-[11px] font-bold uppercase tracking-wider text-txt-lo shrink-0 mr-1 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters:
+    </span>
+
+    <!-- All Pill -->
+    <button type="button" @onclick='() => SetPillFilter("All")'
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(activeCardFilter == "All" && assetCustodyFilter == "All" && employeeStatusFilter == "Active" ? "bg-accent-500 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+        <span>All</span>
+        <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(activeCardFilter == "All" && assetCustodyFilter == "All" && employeeStatusFilter == "Active" ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
+            @totalEmployeesCount
+        </span>
+    </button>
+
+    <!-- With Assets Pill -->
+    <button type="button" @onclick='() => SetPillFilter("WithAssets")'
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(activeCardFilter == "WithAssets" || assetCustodyFilter == "WithAssets" ? "bg-emerald-600 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+        <span>Holding Assets</span>
+        <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(activeCardFilter == "WithAssets" || assetCustodyFilter == "WithAssets" ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
+            @employeesWithAssetsCount
+        </span>
+    </button>
+
+    <!-- Without Assets Pill -->
+    <button type="button" @onclick='() => SetPillFilter("WithoutAssets")'
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(activeCardFilter == "WithoutAssets" || assetCustodyFilter == "WithoutAssets" ? "bg-sky-600 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+        <span>No Assets</span>
+        <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(activeCardFilter == "WithoutAssets" || assetCustodyFilter == "WithoutAssets" ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
+            @employeesWithoutAssetsCount
+        </span>
+    </button>
+
+    <!-- Systems Pill -->
+    <button type="button" @onclick='() => SetPillFilter("Systems")'
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(assetCustodyFilter == "Systems" ? "bg-indigo-600 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+        <span>💻 Systems</span>
+        <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(assetCustodyFilter == "Systems" ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
+            @allEmployees.Count(e => employeeAssets.TryGetValue(e.Id, out var a) && a.Systems > 0)
+        </span>
+    </button>
+
+    <!-- Peripherals Pill -->
+    <button type="button" @onclick='() => SetPillFilter("Peripherals")'
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(assetCustodyFilter == "Peripherals" ? "bg-amber-600 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+        <span>🖱️ Peripherals</span>
+        <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(assetCustodyFilter == "Peripherals" ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
+            @allEmployees.Count(e => employeeAssets.TryGetValue(e.Id, out var a) && a.Peripherals > 0)
+        </span>
+    </button>
+
+    <!-- Team Accounts Pill -->
+    <button type="button" @onclick='() => SetPillFilter("Teams")'
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer @(employeeStatusFilter == "Teams" ? "bg-purple-600 text-white shadow-2xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+        <span>👥 Team Accounts</span>
+        <span class="rounded-full px-1.5 py-0.2 text-[10px] font-bold @(employeeStatusFilter == "Teams" ? "bg-white/20 text-white" : "bg-elevated text-txt-mid")">
+            @totalTeamsCount
+        </span>
+    </button>
+</div>
+
+<!-- Employee List Table -->
 <div class="overflow-x-auto">
-    <table class="w-full min-w-[50rem] border-collapse text-sm">
+    <table class="w-full min-w-[55rem] border-collapse text-sm">
         <caption class="sr-only">Employees and their issued assets</caption>
         <thead>
             <tr class="border-b border-line-soft text-left text-[10px] font-semibold uppercase tracking-widest text-txt-lo bg-surface">
-                <th scope="col" class="py-2 pl-6 pr-3 lg:pl-9 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Employee")'>
-                    <div class="flex items-center gap-1.5">Employee @RenderSortIcon("Employee")</div>
+                <th scope="col" class="py-2.5 pl-6 pr-3 lg:pl-9 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Employee")'>
+                    <div class="flex items-center gap-1.5 @(SortColumn == "Employee" ? "text-accent-500 font-bold" : "")">
+                        <span>Employee</span> 
+                        @RenderSortIcon("Employee")
+                    </div>
                 </th>
-                <th scope="col" class="px-3 py-2 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Email")'>
-                    <div class="flex items-center gap-1.5">Mail ID @RenderSortIcon("Email")</div>
+                <th scope="col" class="px-3 py-2.5 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Email")'>
+                    <div class="flex items-center gap-1.5 @(SortColumn == "Email" ? "text-accent-500 font-bold" : "")">
+                        <span>Mail ID</span> 
+                        @RenderSortIcon("Email")
+                    </div>
                 </th>
-                <th scope="col" class="px-3 py-2 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Assets")'>
-                    <div class="flex items-center gap-1.5">Assigned Assets @RenderSortIcon("Assets")</div>
+                <th scope="col" class="px-3 py-2.5 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Department")'>
+                    <div class="flex items-center gap-1.5 @(SortColumn == "Department" ? "text-accent-500 font-bold" : "")">
+                        <span>Department & Office</span> 
+                        @RenderSortIcon("Department")
+                    </div>
                 </th>
-                <th scope="col" class="px-3 py-2 text-right">Manage</th>
-                <th scope="col" class="py-2 pl-3 pr-6 lg:pr-9"><span class="sr-only">Open</span></th>
+                <th scope="col" class="px-3 py-2.5 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Assets")'>
+                    <div class="flex items-center gap-1.5 @(SortColumn == "Assets" ? "text-accent-500 font-bold" : "")">
+                        <span>Assigned Assets</span> 
+                        @RenderSortIcon("Assets")
+                    </div>
+                </th>
+                <th scope="col" class="px-3 py-2.5 text-right">Manage</th>
+                <th scope="col" class="py-2.5 pl-3 pr-6 lg:pr-9"><span class="sr-only">Open</span></th>
             </tr>
         </thead>
         <tbody class="divide-y divide-line-soft bg-surface">
+            @if (!filteredEmployees.Any())
+            {
+                <tr>
+                    <td colspan="6" class="py-12 text-center text-txt-mid">
+                        <div class="flex flex-col items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo mb-2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            <p class="font-medium text-txt-hi">No employees found matching current filter</p>
+                            <p class="text-xs text-txt-lo mt-0.5">Try resetting search keywords or active filters.</p>
+                            @if (HasActiveFilters)
+                            {
+                                <button type="button" @onclick="ClearFilters" class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors cursor-pointer">
+                                    Reset Filters
+                                </button>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
             @foreach (var emp in filteredEmployees)
             {
                 var assets = employeeAssets.GetValueOrDefault(emp.Id, new EmployeeAssets());
                 <tr class="group transition-colors duration-150 hover:bg-elevated cursor-pointer" @onclick="() => NavigateToEmployee(emp.Id)">
                     <th scope="row" class="py-2 pl-6 pr-3 text-left lg:pl-9">
                         <a href="/employee/@emp.Id" @onclick:stopPropagation="true" class="flex items-center gap-2.5 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-elevated text-[10px] font-semibold text-txt-mid" aria-hidden="true">
-                                @GetInitials(emp.Name)
-                            </span>
+                            @if (!string.IsNullOrEmpty(emp.ProfileImageUrl))
+                            {
+                                <img src="@emp.ProfileImageUrl" alt="@emp.Name" class="h-8 w-8 shrink-0 rounded-full object-cover border border-line shadow-2xs" />
+                            }
+                            else
+                            {
+                                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-elevated text-[11px] font-semibold text-txt-mid" aria-hidden="true">
+                                    @GetInitials(emp.Name)
+                                </span>
+                            }
                             <span class="min-w-0">
                                 <span class="block truncate font-medium text-txt-hi">@emp.Name</span>
                                 <span class="block truncate text-[11px] font-normal text-txt-lo mt-0.5">
@@ -79,7 +324,20 @@
                             </span>
                         </a>
                     </th>
-                    <td class="whitespace-nowrap px-3 py-3 text-xs text-txt-mid">@emp.Email</td>
+                    <td class="whitespace-nowrap px-3 py-3 text-xs text-txt-mid">
+                        @if (!string.IsNullOrEmpty(emp.Email))
+                        {
+                            <a href="mailto:@emp.Email" @onclick:stopPropagation="true" class="hover:text-accent-500 hover:underline">@emp.Email</a>
+                        }
+                        else
+                        {
+                            <span class="text-txt-lo">&mdash;</span>
+                        }
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-3 text-xs">
+                        <span class="block font-medium text-txt-hi">@(emp.Department ?? "—")</span>
+                        <span class="block text-[11px] text-txt-lo mt-0.5">@(emp.Location ?? "—")</span>
+                    </td>
                     <td class="px-3 py-3">
                         <div class="flex flex-wrap items-center gap-1.5">
                             <span class="@(assets.Systems > 0 ? "bg-accent-50 text-accent-700 border-accent-200" : "bg-surface text-txt-mid border-line-soft") inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold">
@@ -95,10 +353,10 @@
                     </td>
                     <td class="px-3 py-3 text-right">
                         <div class="flex items-center justify-end gap-1">
-                            <button type="button" title="Edit" @onclick="() => OpenEditModal(emp)" @onclick:stopPropagation="true" class="rounded-lg p-1.5 text-txt-lo transition-colors hover:bg-elevated hover:text-txt-hi focus:outline-none focus:ring-2 focus:ring-accent-500">
+                            <button type="button" title="Edit" @onclick="() => OpenEditModal(emp)" @onclick:stopPropagation="true" class="rounded-lg p-1.5 text-txt-lo transition-colors hover:bg-elevated hover:text-txt-hi focus:outline-none focus:ring-2 focus:ring-accent-500 cursor-pointer">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                             </button>
-                            <button type="button" title="Delete" @onclick="() => OpenDeleteModal(emp)" @onclick:stopPropagation="true" class="rounded-lg p-1.5 text-txt-lo transition-colors hover:bg-danger-soft hover:text-danger-600 focus:outline-none focus:ring-2 focus:ring-accent-500">
+                            <button type="button" title="Delete" @onclick="() => OpenDeleteModal(emp)" @onclick:stopPropagation="true" class="rounded-lg p-1.5 text-txt-lo transition-colors hover:bg-danger-soft hover:text-danger-600 focus:outline-none focus:ring-2 focus:ring-accent-500 cursor-pointer">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                             </button>
                         </div>
@@ -153,7 +411,7 @@
                 }
             </div>
             <div class="flex items-center justify-end gap-3 border-t border-line-soft bg-elevated px-6 py-4 rounded-b-2xl">
-                <button type="button" @onclick="CloseDeleteModal" class="rounded-lg px-4 py-2.5 text-sm font-semibold text-txt-hi hover:bg-raised focus:outline-none border border-line">Cancel</button>
+                <button type="button" @onclick="CloseDeleteModal" class="rounded-lg px-4 py-2.5 text-sm font-semibold text-txt-hi hover:bg-raised focus:outline-none border border-line cursor-pointer">Cancel</button>
                 @if (heldAssets.Count > 0)
                 {
                     <a href="/store-returns" class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none">
@@ -162,7 +420,7 @@
                 }
                 else
                 {
-                    <button type="button" @onclick="ConfirmDelete" class="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none">Delete employee</button>
+                    <button type="button" @onclick="ConfirmDelete" class="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none cursor-pointer">Delete employee</button>
                 }
             </div>
         </div>
@@ -178,6 +436,7 @@
         public int Systems { get; set; }
         public int Components { get; set; }
         public int Peripherals { get; set; }
+        public int Total => Systems + Components + Peripherals;
     }
     private Dictionary<string, EmployeeAssets> employeeAssets = new();
     
@@ -185,7 +444,31 @@
     public string? Search { get; set; }
 
     private string searchTerm = "";
+    private string selectedDepartment = "";
+    private string selectedLocation = "";
     private string employeeStatusFilter = "Active";
+    private string assetCustodyFilter = "All";
+    private string activeCardFilter = "All";
+    private string sortSelection = "name-asc";
+
+    private string SortSelection
+    {
+        get => sortSelection;
+        set
+        {
+            sortSelection = value;
+            switch (value)
+            {
+                case "name-asc": SortColumn = "Employee"; SortAscending = true; break;
+                case "name-desc": SortColumn = "Employee"; SortAscending = false; break;
+                case "assets-desc": SortColumn = "Assets"; SortAscending = false; break;
+                case "assets-asc": SortColumn = "Assets"; SortAscending = true; break;
+                case "systems-desc": SortColumn = "Systems"; SortAscending = false; break;
+                case "empid-asc": SortColumn = "EmployeeId"; SortAscending = true; break;
+                case "dept-asc": SortColumn = "Department"; SortAscending = true; break;
+            }
+        }
+    }
 
     protected override void OnParametersSet()
     {
@@ -207,8 +490,33 @@
 
     private void SortBy(string column)
     {
-        if (SortColumn == column) SortAscending = !SortAscending;
-        else { SortColumn = column; SortAscending = true; }
+        if (SortColumn == column)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            SortColumn = column;
+            SortAscending = (column != "Assets" && column != "Systems");
+        }
+
+        sortSelection = SortColumn switch
+        {
+            "Employee" => SortAscending ? "name-asc" : "name-desc",
+            "Assets" => SortAscending ? "assets-asc" : "assets-desc",
+            "Systems" => "systems-desc",
+            "EmployeeId" => "empid-asc",
+            "Department" => "dept-asc",
+            _ => "name-asc"
+        };
+    }
+
+    private void ToggleSortMostAssets()
+    {
+        activeCardFilter = "All";
+        SortColumn = "Assets";
+        SortAscending = false;
+        sortSelection = "assets-desc";
     }
 
     private RenderFragment RenderSortIcon(string column) => __builder =>
@@ -230,27 +538,196 @@
         }
     };
 
+    private int totalEmployeesCount => allEmployees.Count(e => e.IsActive && !e.IsTeamAccount);
+    private int activeEmployeesCount => allEmployees.Count(e => e.IsActive && !e.IsTeamAccount);
+    private int totalTeamsCount => allEmployees.Count(e => e.IsTeamAccount);
+    private int employeesWithAssetsCount => allEmployees.Count(e => e.IsActive && !e.IsTeamAccount && employeeAssets.TryGetValue(e.Id, out var a) && a.Total > 0);
+    private int employeesWithoutAssetsCount => allEmployees.Count(e => e.IsActive && !e.IsTeamAccount && (!employeeAssets.TryGetValue(e.Id, out var a) || a.Total == 0));
+    private int totalAssignedEquipmentCount => employeeAssets.Values.Sum(a => a.Total);
+    private int totalAssignedSystemsCount => employeeAssets.Values.Sum(a => a.Systems);
+    private int totalAssignedPeripheralsCount => employeeAssets.Values.Sum(a => a.Peripherals);
+
+    private List<string> availableDepartments => allEmployees
+        .Where(e => !string.IsNullOrWhiteSpace(e.Department))
+        .Select(e => e.Department!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(d => d)
+        .ToList();
+
+    private List<string> availableLocations => allEmployees
+        .Where(e => !string.IsNullOrWhiteSpace(e.Location))
+        .Select(e => e.Location!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(l => l)
+        .ToList();
+
+    private bool HasActiveFilters =>
+        !string.IsNullOrWhiteSpace(searchTerm) ||
+        !string.IsNullOrEmpty(selectedDepartment) ||
+        !string.IsNullOrEmpty(selectedLocation) ||
+        employeeStatusFilter != "Active" ||
+        assetCustodyFilter != "All" ||
+        activeCardFilter != "All";
+
+    private void ClearFilters()
+    {
+        searchTerm = "";
+        selectedDepartment = "";
+        selectedLocation = "";
+        employeeStatusFilter = "Active";
+        assetCustodyFilter = "All";
+        activeCardFilter = "All";
+    }
+
+    private void SetCardFilter(string filter)
+    {
+        if (activeCardFilter == filter)
+        {
+            activeCardFilter = "All";
+        }
+        else
+        {
+            activeCardFilter = filter;
+            if (filter == "Teams")
+            {
+                employeeStatusFilter = "Teams";
+            }
+            else if (employeeStatusFilter == "Teams")
+            {
+                employeeStatusFilter = "Active";
+            }
+        }
+    }
+
+    private void SetPillFilter(string pill)
+    {
+        if (pill == "All")
+        {
+            activeCardFilter = "All";
+            assetCustodyFilter = "All";
+            employeeStatusFilter = "Active";
+        }
+        else if (pill == "WithAssets")
+        {
+            activeCardFilter = "WithAssets";
+            assetCustodyFilter = "WithAssets";
+            employeeStatusFilter = "Active";
+        }
+        else if (pill == "WithoutAssets")
+        {
+            activeCardFilter = "WithoutAssets";
+            assetCustodyFilter = "WithoutAssets";
+            employeeStatusFilter = "Active";
+        }
+        else if (pill == "Systems")
+        {
+            activeCardFilter = "All";
+            assetCustodyFilter = "Systems";
+            employeeStatusFilter = "Active";
+        }
+        else if (pill == "Peripherals")
+        {
+            activeCardFilter = "All";
+            assetCustodyFilter = "Peripherals";
+            employeeStatusFilter = "Active";
+        }
+        else if (pill == "Teams")
+        {
+            activeCardFilter = "Teams";
+            assetCustodyFilter = "All";
+            employeeStatusFilter = "Teams";
+        }
+    }
+
     private List<Employee> filteredEmployees
     {
         get
         {
-            var q = allEmployees
-                .Where(e => employeeStatusFilter == "All" ? !e.IsTeamAccount : 
-                            employeeStatusFilter == "Active" ? (e.IsActive && !e.IsTeamAccount) : 
-                            employeeStatusFilter == "Inactive" ? (!e.IsActive && !e.IsTeamAccount) : 
-                            employeeStatusFilter == "Teams" ? e.IsTeamAccount : true)
-                .Where(e => string.IsNullOrWhiteSpace(searchTerm) || 
-                            e.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                            (e.EmployeeId != null && e.EmployeeId.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
-                            (e.Designation != null && e.Designation.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
+            var q = allEmployees.AsEnumerable();
+
+            // Status filter
+            if (activeCardFilter == "Teams" || employeeStatusFilter == "Teams")
+            {
+                q = q.Where(e => e.IsTeamAccount);
+            }
+            else if (employeeStatusFilter == "Active")
+            {
+                q = q.Where(e => e.IsActive && !e.IsTeamAccount);
+            }
+            else if (employeeStatusFilter == "Inactive")
+            {
+                q = q.Where(e => !e.IsActive && !e.IsTeamAccount);
+            }
+            else if (employeeStatusFilter == "All")
+            {
+                q = q.Where(e => !e.IsTeamAccount);
+            }
+
+            // Card filter
+            if (activeCardFilter == "WithAssets")
+            {
+                q = q.Where(e => employeeAssets.TryGetValue(e.Id, out var a) && a.Total > 0);
+            }
+            else if (activeCardFilter == "WithoutAssets")
+            {
+                q = q.Where(e => !employeeAssets.TryGetValue(e.Id, out var a) || a.Total == 0);
+            }
+
+            // Custody filter
+            if (assetCustodyFilter == "WithAssets")
+            {
+                q = q.Where(e => employeeAssets.TryGetValue(e.Id, out var a) && a.Total > 0);
+            }
+            else if (assetCustodyFilter == "WithoutAssets")
+            {
+                q = q.Where(e => !employeeAssets.TryGetValue(e.Id, out var a) || a.Total == 0);
+            }
+            else if (assetCustodyFilter == "Systems")
+            {
+                q = q.Where(e => employeeAssets.TryGetValue(e.Id, out var a) && a.Systems > 0);
+            }
+            else if (assetCustodyFilter == "Peripherals")
+            {
+                q = q.Where(e => employeeAssets.TryGetValue(e.Id, out var a) && a.Peripherals > 0);
+            }
+
+            // Department filter
+            if (!string.IsNullOrWhiteSpace(selectedDepartment))
+            {
+                q = q.Where(e => string.Equals(e.Department?.Trim(), selectedDepartment.Trim(), StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Location filter
+            if (!string.IsNullOrWhiteSpace(selectedLocation))
+            {
+                q = q.Where(e => string.Equals(e.Location?.Trim(), selectedLocation.Trim(), StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Search text
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.Trim();
+                q = q.Where(e =>
+                    e.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (e.EmployeeId != null && e.EmployeeId.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (e.Designation != null && e.Designation.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (e.Department != null && e.Department.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (e.Location != null && e.Location.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (e.Email != null && e.Email.Contains(term, StringComparison.OrdinalIgnoreCase)));
+            }
 
             return (SortColumn switch
             {
                 "Employee" => SortAscending ? q.OrderBy(e => e.Name) : q.OrderByDescending(e => e.Name),
                 "Email" => SortAscending ? q.OrderBy(e => e.Email ?? string.Empty) : q.OrderByDescending(e => e.Email ?? string.Empty),
+                "Department" => SortAscending ? q.OrderBy(e => e.Department ?? string.Empty) : q.OrderByDescending(e => e.Department ?? string.Empty),
+                "EmployeeId" => SortAscending ? q.OrderBy(e => e.EmployeeId ?? e.Id) : q.OrderByDescending(e => e.EmployeeId ?? e.Id),
+                "Systems" => SortAscending 
+                    ? q.OrderBy(e => employeeAssets.GetValueOrDefault(e.Id, new EmployeeAssets()).Systems) 
+                    : q.OrderByDescending(e => employeeAssets.GetValueOrDefault(e.Id, new EmployeeAssets()).Systems),
                 "Assets" => SortAscending 
-                    ? q.OrderBy(e => employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Systems + employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Components) 
-                    : q.OrderByDescending(e => employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Systems + employeeAssets.GetValueOrDefault(e.Name, new EmployeeAssets()).Components),
+                    ? q.OrderBy(e => employeeAssets.GetValueOrDefault(e.Id, new EmployeeAssets()).Total) 
+                    : q.OrderByDescending(e => employeeAssets.GetValueOrDefault(e.Id, new EmployeeAssets()).Total),
                 _ => q.OrderBy(e => e.Name)
             }).ToList();
         }
@@ -264,8 +741,15 @@
         allEmployees.AddRange(activeEmployees);
         allEmployees = allEmployees.GroupBy(e => e.Id).Select(g => g.First()).ToList();
 
+        ComputeEmployeeAssets();
+    }
+
+    private void ComputeEmployeeAssets()
+    {
+        employeeAssets.Clear();
         foreach (var device in allDevices)
         {
+            if (device.Status != AssetManagement.Core.Enums.DeviceStatus.InUse) continue;
             if (string.IsNullOrEmpty(device.UserName) && string.IsNullOrEmpty(device.EmployeeId)) continue;
             
             var emp = allEmployees.FirstOrDefault(e => 
@@ -287,10 +771,14 @@
             }
             else
             {
-                var cat = device.Category?.ToLower() ?? "";
-                if (cat.Contains("laptop") || cat.Contains("desktop") || cat.Contains("server") || cat.Contains("macbook") || cat.Contains("mobile") || cat.Contains("phone") || cat.Contains("tablet"))
+                var type = CategoryTypeRegistry.GetType(device.Category);
+                if (string.Equals(type, "System", StringComparison.OrdinalIgnoreCase))
                 {
                     employeeAssets[key].Systems++;
+                }
+                else if (string.Equals(type, "Component", StringComparison.OrdinalIgnoreCase))
+                {
+                    employeeAssets[key].Components++;
                 }
                 else
                 {
@@ -338,27 +826,30 @@
 
     private async Task SaveEmployee(Employee model)
     {
-        if (model.JoiningDate.HasValue && model.JoiningDate.Value.Year <= 1900)
+        try
         {
-            model.JoiningDate = null;
-        }
+            if (model.JoiningDate.HasValue && model.JoiningDate.Value.Year <= 1900)
+            {
+                model.JoiningDate = null;
+            }
 
-        if (isEdit)
-        {
-            await EmployeeService.UpdateEmployeeAsync(model);
+            if (isEdit)
+            {
+                await EmployeeService.UpdateEmployeeAsync(model);
+                Notifications.ShowSuccess("Staff details updated successfully.");
+            }
+            else
+            {
+                await EmployeeService.AddEmployeeAsync(model);
+                Notifications.ShowSuccess($"Staff member '{model.Name}' added successfully.");
+            }
+            showAddEditModal = false;
+            await RefreshData();
         }
-        else
+        catch (Exception ex)
         {
-            model.Id = model.EmployeeId ?? Guid.NewGuid().ToString();
-            await EmployeeService.AddEmployeeAsync(model);
+            Notifications.ShowError($"Failed to save employee: {ex.Message}");
         }
-        showAddEditModal = false;
-        await OnInitializedAsync(); // Refresh list
-    }
-
-    private void NavigateToEmployee(string id)
-    {
-        Navigation.NavigateTo($"/employee/{id}");
     }
 
     private void OpenDeleteModal(Employee emp)
@@ -367,14 +858,27 @@
         showDeleteModal = true;
     }
 
-    private void CloseDeleteModal() { showDeleteModal = false; deleteTarget = null; }
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deleteTarget = null;
+    }
 
     private async Task ConfirmDelete()
     {
         if (deleteTarget == null) return;
-        await EmployeeService.DeleteEmployeeAsync(deleteTarget.Id);
-        showDeleteModal = false;
-        deleteTarget = null;
+        
+        var name = deleteTarget.Name;
+        var result = await EmployeeService.DeleteEmployeeAsync(deleteTarget.Id);
+        if (result)
+        {
+            Notifications.ShowSuccess($"'{name}' has been deleted.");
+        }
+        else
+        {
+            Notifications.ShowError("Could not delete this record. Check if devices are still assigned.");
+        }
+        CloseDeleteModal();
         await RefreshData();
     }
 
@@ -389,10 +893,12 @@
 
     private async Task RefreshData()
     {
+        allDevices = await DeviceService.GetDevicesAsync();
         allEmployees = await EmployeeService.GetEmployeesAsync(false);
         var inactive = await EmployeeService.GetEmployeesAsync(true);
         allEmployees.AddRange(inactive);
         allEmployees = allEmployees.GroupBy(e => e.Id).Select(g => g.First()).ToList();
+        ComputeEmployeeAssets();
     }
 
     private string GetInitials(string name)
@@ -400,7 +906,6 @@
         if (string.IsNullOrWhiteSpace(name)) return "??";
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
         
-        // Remove common prefixes
         var prefixesToRemove = new[] { "md.", "md", "mohammad", "mohammed", "mr.", "mrs.", "ms.", "syed" };
         while (parts.Count > 1 && prefixesToRemove.Contains(parts[0].ToLowerInvariant()))
         {
@@ -411,20 +916,9 @@
         if (parts.Count == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
         return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
     }
-    
-    private string GetDepartment(Employee emp)
+
+    private void NavigateToEmployee(string id)
     {
-        var desig = emp.Designation?.ToLower() ?? "";
-        if (desig.Contains("finance") || desig.Contains("accounts")) return "Finance";
-        if (desig.Contains("hr") || desig.Contains("admin")) return "HR & Admin";
-        if (desig.Contains("sales")) return "Sales";
-        if (desig.Contains("marketing") || desig.Contains("content")) return "Marketing";
-        if (desig.Contains("product") || desig.Contains("business analyst")) return "Product";
-        if (desig.Contains("qa") || desig.Contains("sqa") || desig.Contains("quality")) return "Quality";
-        if (desig.Contains("delivery") || desig.Contains("project")) return "Delivery";
-        if (desig.Contains("operation")) return "Operations";
-        return "Engineering";
+        Navigation.NavigateTo($"/employee/{id}");
     }
 }
-
-

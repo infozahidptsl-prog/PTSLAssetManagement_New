@@ -5,7 +5,15 @@
 {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Laptop"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
 }
-else if (IsCategory("Desktop", "PC", "System Unit", "Tower", "Workstation", "Mini-PC", "Minipc", "PC-Server") || CategoryTypeRegistry.GetType(Category) == "System")
+else if (IsCategory("Server", "PC-Server", "Rack Server"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Server"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/><line x1="10" x2="18" y1="6" y2="6"/><line x1="10" x2="18" y1="18" y2="18"/></svg>
+}
+else if (IsCategory("Mobile", "Phone", "Smartphone", "Tablet", "iPad"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Mobile"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+}
+else if (IsCategory("Desktop", "PC", "System Unit", "Tower", "Workstation", "Mini-PC", "Minipc"))
 {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Desktop"><rect width="14" height="18" x="5" y="3" rx="2" ry="2"/><line x1="9" x2="15" y1="7" y2="7"/><line x1="9" x2="15" y1="11" y2="11"/><line x1="9" x2="11" y1="15" y2="15"/></svg>
 }
@@ -13,13 +21,61 @@ else if (IsCategory("Monitor", "Display", "Screen"))
 {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Monitor"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
 }
-else if (IsCategory("Mobile", "Phone", "Smartphone", "Tablet", "iPad"))
+else if (IsCategory("Printer & Scanner", "Printer and Scanner", "Multifunction Printer", "All-in-One Printer", "Printer & scanner"))
 {
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Mobile"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Printer & Scanner"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/><line x1="9" x2="15" y1="17" y2="17"/></svg>
 }
-else if (IsCategory("Peripheral", "Keyboard", "Mouse", "Headphone", "Headset", "Accessory"))
+else if (IsCategory("Printer", "Laser Printer", "Color Printer", "Dot Matrix", "Thermal Printer"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Printer"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+}
+else if (IsCategory("Scanner", "Document Scanner", "Barcode Scanner", "SecuGen", "Biometric Scanner", "Fingerprint"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Scanner"><path d="M3 7V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/><path d="M17 22H7a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2z"/><line x1="3" x2="21" y1="12" y2="12"/></svg>
+}
+else if (IsCategory("Keyboard"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Keyboard"><rect width="20" height="12" x="2" y="6" rx="2"/><path d="M6 10h.01"/><path d="M10 10h.01"/><path d="M14 10h.01"/><path d="M18 10h.01"/><path d="M8 14h8"/></svg>
+}
+else if (IsCategory("Mouse"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Mouse"><rect width="12" height="18" x="6" y="3" rx="6"/><path d="M12 3v7"/><path d="M6 10h12"/></svg>
+}
+else if (IsCategory("Headphone", "Headphones", "Headset", "Earphone", "Earphones", "Audio"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Headphones"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>
+}
+else if (IsCategory("UPS", "Battery", "Power Bank", "Inverter", "IPS"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="UPS"><rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" x2="22" y1="11" y2="13"/><line x1="6" x2="6.01" y1="12" y2="12"/><line x1="10" x2="14" y1="12" y2="12"/></svg>
+}
+else if (IsCategory("Webcam", "Camera", "CCTV", "Conference Cam"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Camera"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
+}
+else if (IsCategory("Speaker", "Speakers", "Soundbar"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Speaker"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+}
+else if (IsCategory("Router", "Switch", "Access Point", "Network", "Modem", "Wi-Fi", "Wifi"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Network"><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 18h.01"/><path d="M10 18h.01"/><path d="M15 10v4"/><path d="M17.8 7.2a4 4 0 0 0-5.6 0"/><path d="M20.6 4.4a8 8 0 0 0-11.2 0"/></svg>
+}
+else if (IsCategory("RAM", "SSD", "HDD", "Hard Disk", "Power Supply", "Processor", "CPU", "GPU", "Graphics Card", "Motherboard", "Component"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Component"><rect width="14" height="14" x="5" y="5" rx="2"/><path d="M9 2v3"/><path d="M15 2v3"/><path d="M9 19v3"/><path d="M15 19v3"/><path d="M2 9h3"/><path d="M2 15h3"/><path d="M19 9h3"/><path d="M19 15h3"/></svg>
+}
+else if (IsCategory("Cable", "Adapter", "Converter", "Charger", "Power Cord"))
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Cable"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>
+}
+else if (IsCategory("Peripheral", "Accessory", "Docking Station", "Hub") || CategoryTypeRegistry.GetType(Category) == "Peripheral")
 {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="Peripheral"><rect width="12" height="18" x="6" y="3" rx="6"/><path d="M12 3v7"/><path d="M6 10h12"/></svg>
+}
+else if (CategoryTypeRegistry.GetType(Category) == "System")
+{
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@CssClass" title="System"><rect width="14" height="18" x="5" y="3" rx="2" ry="2"/><line x1="9" x2="15" y1="7" y2="7"/><line x1="9" x2="15" y1="11" y2="11"/><line x1="9" x2="11" y1="15" y2="15"/></svg>
 }
 else
 {
@@ -36,6 +92,12 @@ else
     private bool IsCategory(params string[] targets)
     {
         if (string.IsNullOrWhiteSpace(Category)) return false;
-        return targets.Any(t => string.Equals(Category.Trim(), t, StringComparison.OrdinalIgnoreCase));
+        var cat = Category.Trim();
+        foreach (var t in targets)
+        {
+            if (string.Equals(cat, t, StringComparison.OrdinalIgnoreCase)) return true;
+            if (cat.Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
     }
 }

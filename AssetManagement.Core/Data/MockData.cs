@@ -1567,78 +1567,7 @@ public static class MockData
             Note = null,
             Status = DeviceStatus.Faulty
         },
-        new Device
-        {
-            Id = "DEV-064",
-            Brand = "Lenovo",
-            DeviceName = "LENOVO",
-            Serial = "PF469F88",
-            Processor = "Intel i5 (11th Gen)",
-            Ram = "16GB",
-            Ssd = "512GB",
-            Hdd = "1TB",
-            EmployeeId = null,
-            UserName = "Afsar Uddin Chowdhury",
-            Contact = null,
-            Email = null,
-            Designation = null,
-            ReceivedDate = null,
-            ReturnDate = "01-09-25",
-            Condition = null,
-            From = "Afsar Uddin Chowdhury",
-            To = "Md. Solaiman Shohag",
-            Released = null,
-            Note = null,
-            Status = DeviceStatus.Returned
-        },
-        new Device
-        {
-            Id = "DEV-065",
-            Brand = "Lenovo",
-            DeviceName = "LENOVO",
-            Serial = "PF4FONBP",
-            Processor = "Intel i7 (11th Gen)",
-            Ram = "16GB",
-            Ssd = "512GB",
-            Hdd = "1TB",
-            EmployeeId = null,
-            UserName = "Md Abdul Kader",
-            Contact = null,
-            Email = null,
-            Designation = null,
-            ReceivedDate = null,
-            ReturnDate = "29/09/24",
-            Condition = null,
-            From = "Md Abdul Kader",
-            To = "Md. Maruf Hosen Khan",
-            Released = null,
-            Note = null,
-            Status = DeviceStatus.Returned
-        },
-        new Device
-        {
-            Id = "DEV-066",
-            Brand = "Lenovo",
-            DeviceName = "Lenovo",
-            Serial = "LR0617EU",
-            Processor = "Intel i7 (6th Gen)",
-            Ram = "12GB",
-            Ssd = "256GB",
-            Hdd = "1TB",
-            EmployeeId = null,
-            UserName = "Jahangir Alam",
-            Contact = null,
-            Email = null,
-            Designation = null,
-            ReceivedDate = null,
-            ReturnDate = "30/09/24",
-            Condition = "Good (PW-1456)",
-            From = "Jahangir Alam",
-            To = "Zakaria Khan",
-            Released = null,
-            Note = null,
-            Status = DeviceStatus.Returned
-        },
+
         new Device
         {
             Id = "DEV-067",
@@ -1783,30 +1712,7 @@ public static class MockData
             Note = null,
             Status = DeviceStatus.Returned
         },
-        new Device
-        {
-            Id = "DEV-073",
-            Brand = "ACER",
-            DeviceName = "ACER",
-            Serial = "NXVPLS100K12419C697600",
-            Processor = "Intel i5 (11th Gen)",
-            Ram = "16GB",
-            Ssd = "250GB",
-            Hdd = "1TB",
-            EmployeeId = null,
-            UserName = "Md. Touhidur Rahman",
-            Contact = null,
-            Email = null,
-            Designation = null,
-            ReceivedDate = null,
-            ReturnDate = "14/07/25",
-            Condition = null,
-            From = null,
-            To = null,
-            Released = null,
-            Note = null,
-            Status = DeviceStatus.Returned
-        },
+
         new Device
         {
             Id = "DEV-074",
@@ -1855,30 +1761,7 @@ public static class MockData
             Note = null,
             Status = DeviceStatus.Returned
         },
-        new Device
-        {
-            Id = "DEV-076",
-            Brand = "ASUS",
-            DeviceName = "ASUS ExpertBook",
-            Serial = "NINXCVO3S9560A1",
-            Processor = "Intel i5 (11th Gen)",
-            Ram = "16GB",
-            Ssd = "512GB",
-            Hdd = null,
-            EmployeeId = null,
-            UserName = "Rakib Hossain",
-            Contact = null,
-            Email = null,
-            Designation = null,
-            ReceivedDate = null,
-            ReturnDate = null,
-            Condition = null,
-            From = null,
-            To = null,
-            Released = null,
-            Note = null,
-            Status = DeviceStatus.Returned
-        },
+
         new Device
         {
             Id = "DEV-077",

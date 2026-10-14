@@ -47,3 +47,24 @@ Desktop.ini
 
 ## Backup folders
 backup/
+DeploymentBackup/
+BackgroundVideo/
+
+## Uploaded user files
+AssetManagement.Web/wwwroot/uploads/*
+!AssetManagement.Web/wwwroot/uploads/.gitkeep
+
+## Scratch and temporary test scripts
+test_*.cs
+test_*.png
+temp_ocr*
+TempOcr/
+TestApp/
+TestLogin*
+TestPass*
+DbQuery/
+QueryDb/
+FixApp/
+Design/
+*.py
+prompt.json

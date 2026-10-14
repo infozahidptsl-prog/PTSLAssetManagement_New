@@ -11,7 +11,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(options =>
+    {
+        options.MaximumReceiveMessageSize = 32 * 1024 * 1024; // 32 MB
+    });
+
+builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions>(options =>
+{
+    options.MaximumReceiveMessageSize = 32 * 1024 * 1024; // 32 MB
+});
     
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<AssetManagement.Infrastructure.Data.ApplicationDbContext>(options =>
@@ -67,6 +76,7 @@ builder.Services.AddTransient<AssetManagement.Core.Interfaces.IAiFieldMappingSer
 builder.Services.AddTransient<AssetManagement.Core.Interfaces.IAiValidationService, AssetManagement.Infrastructure.Services.AiValidationService>();
 builder.Services.AddTransient<AssetManagement.Core.Interfaces.IDocumentBundleService, AssetManagement.Infrastructure.Services.DocumentBundleService>();
 builder.Services.AddSweetAlert2();
+builder.Services.AddScoped<AssetManagement.Web.Services.NotificationService>();
 
 builder.Services.AddAuthorizationCore(options =>
 {

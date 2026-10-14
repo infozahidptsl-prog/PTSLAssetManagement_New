@@ -46,6 +46,8 @@ namespace AssetManagement.Web.Helpers
                 case "mouse":
                 case "headphone":
                 case "printer":
+                case "scanner":
+                case "printer & scanner":
                 case "ups":
                 case "cable":
                     return ("bg-amber-50 text-amber-700 ring-amber-600/20", "bg-amber-100 text-amber-800", "text-amber-500", "bg-amber-50 text-amber-700 ring-amber-600/20");

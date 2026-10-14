@@ -1,0 +1,175 @@
+@using AssetManagement.Web.Services
+@inject NotificationService Notifications
+@implements IDisposable
+
+<!-- Floating Top-Right Toast Notifications Container -->
+<div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-2 sm:px-0" aria-live="polite">
+    @foreach (var toast in toasts)
+    {
+        <div @key="toast.Id" 
+             class="pointer-events-auto group relative flex items-start gap-3 rounded-xl border p-3.5 shadow-xl transition-all duration-300 transform translate-x-0 animate-in slide-in-from-top-2 fade-in duration-200 @GetToastCardClasses(toast.Type)">
+            
+            <!-- Icon -->
+            <div class="shrink-0 mt-0.5">
+                @if (toast.Type == ToastType.Success)
+                {
+                    <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 ring-1 ring-inset ring-emerald-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                }
+                else if (toast.Type == ToastType.Error)
+                {
+                    <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </div>
+                }
+                else if (toast.Type == ToastType.Warning)
+                {
+                    <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
+                }
+                else
+                {
+                    <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 ring-1 ring-inset ring-indigo-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    </div>
+                }
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0 pr-2">
+                @if (!string.IsNullOrEmpty(toast.Title))
+                {
+                    <h4 class="text-xs font-semibold tracking-tight text-txt-hi">@toast.Title</h4>
+                }
+                <p class="text-xs text-txt-mid mt-0.5 leading-relaxed break-words">@toast.Message</p>
+            </div>
+
+            <!-- Dismiss button -->
+            <button type="button" 
+                    @onclick="() => DismissToast(toast.Id)" 
+                    class="shrink-0 rounded-md p-1 text-txt-lo transition-colors hover:bg-black/5 hover:text-txt-hi active:scale-95" 
+                    title="Dismiss">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+    }
+</div>
+
+<!-- Centered Confirmation Modal Dialog -->
+@if (activeConfirm != null)
+{
+    <div class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+        <div class="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div class="flex items-start gap-4">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl @(activeConfirm.IsDestructive ? "bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-300" : "bg-indigo-100 text-indigo-600 ring-1 ring-inset ring-indigo-300")">
+                    @if (activeConfirm.IsDestructive)
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    }
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-base font-semibold text-txt-hi">@activeConfirm.Title</h3>
+                    <p class="mt-1.5 text-xs text-txt-mid leading-relaxed">@activeConfirm.Message</p>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-2.5">
+                <button type="button" 
+                        @onclick="() => HandleConfirmResponse(false)" 
+                        class="rounded-lg border border-line bg-surface px-4 py-2 text-xs font-medium text-txt-mid transition-colors hover:bg-elevated hover:text-txt-hi active:scale-95">
+                    @activeConfirm.CancelButtonText
+                </button>
+                <button type="button" 
+                        @onclick="() => HandleConfirmResponse(true)" 
+                        class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all active:scale-95 @(activeConfirm.IsDestructive ? "bg-rose-600 hover:bg-rose-700" : "bg-indigo-600 hover:bg-indigo-700")">
+                    @activeConfirm.ConfirmButtonText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly List<ToastNotification> toasts = new();
+    private ConfirmDialogModel? activeConfirm;
+
+    protected override void OnInitialized()
+    {
+        Notifications.OnToastAdded += HandleToastAdded;
+        Notifications.OnToastDismissed += HandleToastDismissed;
+        Notifications.OnConfirmRequested += HandleConfirmRequested;
+    }
+
+    private void HandleToastAdded(ToastNotification toast)
+    {
+        InvokeAsync(() =>
+        {
+            toasts.Insert(0, toast);
+            StateHasChanged();
+
+            _ = Task.Delay(toast.DurationMs).ContinueWith(_ =>
+            {
+                InvokeAsync(() => DismissToast(toast.Id));
+            });
+        });
+    }
+
+    private void HandleToastDismissed(string id)
+    {
+        DismissToast(id);
+    }
+
+    private void DismissToast(string id)
+    {
+        var item = toasts.FirstOrDefault(t => t.Id == id);
+        if (item != null)
+        {
+            toasts.Remove(item);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleConfirmRequested(ConfirmDialogModel model)
+    {
+        InvokeAsync(() =>
+        {
+            activeConfirm = model;
+            StateHasChanged();
+        });
+    }
+
+    private void HandleConfirmResponse(bool confirmed)
+    {
+        if (activeConfirm != null)
+        {
+            var source = activeConfirm.CompletionSource;
+            activeConfirm = null;
+            source.TrySetResult(confirmed);
+            StateHasChanged();
+        }
+    }
+
+    private string GetToastCardClasses(ToastType type)
+    {
+        return type switch
+        {
+            ToastType.Success => "bg-white/95 border-emerald-200 text-txt-hi shadow-emerald-500/10",
+            ToastType.Error => "bg-white/95 border-rose-200 text-txt-hi shadow-rose-500/10",
+            ToastType.Warning => "bg-white/95 border-amber-200 text-txt-hi shadow-amber-500/10",
+            _ => "bg-white/95 border-indigo-200 text-txt-hi shadow-indigo-500/10"
+        };
+    }
+
+    public void Dispose()
+    {
+        Notifications.OnToastAdded -= HandleToastAdded;
+        Notifications.OnToastDismissed -= HandleToastDismissed;
+        Notifications.OnConfirmRequested -= HandleConfirmRequested;
+    }
+}

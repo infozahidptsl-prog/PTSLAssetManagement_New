@@ -8,6 +8,7 @@
 @inject DeviceService DeviceService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject NotificationService Notifications
 
 <PageTitle>Add new purchase - PrimeTech Asset Manager</PageTitle>
 
@@ -492,6 +493,7 @@
     {
         await DeviceService.AddDeviceAsync(device);
         newlyAddedDeviceId = device.Id;
+        Notifications.ShowSuccess($"New {device.DeviceTypeDisplay ?? "asset"} {device.AssetTag ?? device.Id} recorded to inventory successfully.");
 
         // Switch to the tab of the added device kind so it's immediately seen
         var kind = device.DeviceTypeDisplay?.ToLowerInvariant() ?? "system";
