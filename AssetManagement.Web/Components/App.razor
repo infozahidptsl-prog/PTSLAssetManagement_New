@@ -17,6 +17,12 @@
         document.documentElement.classList.remove('dark')
         localStorage.theme = 'light'
     </script>
+    <style id="app-scale">
+        /* 90% UI scale via CSS rem base - does not alter 100vh viewport */
+        html {
+            font-size: 14.4px;
+        }
+    </style>
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
