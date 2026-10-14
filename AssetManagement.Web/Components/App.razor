@@ -17,12 +17,6 @@
         document.documentElement.classList.remove('dark')
         localStorage.theme = 'light'
     </script>
-    <style id="app-default-zoom">
-        /* Default 90% zoom - Rollback note: remove or comment this style block to restore 100% */
-        html {
-            zoom: 90%;
-        }
-    </style>
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
