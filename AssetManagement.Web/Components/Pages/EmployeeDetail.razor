@@ -63,15 +63,15 @@ else
                     }
                 </div>
 
-                <!-- Profile Image Container -->
-                <div class="group relative w-full flex h-44 shrink-0 flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner">
+                <!-- Profile Image Container (Adapts to cropped aspect ratio: 3:4, 1:1, card profile, or freeform) -->
+                <div class="group relative w-full flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner">
                     @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
                     {
-                        <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="h-full w-full object-cover object-center" />
+                        <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="w-full h-auto max-h-[380px] object-contain object-center block" />
                     }
                     else
                     {
-                        <label for="empProfileUploadTop" class="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-200/60 transition-colors" title="Click to upload profile photo">
+                        <label for="empProfileUploadTop" class="flex flex-col items-center justify-center w-full h-56 cursor-pointer hover:bg-slate-200/60 transition-colors" title="Click to upload profile photo">
                             <span class="select-none text-5xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
                             <span class="text-[11px] font-medium text-slate-400 mt-1 flex items-center gap-1">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -647,9 +647,9 @@ else
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-1.5">
                             <span class="text-[11px] font-semibold text-txt-mid uppercase tracking-wider mr-1">Aspect:</span>
-                            <button type="button" @onclick="() => SetAspectRatio(238.0 / 176.0)" 
-                                    class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all @(Math.Abs(currentCropAspectRatio - (238.0 / 176.0)) < 0.01 ? "bg-accent-500 text-white shadow-xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
-                                Card Header (Recommended)
+                            <button type="button" @onclick="() => SetAspectRatio(238.0 / 240.0)" 
+                                    class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all @(Math.Abs(currentCropAspectRatio - (238.0 / 240.0)) < 0.01 ? "bg-accent-500 text-white shadow-xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
+                                Card Profile (Recommended)
                             </button>
                             <button type="button" @onclick="() => SetAspectRatio(1.0)" 
                                     class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all @(Math.Abs(currentCropAspectRatio - 1.0) < 0.01 ? "bg-accent-500 text-white shadow-xs" : "bg-surface border border-line text-txt-mid hover:text-txt-hi hover:bg-elevated")">
@@ -827,7 +827,7 @@ else
     private bool isCropperInitializing = false;
     private bool isSavingCrop = false;
     private string cropModalImageSrc = "";
-    private double currentCropAspectRatio = 238.0 / 176.0;
+    private double currentCropAspectRatio = 238.0 / 240.0;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -1017,7 +1017,7 @@ else
     {
         if (employee == null || string.IsNullOrEmpty(employee.ProfileImageUrl)) return;
         cropModalImageSrc = employee.ProfileImageUrl;
-        currentCropAspectRatio = 238.0 / 176.0;
+        currentCropAspectRatio = 238.0 / 240.0;
         showCropModal = true;
         isCropperInitializing = true;
         StateHasChanged();
@@ -1060,7 +1060,7 @@ else
             if (!format.StartsWith("image/")) format = "image/jpeg";
 
             cropModalImageSrc = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
-            currentCropAspectRatio = 238.0 / 176.0;
+            currentCropAspectRatio = 238.0 / 240.0;
             showCropModal = true;
             isCropperInitializing = true;
             StateHasChanged();

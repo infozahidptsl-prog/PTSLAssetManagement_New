@@ -195,6 +195,13 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+provider.Mappings[".webm"] = "video/webm";
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider
+});
+
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value?.ToLower() ?? "";
@@ -204,10 +211,36 @@ app.Use(async (context, next) =>
 
     if (isMobile)
     {
-        // Always allow static assets and Blazor framework files
-        if (path.StartsWith("/assets/") || path.StartsWith("/css/") || path.StartsWith("/js/") ||
-            path.EndsWith(".css") || path.EndsWith(".js") || path.EndsWith(".png") || path.EndsWith(".webm") ||
-            path.StartsWith("/_framework/") || path.StartsWith("/_blazor/") || path == "/_blazor")
+        // Always allow static assets, uploaded files, and Blazor framework files
+        if (path.StartsWith("/uploads/") ||
+            path.StartsWith("/assets/") ||
+            path.StartsWith("/css/") ||
+            path.StartsWith("/js/") ||
+            path.StartsWith("/images/") ||
+            path.StartsWith("/img/") ||
+            path.StartsWith("/icons/") ||
+            path.StartsWith("/fonts/") ||
+            path.StartsWith("/favicon") ||
+            path.StartsWith("/_framework/") ||
+            path.StartsWith("/_blazor/") ||
+            path == "/_blazor" ||
+            path.EndsWith(".css") ||
+            path.EndsWith(".js") ||
+            path.EndsWith(".png") ||
+            path.EndsWith(".jpg") ||
+            path.EndsWith(".jpeg") ||
+            path.EndsWith(".webp") ||
+            path.EndsWith(".svg") ||
+            path.EndsWith(".gif") ||
+            path.EndsWith(".ico") ||
+            path.EndsWith(".webm") ||
+            path.EndsWith(".mp4") ||
+            path.EndsWith(".woff") ||
+            path.EndsWith(".woff2") ||
+            path.EndsWith(".ttf") ||
+            path.EndsWith(".pdf") ||
+            path.EndsWith(".json") ||
+            path.EndsWith(".map"))
         {
             await next(context);
             return;
@@ -248,13 +281,6 @@ app.Use(async (context, next) =>
 
 
 app.UseAntiforgery();
-
-var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
-provider.Mappings[".webm"] = "video/webm";
-app.UseStaticFiles(new StaticFileOptions
-{
-    ContentTypeProvider = provider
-});
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

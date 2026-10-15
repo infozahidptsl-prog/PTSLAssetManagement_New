@@ -22,7 +22,7 @@ window.imageCropperInterop = {
             this.cropperInstance = null;
         }
 
-        var ratio = aspectRatio > 0 ? aspectRatio : (238 / 176); // Default 1.352 (profile card ratio)
+        var ratio = aspectRatio > 0 ? aspectRatio : (238 / 240); // Default 0.992 (profile card ratio)
 
         var self = this;
         function createCropper() {
