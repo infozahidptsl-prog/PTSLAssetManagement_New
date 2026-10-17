@@ -38,9 +38,9 @@
                 </li>
                 <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Devices.View">
                     <li>
-                        <NavLink href="/devices" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="All assets">
+                        <NavLink href="/devices" class="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-150 text-txt-mid hover:bg-elevated hover:text-txt-hi" ActiveClass="bg-accent-50 font-semibold text-accent-700 shadow-sm ring-1 ring-inset ring-accent-500/10" title="All Assets">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">All assets</span>
+                            <span class="flex-1 whitespace-nowrap transition-opacity duration-200 @(IsCollapsed ? "opacity-0 hidden" : "opacity-100")">All Assets</span>
                             @if (!IsCollapsed) { <span class="tnum font-mono text-[11px] text-txt-lo">@deviceCount</span> }
                         </NavLink>
                     </li>

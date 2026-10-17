@@ -70,7 +70,7 @@
     <AppTable TItem="Device" Items="sortedObsoleteItems" OnRowClick="@((Device device) => NavigationManager.NavigateTo($"/device/{device.Id}"))">
         <HeaderContent>
             <th scope="col" class="py-2 pl-6 pr-3 font-semibold text-[10px] uppercase tracking-widest text-txt-mid lg:pl-9 cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Asset")'>
-                <div class="flex items-center gap-1.5">Asset ID &amp; Item @RenderSortIcon("Asset")</div>
+                <div class="flex items-center gap-1.5">Asset ID @RenderSortIcon("Asset")</div>
             </th>
             <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Type")'>
                 <div class="flex items-center gap-1.5">Type @RenderSortIcon("Type")</div>
@@ -94,16 +94,7 @@
                 <a href="/device/@device.Id" class="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 rounded"><AssetManagement.Web.Components.Shared.AssetIdentityCell Device="device" Class="group-hover:opacity-80 transition-opacity" /></a>
             </th>
             <td class="px-3 py-3">
-                <span class="flex flex-col items-start gap-1">
-                    <span class="inline-flex gap-1.5">
-                        <span class="inline-flex items-center rounded bg-elevated px-1.5 py-0.5 text-[10px] font-medium tracking-widest text-txt-mid ring-1 ring-inset ring-line-strong">
-                            @device.DeviceTypeDisplay
-                        </span>
-                        <span class="inline-flex items-center rounded bg-elevated px-1.5 py-0.5 text-[10px] font-medium tracking-widest text-txt-mid ring-1 ring-inset ring-line-strong">
-                            @device.Category
-                        </span>
-                    </span>
-                </span>
+                <AssetManagement.Web.Components.Shared.AssetTypeBadge Device="device" />
             </td>
             <td class="px-3 py-3">
                 <span class="block text-sm text-txt-hi">@(string.IsNullOrEmpty(device.ProcessorFamily) ? "—" : $"{device.ProcessorFamily} {device.Ram} {device.Ssd}")</span>
@@ -185,8 +176,8 @@
             return (SortColumn switch
             {
                 "Asset" => SortAscending 
-                    ? result.OrderBy(d => d.Brand).ThenBy(d => d.DeviceName).ThenBy(d => d.AssetTag) 
-                    : result.OrderByDescending(d => d.Brand).ThenByDescending(d => d.DeviceName).ThenByDescending(d => d.AssetTag),
+                    ? result.OrderBy(d => d.AssetTag ?? d.Id).ThenBy(d => d.Brand) 
+                    : result.OrderByDescending(d => d.AssetTag ?? d.Id).ThenByDescending(d => d.Brand),
                 "Type" => SortAscending 
                     ? result.OrderBy(d => d.Category).ThenBy(d => d.IsComponent) 
                     : result.OrderByDescending(d => d.Category).ThenByDescending(d => d.IsComponent),

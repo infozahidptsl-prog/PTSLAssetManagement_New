@@ -93,9 +93,6 @@
             <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("ReturnedOn")'>
                 <div class="flex items-center gap-1.5">Returned On @RenderSortIcon("ReturnedOn")</div>
             </th>
-            <th scope="col" class="px-3 py-2 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Warranty")'>
-                <div class="flex items-center gap-1.5">Warranty @RenderSortIcon("Warranty")</div>
-            </th>
             <th scope="col" class="relative py-2 pl-3 pr-6 lg:pr-9"><span class="sr-only">Expand</span></th>
         </HeaderContent>
         <RowTemplate Context="device">
@@ -121,52 +118,12 @@
             </td>
             <td class="px-3 py-3 text-xs text-txt-hi font-medium">@(returnerMap.TryGetValue(device.Id, out var returner) ? returner : "Unknown")</td>
             <td class="px-3 py-3 text-xs text-txt-mid">@(returnDateMap.TryGetValue(device.Id, out var date) ? date : (device.ReturnDate ?? "-"))</td>
-            <td class="px-3 py-3 text-xs">
-                @if (device.HasWarranty)
-                {
-                    var warrantyEnd = device.ProcurementDate?.AddMonths(device.WarrantyMonths ?? 0);
-                    if (warrantyEnd.HasValue)
-                    {
-                        var daysLeft = (warrantyEnd.Value - DateTime.Now).TotalDays;
-                        if (daysLeft < 0)
-                        {
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-danger-500 font-medium">Expired</span>
-                                    <span class="text-txt-lo">@warrantyEnd.Value.ToString("d MMM yyyy")</span>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-emerald-500 font-medium">In warranty</span>
-                                    <span class="text-txt-lo">@(Math.Ceiling(daysLeft))d left</span>
-                                </div>
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="flex items-center justify-between">
-                            <span class="text-txt-lo">-</span>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <div class="flex items-center justify-between">
-                        <span class="text-txt-lo">-</span>
-                    </div>
-                }
-            </td>
             <td class="py-3 px-3 text-right pr-6 lg:pr-9">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo transition-transform duration-200 @(expandedDeviceId == device.Id ? "rotate-180" : "")" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </td>
         </RowTemplate>
         <ExpandedRowTemplate Context="device">
-            <td colspan="8" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
+            <td colspan="7" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
                 <div class="px-2 lg:px-3">
                     <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" OnStateChanged="LoadData" IsInline="true" HideEmployeeProfileLink="false" />
                 </div>
@@ -289,9 +246,6 @@
                 "ReturnedOn" => SortAscending 
                     ? result.OrderBy(d => returnDateMap.GetValueOrDefault(d.Id, "")) 
                     : result.OrderByDescending(d => returnDateMap.GetValueOrDefault(d.Id, "")),
-                "Warranty" => SortAscending 
-                    ? result.OrderBy(d => d.HasWarranty ? 0 : 1).ThenBy(d => d.WarrantyEndDate) 
-                    : result.OrderByDescending(d => d.HasWarranty ? 0 : 1).ThenByDescending(d => d.WarrantyEndDate),
                 _ => result
             };
 

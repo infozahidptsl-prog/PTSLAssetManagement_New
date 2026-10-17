@@ -94,36 +94,18 @@
             @foreach (var item in filteredDevices)
             {
                 var daysLeft = GetWarrantyDaysLeft(item);
-                var isNoCover = !item.HasWarranty || item.WarrantyMonths == 0 || item.ProcurementDate == null;
+                var isNoCover = !item.HasWarranty || item.WarrantyEndDate == null;
                 var tone = isNoCover ? "text-txt-lo" : (daysLeft < 0 ? "text-danger-400" : (daysLeft <= 90 ? "text-warn-400" : "text-ok-400"));
                 
                 <tr class="bg-surface transition-colors duration-150 hover:bg-slate-50 cursor-pointer" @onclick="async () => await ToggleExpand(item.Id)">
                     <th scope="row" class="py-2 pl-6 pr-3 text-left lg:pl-9">
-                        <div class="flex flex-col gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-                            <div class="flex items-center gap-1.5 text-txt-hi">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo shrink-0"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
-                                <span class="block font-medium">@item.Brand @item.DeviceName</span>
-                            </div>
-                            <div class="flex items-center gap-1.5 text-xs text-txt-hi">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-400 shrink-0"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
-                                <span class="tnum block font-mono font-semibold uppercase text-accent-400">@(string.IsNullOrEmpty(item.AssetTag) ? item.Id.ToString() : item.AssetTag)</span>
-                            </div>
-                            <div class="flex items-center gap-1.5 text-[10px] text-txt-lo">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo shrink-0"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
-                                <span class="tnum block font-mono">@item.Serial</span>
-                            </div>
-                        </div>
+                        <AssetManagement.Web.Components.Shared.AssetIdentityCell Device="item" />
                     </th>
                     <td class="px-3 py-3">
-                        <span class="flex flex-col items-start gap-1">
-                            <span class="inline-flex items-center rounded bg-elevated px-1.5 py-0.5 text-[10px] font-medium tracking-widest text-txt-mid ring-1 ring-inset ring-line-strong">
-                                @(item.IsComponent ? "Component" : (item.Category != null && (item.Category.Contains("Laptop", StringComparison.OrdinalIgnoreCase) || item.Category.Contains("Desktop", StringComparison.OrdinalIgnoreCase) || item.Category.Contains("Server", StringComparison.OrdinalIgnoreCase) || item.Category.Contains("MacBook", StringComparison.OrdinalIgnoreCase) || item.Category.Contains("Mobile", StringComparison.OrdinalIgnoreCase) || item.Category.Contains("Phone", StringComparison.OrdinalIgnoreCase) || item.Category.Contains("Tablet", StringComparison.OrdinalIgnoreCase)) ? "System" : "Peripheral"))
-                            </span>
-                            <span class="text-[11px] font-medium text-txt-mid">@item.Category</span>
-                        </span>
+                        <AssetManagement.Web.Components.Shared.AssetTypeBadge Device="item" />
                     </td>
                     <td class="tnum whitespace-nowrap px-3 py-3 font-mono text-xs text-txt-mid">
-                        @(item.ProcurementDate?.ToString("d MMM yyyy") ?? "-")
+                        @(item.EffectiveStartDate?.ToString("d MMM yyyy") ?? "-")
                     </td>
                     <td class="tnum whitespace-nowrap px-3 py-3 font-mono text-xs text-txt-mid">
                         @(GetWarrantyEndDate(item)?.ToString("d MMM yyyy") ?? "-")
@@ -276,9 +258,7 @@
 
     private DateTime? GetWarrantyEndDate(Device device)
     {
-        if (!device.HasWarranty || device.WarrantyMonths == 0 || device.ProcurementDate == null)
-            return null;
-        return device.ProcurementDate.Value.AddMonths(device.WarrantyMonths.Value);
+        return device.WarrantyEndDate;
     }
 
     private int? GetWarrantyDaysLeft(Device device)

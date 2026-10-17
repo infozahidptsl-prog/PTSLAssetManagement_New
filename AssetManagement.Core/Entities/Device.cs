@@ -79,13 +79,28 @@ public class Device
         => CategoryTypeRegistry.GetType(category);
 
     
+    public DateTime? EffectiveStartDate
+    {
+        get
+        {
+            if (ProcurementDate.HasValue) return ProcurementDate.Value;
+            if (!string.IsNullOrWhiteSpace(ReceivedDate) && DateTime.TryParse(ReceivedDate, out var dt))
+                return dt;
+            return null;
+        }
+    }
+
     public DateTime? WarrantyEndDate 
     { 
         get 
         {
-            if (HasWarranty && ProcurementDate.HasValue && WarrantyMonths.HasValue)
+            if (HasWarranty && WarrantyMonths.HasValue && WarrantyMonths.Value > 0)
             {
-                return ProcurementDate.Value.AddMonths(WarrantyMonths.Value);
+                var start = EffectiveStartDate;
+                if (start.HasValue)
+                {
+                    return start.Value.AddMonths(WarrantyMonths.Value);
+                }
             }
             return null;
         }

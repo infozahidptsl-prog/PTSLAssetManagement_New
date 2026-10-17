@@ -90,6 +90,6 @@ public class RequisitionService
     }
 
     public async Task<int> GetPendingCountAsync()
-        => await _context.Requisitions.CountAsync(r => r.Status == "Pending");
+        => await _context.Requisitions.CountAsync(r => r.Status != "Done");
 }
 

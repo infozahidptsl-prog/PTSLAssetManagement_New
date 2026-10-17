@@ -278,26 +278,20 @@ else
                         data-html2canvas-ignore="true" 
                         @onclick="() => CopyItemRecordAsImage(device.Id)" 
                         title="@(copySuccess ? copyActionMessage : "Copy Item Record as image")" 
-                        class="group inline-flex items-center justify-center h-6 w-6 rounded-md border border-indigo-200 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 hover:from-indigo-100 hover:to-pink-100 hover:border-indigo-400 shadow-2xs transition-all active:scale-90 cursor-pointer">
+                        class="group inline-flex items-center justify-center h-6 w-6 rounded-md border border-line bg-elevated hover:bg-surface hover:border-line-strong text-txt-mid hover:text-txt-hi transition-all active:scale-90 cursor-pointer">
                     @if (isCopyingImage)
                     {
-                        <svg class="animate-spin h-3.5 w-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        <svg class="animate-spin h-3.5 w-3.5 text-txt-mid" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                     }
                     else if (copySuccess)
                     {
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     }
                     else
                     {
-                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" class="transition-transform group-hover:scale-110">
-                            <!-- Camera outer body in rich royal indigo -->
-                            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <!-- Lens outer ring in vivid rose / pink -->
-                            <circle cx="12" cy="13" r="3.5" stroke="#ec4899" stroke-width="2.2" fill="#fdf2f8"/>
-                            <!-- Lens core in deep violet -->
-                            <circle cx="12" cy="13" r="1.5" fill="#7c3aed"/>
-                            <!-- Top flash dot in bright cyan -->
-                            <circle cx="18" cy="9" r="1.2" fill="#06b6d4"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:scale-105">
+                            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                            <circle cx="12" cy="13" r="3"/>
                         </svg>
                     }
                 </button>
@@ -308,14 +302,14 @@ else
             </div>
             <div class="@(IsInline ? "flex flex-col gap-[2px] text-[12px] pr-2 flex-1" : "grid grid-cols-1 gap-y-4 gap-x-8 sm:grid-cols-2 text-[13px]")">
                 <!-- 1. Asset ID -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft shrink-0" : "border-b border-line-soft pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft shrink-0" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Asset ID</span>
                     <span @onclick='() => CopyValueToClipboard(device.AssetTag ?? device.Id, "asset_id")'
                           title="Click to copy Asset ID"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-blue-100 hover:bg-blue-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-blue-800 border border-blue-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[12px] text-txt-hi hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "asset_id")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -323,39 +317,19 @@ else
                         else
                         {
                             <span>@(device.AssetTag ?? device.Id)</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
-                <!-- 2. Serial number -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
-                    <span class="text-txt-mid">Serial number</span>
-                    <span @onclick='() => CopyValueToClipboard(device.Serial, "serial")'
-                          title="Click to copy Serial number"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-elevated hover:bg-slate-100 px-2.5 py-0.5 text-[11px] font-mono font-medium text-txt-hi border border-gray-300 uppercase shadow-2xs active:scale-95 transition-all">
-                        @if (copiedFieldKey == "serial")
-                        {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
-                                Copied!
-                            </span>
-                        }
-                        else
-                        {
-                            <span>@device.Serial</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                        }
-                    </span>
-                </div>
-                <!-- 3. Category -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <!-- 2. Category -->
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Category</span>
                     <span @onclick='() => CopyValueToClipboard(device.Category, "category")'
                           title="Click to copy Category"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-purple-100 hover:bg-purple-200 px-2.5 py-0.5 text-[11px] font-medium text-purple-800 border border-purple-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] text-txt-hi hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "category")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -363,22 +337,22 @@ else
                         else
                         {
                             <span>@device.Category</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
-                <!-- 4. Brand -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <!-- 3. Brand -->
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Brand</span>
                     @{
                         var brandText = GetBrandText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(brandText, "brand")'
                           title="Click to copy Brand"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-sky-100 hover:bg-sky-200 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 border border-sky-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] @(brandText == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "brand")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -386,22 +360,22 @@ else
                         else
                         {
                             <span>@brandText</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
-                <!-- 5. Item model -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <!-- 4. Item model -->
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Item model</span>
                     @{
                         var modelText = GetItemModelText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(modelText, "model")'
                           title="Click to copy Item model"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-indigo-100 hover:bg-indigo-200 px-2.5 py-0.5 text-[11px] font-medium text-indigo-800 border border-indigo-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] @(modelText == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "model")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -409,44 +383,44 @@ else
                         else
                         {
                             <span>@modelText</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
-                <!-- 6. Specification -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <!-- 5. Specification -->
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Specification</span>
                     @{
                         var specText = GetSpecText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(specText, "spec")'
                           title="Click to copy Specification"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-cyan-100 hover:bg-cyan-200 px-2.5 py-0.5 text-[11px] font-medium text-cyan-800 border border-cyan-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] @(string.IsNullOrWhiteSpace(specText) ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "spec")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
                         }
                         else
                         {
-                            <span>@specText</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <span>@(string.IsNullOrWhiteSpace(specText) ? "N/A" : specText)</span>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 @if (device.Category != null && device.Category.Equals("Desktop", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(device.MonitorDisplay))
                 {
                     <!-- Monitor (if Desktop) -->
-                    <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                    <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                         <span class="text-txt-mid">Monitor</span>
                         <span @onclick='() => CopyValueToClipboard(device.MonitorDisplay, "monitor")'
                               title="Click to copy Monitor"
-                              class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-orange-100 hover:bg-orange-200 px-2.5 py-0.5 text-[11px] font-medium text-orange-800 border border-orange-300 shadow-2xs active:scale-95 transition-all">
+                              class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] text-txt-hi hover:text-accent-600 transition-colors">
                             @if (copiedFieldKey == "monitor")
                             {
-                                <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                     Copied!
                                 </span>
@@ -454,13 +428,33 @@ else
                             else
                             {
                                 <span>@device.MonitorDisplay</span>
-                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                             }
                         </span>
                     </div>
                 }
+                <!-- 6. Serial number -->
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
+                    <span class="text-txt-mid">Serial number</span>
+                    <span @onclick='() => CopyValueToClipboard(device.Serial, "serial")'
+                          title="Click to copy Serial number"
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[12px] text-txt-hi hover:text-accent-600 uppercase transition-colors">
+                        @if (copiedFieldKey == "serial")
+                        {
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                                Copied!
+                            </span>
+                        }
+                        else
+                        {
+                            <span>@device.Serial</span>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        }
+                    </span>
+                </div>
                 <!-- 7. Condition -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Condition</span>
                     @{
                         var curCond = GetConditionText(device);
@@ -468,10 +462,10 @@ else
                     }
                     <span @onclick='() => CopyValueToClipboard(curCond, "condition")'
                           title="Click to copy Condition"
-                          class="group/copy inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[11px] font-semibold cursor-pointer shadow-2xs active:scale-95 transition-all @curBadge">
+                          class="group/copy inline-flex items-center gap-1.5 cursor-pointer font-medium text-[12px] text-txt-hi hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "condition")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -480,22 +474,22 @@ else
                         {
                             <span class="h-1.5 w-1.5 rounded-full @curDot"></span>
                             <span>@curCond</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 <!-- 8. Supplier -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Supplier</span>
                     @{
                         var supVal = GetSupplierText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(supVal, "supplier")'
                           title="Click to copy Supplier"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-orange-100 hover:bg-orange-200 px-2.5 py-0.5 text-[11px] font-medium text-orange-800 border border-orange-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] @(supVal == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "supplier")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -503,19 +497,19 @@ else
                         else
                         {
                             <span>@supVal</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 <!-- 9. Owner / Company -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Owner / Company</span>
                     <span @onclick='() => CopyValueToClipboard(device.OwnerCompany, "owner")'
                           title="Click to copy Owner / Company"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-indigo-100 hover:bg-indigo-200 px-2.5 py-0.5 text-[11px] font-medium text-indigo-800 border border-indigo-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] text-txt-hi hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "owner")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -523,22 +517,22 @@ else
                         else
                         {
                             <span>@device.OwnerCompany</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 <!-- 10. Office Location -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Office Location</span>
                     @{
                         var offLoc = GetLocationText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(offLoc, "location")'
                           title="Click to copy Office Location"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-sky-100 hover:bg-sky-200 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 border border-sky-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[12px] @(offLoc == "Unassigned Location" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "location")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -546,22 +540,22 @@ else
                         else
                         {
                             <span>@offLoc</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 <!-- 11. Purchase date -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Purchase date</span>
                     @{
                         var purDate = GetPurchaseDateText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(purDate, "purchase_date")'
                           title="Click to copy Purchase date"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-pink-100 hover:bg-pink-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-pink-800 border border-pink-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[12px] @(purDate == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "purchase_date")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -569,22 +563,22 @@ else
                         else
                         {
                             <span>@purDate</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 <!-- 12. Purchase cost -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "border-b border-line-soft pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "border-b border-line-soft pb-2.5")">
                     <span class="text-txt-mid">Purchase cost</span>
                     @{
                         var purCost = GetPurchaseCostText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(purCost, "purchase_cost")'
                           title="Click to copy Purchase cost"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-lime-100 hover:bg-lime-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-lime-800 border border-lime-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[12px] @(purCost == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "purchase_cost")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -592,22 +586,22 @@ else
                         else
                         {
                             <span>@purCost</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 <!-- 13. Warranty period -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5 border-b border-line-soft" : "pb-3 border-b border-line-soft sm:border-b-0")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1 border-b border-line-soft" : "pb-2.5 border-b border-line-soft sm:border-b-0")">
                     <span class="text-txt-mid">Warranty period</span>
                     @{
                         var warPeriod = GetWarrantyPeriodText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(warPeriod, "warranty_period")'
                           title="Click to copy Warranty period"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-amber-100 hover:bg-amber-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-amber-800 border border-amber-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[12px] @(warPeriod == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "warranty_period")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -615,22 +609,22 @@ else
                         else
                         {
                             <span>@warPeriod</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
                 <!-- 14. Warranty end -->
-                <div class="flex items-center justify-between @(IsInline ? "py-0.5" : "pb-3")">
+                <div class="flex items-center justify-between @(IsInline ? "py-1" : "pb-2.5")">
                     <span class="text-txt-mid">Warranty end</span>
                     @{
                         var warEnd = GetWarrantyEndText(device);
                     }
                     <span @onclick='() => CopyValueToClipboard(warEnd, "warranty_end")'
                           title="Click to copy Warranty end"
-                          class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-rose-100 hover:bg-rose-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-rose-800 border border-rose-300 shadow-2xs active:scale-95 transition-all">
+                          class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[12px] @(warEnd == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                         @if (copiedFieldKey == "warranty_end")
                         {
-                            <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                 Copied!
                             </span>
@@ -638,7 +632,7 @@ else
                         else
                         {
                             <span>@warEnd</span>
-                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity text-txt-lo shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         }
                     </span>
                 </div>
@@ -756,7 +750,11 @@ else
         var curRepair = repairs?.FirstOrDefault(r => r.Status != "Completed");
         var activeHandover = handovers?.FirstOrDefault(h => h.ReturnDate == null);
         var issueDateText = activeHandover?.Released ?? device.Released ?? device.ReceivedDate;
-        var emp = employees?.FirstOrDefault(e => e.Name == device.UserName || e.EmployeeId == device.EmployeeId);
+        var emp = employees?.FirstOrDefault(e => 
+            (!string.IsNullOrWhiteSpace(device.EmployeeId) && string.Equals(e.EmployeeId?.Trim(), device.EmployeeId.Trim(), StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(device.UserName) && (string.Equals(e.Name?.Trim(), device.UserName.Trim(), StringComparison.OrdinalIgnoreCase) || e.Name.Contains(device.UserName.Trim(), StringComparison.OrdinalIgnoreCase) || device.UserName.Contains(e.Name.Trim(), StringComparison.OrdinalIgnoreCase))) ||
+            (!string.IsNullOrWhiteSpace(device.Email) && string.Equals(e.Email?.Trim(), device.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+        );
 
         <div class="@(IsInline ? "rounded-xl border border-line bg-surface p-3 shadow-sm relative overflow-hidden" : "rounded-2xl border border-line bg-surface p-5 shadow-sm relative overflow-hidden")">
             
@@ -783,20 +781,32 @@ else
                 }
                 else
                 {
-                    <div class="group/cname flex items-center gap-1.5 cursor-pointer" @onclick='() => CopyValueToClipboard(custName, "cust_name")' title="Click to copy Custodian name">
-                        <div class="text-[13px] font-semibold text-txt-hi group-hover/cname:text-accent-600 transition-colors">@custName</div>
-                        @if (copiedFieldKey == "cust_name")
-                        {
-                            <span class="text-[10px] font-bold text-emerald-600 animate-in zoom-in duration-150">Copied!</span>
-                        }
-                        else
-                        {
-                            <svg data-copy-ignore="true" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/cname:opacity-60 transition-opacity text-txt-lo">
-                                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
-                                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
-                            </svg>
-                        }
-                    </div>
+                    @if (emp != null)
+                    {
+                        <div class="flex items-center gap-1.5">
+                            <a href="/employee/@emp.Id" class="group/cname inline-flex items-center gap-1.5 cursor-pointer text-[13px] font-semibold text-txt-hi hover:text-accent-600 transition-colors" title="View profile for @custName">
+                                <span class="hover:underline">@custName</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="opacity-40 group-hover/cname:opacity-100 transition-opacity text-txt-lo group-hover/cname:text-accent-600 shrink-0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="group/cname flex items-center gap-1.5 cursor-pointer" @onclick='() => CopyValueToClipboard(custName, "cust_name")' title="Click to copy Custodian name">
+                            <div class="text-[13px] font-semibold text-txt-hi group-hover/cname:text-accent-600 transition-colors">@custName</div>
+                            @if (copiedFieldKey == "cust_name")
+                            {
+                                <span class="text-[10px] font-bold text-emerald-600 animate-in zoom-in duration-150">Copied!</span>
+                            }
+                            else
+                            {
+                                <svg data-copy-ignore="true" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/cname:opacity-60 transition-opacity text-txt-lo">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                                </svg>
+                            }
+                        </div>
+                    }
                     <div class="group/cdesig flex items-center gap-1.5 cursor-pointer mt-0.5" @onclick='() => CopyValueToClipboard(custDesig, "cust_desig")' title="Click to copy Designation">
                         <div class="text-[11px] text-txt-mid group-hover/cdesig:text-accent-600 transition-colors">@custDesig</div>
                         @if (copiedFieldKey == "cust_desig")
@@ -851,14 +861,14 @@ else
                             </span>
                         </div>
                     }
-                    <div class="flex items-center justify-between text-[11px]">
+                    <div class="flex items-center justify-between text-[11px] py-0.5">
                         <span class="text-txt-mid">Employee ID</span>
                         <span @onclick='() => CopyValueToClipboard(device.EmployeeId, "emp_id")'
                               title="Click to copy Employee ID"
-                              class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-indigo-100 hover:bg-indigo-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-indigo-800 ring-1 ring-inset ring-indigo-300 uppercase active:scale-95 transition-all">
+                              class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[11px] text-txt-hi hover:text-accent-600 uppercase transition-colors">
                             @if (copiedFieldKey == "emp_id")
                             {
-                                <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                     Copied!
                                 </span>
@@ -866,18 +876,18 @@ else
                             else
                             {
                                 <span>@device.EmployeeId</span>
-                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity shrink-0 text-txt-lo"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                             }
                         </span>
                     </div>
-                    <div class="flex items-start justify-between text-[11px] gap-4">
+                    <div class="flex items-start justify-between text-[11px] gap-4 py-0.5">
                         <span class="text-txt-mid shrink-0">Mail</span>
                         <span @onclick='() => CopyValueToClipboard(device.Email, "emp_email")'
                               title="Click to copy Email address"
-                              class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-sky-100 hover:bg-sky-200 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 ring-1 ring-inset ring-sky-300 break-all active:scale-95 transition-all">
+                              class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-medium text-[11px] text-txt-hi hover:text-accent-600 break-all transition-colors">
                             @if (copiedFieldKey == "emp_email")
                             {
-                                <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                     Copied!
                                 </span>
@@ -885,21 +895,21 @@ else
                             else
                             {
                                 <span>@device.Email</span>
-                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity shrink-0 text-txt-lo"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                             }
                         </span>
                     </div>
-                    <div class="flex items-center justify-between text-[11px]">
+                    <div class="flex items-center justify-between text-[11px] py-0.5">
                         <span class="text-txt-mid">Phone</span>
                         @{
                             var phoneVal = string.IsNullOrEmpty(device.Contact) ? "N/A" : device.Contact;
                         }
                         <span @onclick='() => CopyValueToClipboard(phoneVal, "emp_phone")'
                               title="Click to copy Phone number"
-                              class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-fuchsia-100 hover:bg-fuchsia-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-fuchsia-800 ring-1 ring-inset ring-fuchsia-300 truncate max-w-[140px] active:scale-95 transition-all">
+                              class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[11px] @(phoneVal == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                             @if (copiedFieldKey == "emp_phone")
                             {
-                                <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                     Copied!
                                 </span>
@@ -907,23 +917,23 @@ else
                             else
                             {
                                 <span>@phoneVal</span>
-                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity shrink-0 text-txt-lo"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                             }
                         </span>
                     </div>
                     @if (device.Status != DeviceStatus.InRepair)
                     {
-                        <div class="flex items-center justify-between text-[11px]">
+                        <div class="flex items-center justify-between text-[11px] py-0.5">
                             <span class="text-txt-mid">Issue date</span>
                             @{
                                 var issueVal = string.IsNullOrEmpty(issueDateText) ? "N/A" : issueDateText;
                             }
                             <span @onclick='() => CopyValueToClipboard(issueVal, "issue_date")'
                                   title="Click to copy Issue date"
-                                  class="group/copy inline-flex items-center justify-center text-center leading-none rounded-md select-all cursor-pointer bg-teal-100 hover:bg-teal-200 px-2.5 py-0.5 text-[11px] font-mono font-medium text-teal-800 ring-1 ring-inset ring-teal-300 active:scale-95 transition-all">
+                                  class="group/copy inline-flex items-center gap-1.5 select-all cursor-pointer font-mono font-medium text-[11px] @(issueVal == "N/A" ? "text-txt-lo" : "text-txt-hi") hover:text-accent-600 transition-colors">
                                 @if (copiedFieldKey == "issue_date")
                                 {
-                                    <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                    <span class="inline-flex items-center gap-1 text-emerald-600 font-semibold">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                                         Copied!
                                     </span>
@@ -931,22 +941,12 @@ else
                                 else
                                 {
                                     <span>@issueVal</span>
-                                    <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-30 group-hover/copy:opacity-100 transition-opacity ml-1.5 shrink-0"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                    <svg data-copy-ignore="true" data-html2canvas-ignore="true" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/copy:opacity-60 transition-opacity shrink-0 text-txt-lo"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                                 }
                             </span>
                         </div>
                     }
                 </div>
-                
-                if (emp != null && !HideEmployeeProfileLink)
-                {
-                    <div class="mt-3 pt-2.5 border-t border-line-soft">
-                        <a href="/employee/@emp.Id" class="group flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-150 hover:bg-accent-600 hover:shadow active:scale-[0.99]">
-                            <span>View employee profile</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:translate-x-0.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
-                }
             }
             </div>
         </div>
@@ -1125,6 +1125,14 @@ else
                             <div>
                                 <label class="mb-0 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Warranty (Months)</label>
                                 <InputNumber @bind-Value="device.WarrantyMonths" @bind-Value:after="OnWarrantyMonthsChanged" placeholder="e.g. 12" class="w-full rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-txt-hi placeholder:text-txt-lo focus:border-[#8b8cf8] focus:outline-none focus:ring-2 focus:ring-[#8b8cf8]/20 transition-all duration-200" />
+                                @if (device.HasWarranty && device.WarrantyEndDate.HasValue)
+                                {
+                                    <span class="text-[11px] font-medium text-emerald-600 mt-1 block">Ends: @device.WarrantyEndDate.Value.ToString("dd MMM yyyy")</span>
+                                }
+                                else if (device.WarrantyMonths.HasValue && device.WarrantyMonths.Value > 0 && !device.EffectiveStartDate.HasValue)
+                                {
+                                    <span class="text-[11px] font-medium text-amber-600 mt-1 block">Set Purchase Date to calculate end date</span>
+                                }
                             </div>
                             <div class="flex items-center">
                                 <label class="flex items-center gap-2 mt-4 text-[11px] font-semibold uppercase tracking-widest text-txt-lo cursor-pointer">
@@ -1948,6 +1956,13 @@ else
         if (device != null && device.WarrantyMonths.HasValue && device.WarrantyMonths.Value > 0)
         {
             device.HasWarranty = true;
+            if (!device.ProcurementDate.HasValue)
+            {
+                if (!string.IsNullOrWhiteSpace(device.ReceivedDate) && DateTime.TryParse(device.ReceivedDate, out var recDate))
+                {
+                    device.ProcurementDate = recDate;
+                }
+            }
         }
     }
 

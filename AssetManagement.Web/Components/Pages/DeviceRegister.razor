@@ -14,10 +14,10 @@
 @using ClosedXML.Excel
 @using System.IO
 
-<PageTitle>All assets - PrimeTech Asset Manager</PageTitle>
+<PageTitle>All Assets - PrimeTech Asset Manager</PageTitle>
 
 <div class="bg-surface pb-2 border-b border-line-soft">
-<PageHeader Title="All assets" 
+<PageHeader Title="All Assets" 
             Description="Every system, component and peripheral has its own Asset ID and QR tag, plus a holder, warranty clock and full movement history.">
     <Actions>
         <button type="button" @onclick="OpenRepairModal" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-elevated px-3 py-1.5 text-[13px] font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
@@ -126,6 +126,13 @@
                 <option value="Other">Other / Uncategorized (@UncategorizedCount)</option>
             }
         </select>
+        <select @bind="SelectedCompany" @bind:after="ResetPage" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
+            <option value="">All Companies (@(devices?.Count ?? 0))</option>
+            @foreach (var comp in CompanyCounts)
+            {
+                <option value="@comp.RawName">@comp.DisplayName (@comp.Count)</option>
+            }
+        </select>
         @if (HasActiveFilters)
         {
             <button type="button" @onclick="ClearFilters" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-danger-border bg-danger-soft px-2.5 py-1.5 text-[13px] font-medium text-danger-500 transition-colors duration-150 hover:bg-danger-500 hover:text-white cursor-pointer" title="Clear all active filters">
@@ -155,6 +162,18 @@
                     @(SelectedCategory.Equals("Other", StringComparison.OrdinalIgnoreCase) ? UncategorizedCount : devices?.Count(d => d.Category != null && d.Category.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase)) ?? 0)
                 </span>
                 <button type="button" @onclick='() => SelectCategoryFilter("")' class="ml-0.5 rounded-full hover:text-indigo-900 focus:outline-none cursor-pointer" title="Clear category filter">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </span>
+        }
+        @if (!string.IsNullOrEmpty(SelectedCompany))
+        {
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-700">
+                <span>🏢 @GetCompanyDisplayName(SelectedCompany)</span>
+                <span class="rounded-full bg-blue-200/70 px-1.5 py-0.2 text-[10px] font-bold text-blue-800">
+                    @(devices?.Count(d => d.OwnerCompany != null && (d.OwnerCompany.Equals(SelectedCompany, StringComparison.OrdinalIgnoreCase) || (SelectedCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase) && d.OwnerCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase)))) ?? 0)
+                </span>
+                <button type="button" @onclick='() => { SelectedCompany = null; ResetPage(); }' class="ml-0.5 rounded-full hover:text-blue-900 focus:outline-none cursor-pointer" title="Clear company filter">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </span>
@@ -252,7 +271,7 @@
         <AppTable Items="PaginatedDevices" OnRowClick="@(async (Device device) => await ToggleExpand(device.Id))" IsRowExpanded="@((Device d) => d.Id == expandedDeviceId)">
         <HeaderContent>
             <th scope="col" class="py-2 pl-6 pr-3 lg:pl-9 w-[18rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Device")'>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">ASSET ID & ITEM @RenderSortIcon("Device")</div>
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">ASSET ID @RenderSortIcon("Device")</div>
             </th>
             <th scope="col" class="px-3 py-2 w-[10rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Type")'>
                 <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">TYPE @RenderSortIcon("Type")</div>
@@ -266,9 +285,6 @@
             <th scope="col" class="px-3 py-2 w-[14rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("User")'>
                 <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">USER @RenderSortIcon("User")</div>
             </th>
-            <th scope="col" class="px-3 py-2 w-[12rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Warranty")'>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">WARRANTY @RenderSortIcon("Warranty")</div>
-            </th>
             <th scope="col" class="relative py-2 pl-3 pr-6 lg:pr-9"><span class="sr-only">View</span></th>
         </HeaderContent>
         <RowTemplate Context="device">
@@ -278,51 +294,30 @@
             <td class="py-3 px-3">
                 <AssetManagement.Web.Components.Shared.AssetTypeBadge Device="device" />
             </td>
-            <td class="py-3 px-3">
-                <div class="flex flex-col gap-1.5">
-                    @if (!string.IsNullOrEmpty(device.Processor))
-                    {
-                        <div class="flex">
-                            <span class="inline-flex items-center gap-1 rounded bg-blue-50/50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-200 shadow-sm select-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/></svg>
-                                @device.Processor @(string.IsNullOrEmpty(device.ProcessorFamily) ? "" : $"({device.ProcessorFamily})")
-                            </span>
-                        </div>
-                    }
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        @if (!string.IsNullOrEmpty(device.Ram))
-                        {
-                            <span class="inline-flex items-center gap-1 rounded bg-emerald-50/50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200 shadow-sm select-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-500"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><path d="M4 9h16"/><path d="M4 15h16"/><path d="M9 4v16"/><path d="M15 4v16"/></svg>
-                                @device.Ram
-                            </span>
-                        }
-                        @if (!string.IsNullOrEmpty(device.Ssd))
-                        {
-                            <span class="inline-flex items-center gap-1 rounded bg-purple-50/50 px-1.5 py-0.5 text-[11px] font-medium text-purple-700 border border-purple-200 shadow-sm select-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-500"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                                @device.Ssd
-                            </span>
-                        }
-                        @if (!string.IsNullOrEmpty(device.Hdd))
-                        {
-                            <span class="inline-flex items-center gap-1 rounded bg-amber-50/50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 shadow-sm select-all">
-                                + @device.Hdd
-                            </span>
-                        }
-                        @if (!string.IsNullOrEmpty(device.MonitorDisplay))
-                        {
-                            <span class="inline-flex items-center gap-1 rounded bg-orange-50/50 px-1.5 py-0.5 text-[11px] font-medium text-orange-700 border border-orange-200 shadow-sm select-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                                @device.MonitorDisplay
-                            </span>
-                        }
-                    </div>
-                </div>
-                <div class="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-txt-lo">
-                    @{ var cond = device.Status == AssetManagement.Core.Enums.DeviceStatus.InRepair ? "Under Repair" : (string.IsNullOrEmpty(device.Condition) ? "Good" : device.Condition); }
-                    Condition: <span class="@(cond == "Good" ? "text-ok-500" : "text-warn-500")">@cond</span>
-                </div>
+            <td class="py-3 px-3 text-xs text-txt-mid">
+                @{
+                    var specParts = new[] {
+                        string.IsNullOrEmpty(device.Processor) ? null : $"{device.Processor}{(string.IsNullOrEmpty(device.ProcessorFamily) ? "" : $" ({device.ProcessorFamily})")}",
+                        device.Ram,
+                        device.Ssd,
+                        string.IsNullOrEmpty(device.Hdd) ? null : (device.Hdd.Trim().StartsWith("+") ? device.Hdd.Trim() : $"+ {device.Hdd.Trim()}"),
+                        device.MonitorDisplay
+                    }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
+                    var specString = string.Join(" - ", specParts);
+                }
+                @if (!string.IsNullOrWhiteSpace(specString))
+                {
+                    <span>@specString</span>
+                }
+                else if (device.IsComponent && !string.IsNullOrWhiteSpace(device.DeviceName))
+                {
+                    <span>@device.DeviceName</span>
+                }
+                else
+                {
+                    <span class="text-txt-lo">—</span>
+                }
             </td>
             <td class="py-3 px-3">
                 <AssetManagement.Web.Components.Shared.StatusBadge Status="@device.Status" />
@@ -350,7 +345,7 @@
                             <span class="text-txt-mid font-medium text-[12px] block">IT inventory</span>
                             @if (!string.IsNullOrEmpty(device.Location))
                             {
-                                <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">@device.Location</span>
+                                <span class="text-[10px] text-txt-lo block mt-0.5">@device.Location</span>
                             }
                         </div>
                     </div>
@@ -359,16 +354,23 @@
                 {
                     var empLoc = device.Location ?? employees?.FirstOrDefault(e => e.Name == device.UserName || e.EmployeeId == device.EmployeeId)?.Location;
                     <div class="flex items-center gap-2">
-                        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-teal-50 text-teal-700 font-bold text-[11px] border border-teal-200 shadow-sm">
+                        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-elevated text-txt-mid font-bold text-[11px] border border-line shadow-sm">
                             @(device.UserName.Substring(0, 1).ToUpper())
                         </div>
                         <div>
                             <span class="block text-txt-hi font-medium text-[12px] whitespace-nowrap">@device.UserName</span>
-                            <div class="flex items-center gap-1.5 mt-0.5">
-                                <span class="text-[10px] text-txt-lo font-mono">@device.EmployeeId</span>
+                            <div class="flex items-center gap-1.5 mt-0.5 text-[10px] text-txt-lo">
+                                @if (!string.IsNullOrEmpty(device.EmployeeId))
+                                {
+                                    <span class="font-mono">@device.EmployeeId</span>
+                                }
                                 @if (!string.IsNullOrEmpty(empLoc))
                                 {
-                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">@empLoc</span>
+                                    @if (!string.IsNullOrEmpty(device.EmployeeId))
+                                    {
+                                        <span>·</span>
+                                    }
+                                    <span>@empLoc</span>
                                 }
                             </div>
                         </div>
@@ -379,36 +381,12 @@
                     <span class="text-txt-mid">—</span>
                 }
             </td>
-            <td class="py-3 px-3">
-                @if (device.HasWarranty && device.WarrantyEndDate.HasValue)
-                {
-                    var daysLeft = (device.WarrantyEndDate.Value - DateTime.Now).TotalDays;
-                    if (daysLeft > 0)
-                    {
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2 py-1 text-[11px] border border-ok-border">
-                            <span class="h-1.5 w-1.5 rounded-full bg-ok-500 shadow-[0_0_4px_currentColor] text-ok-500"></span>
-                            <span class="font-bold text-ok-600">@(Math.Ceiling(daysLeft))d left</span>
-                        </span>
-                    }
-                    else
-                    {
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2 py-1 text-[11px] border border-danger-border">
-                            <span class="h-1.5 w-1.5 rounded-full bg-danger-500"></span>
-                            <span class="font-bold text-danger-500">Expired</span>
-                        </span>
-                    }
-                }
-                else
-                {
-                    <span class="text-xs text-txt-mid">—</span>
-                }
-            </td>
             <td class="py-3 px-3 text-right pr-6 lg:pr-9">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo transition-transform duration-200 @(expandedDeviceId == device.Id ? "rotate-180" : "")" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </td>
         </RowTemplate>
         <ExpandedRowTemplate Context="device">
-            <td colspan="7" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
+            <td colspan="6" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
                 <div class="px-2 lg:px-3">
                     <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" OnStateChanged="OnInitializedAsync" IsInline="true" HideEmployeeProfileLink="false" />
                 </div>
@@ -726,6 +704,7 @@
     private string SearchTerm { get; set; } = "";
     private string ActiveTab { get; set; } = "All";
     private string? SelectedCategory { get; set; } = null;
+    private string? SelectedCompany { get; set; } = null;
     private string SelectedKind { get; set; } = "";
     private string SelectedWarranty { get; set; } = "";
     private string SelectedLocation { get; set; } = "";
@@ -733,6 +712,7 @@
     private string EffectiveSearch => !string.IsNullOrWhiteSpace(SearchTerm) ? SearchTerm : (QuerySearch ?? "");
 
     private bool HasActiveFilters => !string.IsNullOrWhiteSpace(EffectiveSearch) ||
+                                     !string.IsNullOrEmpty(SelectedCompany) ||
                                      !string.IsNullOrEmpty(SelectedCategory) ||
                                      !string.IsNullOrEmpty(SelectedKind) ||
                                      !string.IsNullOrEmpty(SelectedWarranty) ||
@@ -764,6 +744,7 @@
         QuerySearch = null;
         _lastQuerySearch = null;
         SelectedCategory = null;
+        SelectedCompany = null;
         SelectedKind = "";
         SelectedWarranty = "";
         SelectedLocation = "";
@@ -789,6 +770,28 @@
             .OrderByDescending(c => c.Count)
             .ThenBy(c => c.Name)
         ?? Enumerable.Empty<CategoryCountItem>();
+
+    public record CompanyCountItem(string RawName, string DisplayName, int Count);
+
+    private IEnumerable<CompanyCountItem> CompanyCounts =>
+        devices?
+            .Where(d => !string.IsNullOrWhiteSpace(d.OwnerCompany))
+            .GroupBy(d => d.OwnerCompany!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => new CompanyCountItem(g.Key, GetCompanyDisplayName(g.Key), g.Count()))
+            .OrderByDescending(c => c.Count)
+            .ThenBy(c => c.DisplayName)
+        ?? Enumerable.Empty<CompanyCountItem>();
+
+    private string GetCompanyDisplayName(string company)
+    {
+        if (string.IsNullOrWhiteSpace(company)) return "";
+        var normalized = company.Trim();
+        if (normalized.Contains("prime", StringComparison.OrdinalIgnoreCase) || normalized.Equals("ptsl", StringComparison.OrdinalIgnoreCase))
+        {
+            return "PrimeTech";
+        }
+        return normalized;
+    }
 
     private int UncategorizedCount => devices?.Count(d => string.IsNullOrWhiteSpace(d.Category)) ?? 0;
 
@@ -854,6 +857,14 @@
                 }
             }
 
+            if (!string.IsNullOrEmpty(SelectedCompany))
+            {
+                query = query.Where(d => d.OwnerCompany != null && (
+                    d.OwnerCompany.Equals(SelectedCompany, StringComparison.OrdinalIgnoreCase) ||
+                    (SelectedCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase) && d.OwnerCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase))
+                ));
+            }
+
             if (!string.IsNullOrEmpty(SelectedKind))
             {
                 if (SelectedKind == "System") query = query.Where(d => d.DeviceTypeDisplay == "System");
@@ -895,7 +906,8 @@
                         (d.Ram != null && d.Ram.ToLower().Contains(term)) ||
                         (d.Ssd != null && d.Ssd.ToLower().Contains(term)) ||
                         (d.Hdd != null && d.Hdd.ToLower().Contains(term)) ||
-                        (d.Brand != null && d.Brand.ToLower().Contains(term))
+                        (d.Brand != null && d.Brand.ToLower().Contains(term)) ||
+                        (d.OwnerCompany != null && d.OwnerCompany.ToLower().Contains(term))
                     );
                 }
             }
@@ -904,8 +916,8 @@
 
             result = SortColumn switch
             {
-                "Device" => SortAscending ? result.OrderBy(d => d.Brand).ThenBy(d => d.DeviceName).ToList() : result.OrderByDescending(d => d.Brand).ThenByDescending(d => d.DeviceName).ToList(),
-                "Type" => SortAscending ? result.OrderBy(d => d.DeviceTypeDisplay).ThenBy(d => d.Category).ToList() : result.OrderByDescending(d => d.DeviceTypeDisplay).ThenByDescending(d => d.Category).ToList(),
+                "Device" => SortAscending ? result.OrderBy(d => d.AssetTag ?? d.Id.ToString()).ThenBy(d => d.Brand).ToList() : result.OrderByDescending(d => d.AssetTag ?? d.Id.ToString()).ThenByDescending(d => d.Brand).ToList(),
+                "Type" => SortAscending ? result.OrderBy(d => d.Category).ThenBy(d => d.DeviceTypeDisplay).ToList() : result.OrderByDescending(d => d.Category).ThenByDescending(d => d.DeviceTypeDisplay).ToList(),
                 "Specification" => SortAscending ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram).ToList() : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram).ToList(),
                 "Status" => SortAscending ? result.OrderBy(d => d.Status.ToString()).ToList() : result.OrderByDescending(d => d.Status.ToString()).ToList(),
                 "User" => SortAscending ? result.OrderBy(d => d.EmployeeId ?? string.Empty).ThenBy(d => d.UserName ?? string.Empty).ToList() : result.OrderByDescending(d => d.EmployeeId ?? string.Empty).ThenByDescending(d => d.UserName ?? string.Empty).ToList(),
@@ -928,6 +940,9 @@
 
     [SupplyParameterFromQuery(Name = "category")]
     public string? QueryCategory { get; set; }
+
+    [SupplyParameterFromQuery(Name = "company")]
+    public string? QueryCompany { get; set; }
 
     [SupplyParameterFromQuery(Name = "status")]
     public string? QueryStatus { get; set; }
@@ -1006,6 +1021,11 @@
         if (!string.IsNullOrEmpty(QueryCategory))
         {
             SelectedCategory = QueryCategory;
+        }
+
+        if (!string.IsNullOrEmpty(QueryCompany))
+        {
+            SelectedCompany = QueryCompany;
         }
 
         if (!string.IsNullOrEmpty(QueryStatus) && Enum.TryParse<DeviceStatus>(QueryStatus, out var stat))

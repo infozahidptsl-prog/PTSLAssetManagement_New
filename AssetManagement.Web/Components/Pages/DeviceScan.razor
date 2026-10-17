@@ -191,16 +191,16 @@ else
                             <h3 class="text-[10px] font-bold uppercase tracking-widest text-txt-lo mb-4">Item Details</h3>
                             <div class="space-y-3">
                                 <div class="flex items-center justify-between gap-2">
-                                    <span class="text-xs text-txt-mid">Serial number</span>
-                                    <span class="rounded-md bg-elevated px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi uppercase border border-line-soft">@(string.IsNullOrWhiteSpace(device.Serial) ? dash : device.Serial)</span>
-                                </div>
-                                <div class="flex items-center justify-between gap-2">
                                     <span class="text-xs text-txt-mid">Category</span>
                                     <span class="rounded-md bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-800">@(string.IsNullOrWhiteSpace(device.Category) ? dash : device.Category)</span>
                                 </div>
                                 <div class="flex items-start justify-between gap-2">
                                     <span class="text-xs text-txt-mid whitespace-nowrap">Specification</span>
                                     <span class="rounded-md bg-cyan-100 px-2 py-0.5 text-[11px] font-medium text-cyan-800 text-right">@(string.IsNullOrWhiteSpace(spec) ? dash : spec)</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs text-txt-mid">Serial number</span>
+                                    <span class="rounded-md bg-elevated px-2 py-0.5 text-[11px] font-mono font-medium text-txt-hi uppercase border border-line-soft">@(string.IsNullOrWhiteSpace(device.Serial) ? dash : device.Serial)</span>
                                 </div>
                                 @if (!string.IsNullOrWhiteSpace(device.MacAddress))
                                 {
