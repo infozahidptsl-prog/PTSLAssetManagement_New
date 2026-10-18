@@ -19,33 +19,59 @@
 @inject IJSRuntime JS
 @inject IWebHostEnvironment Env
 @inject NotificationService Notifications
+@inject ISettingsService SettingsService
 @implements IAsyncDisposable
 
 <PageTitle>AI Intake & Invoices Registry - PrimeTech Asset Manager</PageTitle>
 
 <div class="bg-surface pb-2 border-b border-line-soft">
     <PageHeader Title="AI Intake &amp; Invoices Registry" 
-                Description="Upload, extract, and manage supplier invoices, track remaining items, review attached documents, and register physical assets.">
+                Description="Guided 4-step wizard: Upload invoices, verify extracted items, fast-tag physical asset serials, and print QR labels.">
         <Actions>
-            @if (activeMainTab == "upload" && currentStep == 2)
+            @if (activeMainTab == "upload")
             {
-                <button type="button" @onclick="AnalyzeDocuments" disabled="@isAnalyzing" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
-                    <svg class="w-3.5 h-3.5 @(isAnalyzing ? "animate-spin" : "")" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Re-extract
-                </button>
-                <button type="button" @onclick="ResetForm" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
-                    New Upload
-                </button>
-                @if (captureMode == 1)
+                @if (currentStep == 2)
                 {
-                    <button type="button" @onclick="PostPurchase" disabled="@isPosting" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-md bg-accent-500 text-accent-on hover:bg-accent-600 shadow-xs transition-colors whitespace-nowrap shrink-0">
-                        Confirm &amp; Post Purchase
+                    <button type="button" @onclick="AnalyzeDocuments" disabled="@isAnalyzing" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
+                        <svg class="w-3.5 h-3.5 @(isAnalyzing ? "animate-spin" : "")" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Re-extract
+                    </button>
+                    <button type="button" @onclick="ResetForm" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
+                        New Upload
+                    </button>
+                    @if (captureMode == 1)
+                    {
+                        <button type="button" @onclick="PostPurchase" disabled="@isPosting" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-md bg-accent-500 text-white hover:bg-accent-600 shadow-xs transition-colors whitespace-nowrap shrink-0">
+                            Save &amp; Tag Assets &rarr;
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="RegisterDirectDevice" disabled="@isRegisteringDevice" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-colors whitespace-nowrap shrink-0">
+                            Register Device Directly
+                        </button>
+                    }
+                }
+                else if (currentStep == 3)
+                {
+                    <button type="button" @onclick="() => currentStep = 2" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
+                        &larr; Back to Invoice
+                    </button>
+                    <button type="button" @onclick="SkipAndFinishStep3" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
+                        Skip Untagged &amp; Finish
+                    </button>
+                    <button type="button" @onclick="RegisterTaggedUnits" disabled="@isRegisteringUnits" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-colors whitespace-nowrap shrink-0">
+                        Register Units &rarr;
                     </button>
                 }
-                else
+                else if (currentStep == 4)
                 {
-                    <button type="button" @onclick="RegisterDirectDevice" disabled="@isRegisteringDevice" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-colors whitespace-nowrap shrink-0">
-                        Register Device Directly
+                    <button type="button" @onclick="PrintQrLabels" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md bg-accent-500 text-white hover:bg-accent-600 transition-colors shadow-xs">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Print QR Labels
+                    </button>
+                    <button type="button" @onclick="ResetForm" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-elevated text-txt-hi hover:border-line-strong transition-colors shadow-xs">
+                        + New Invoice
                     </button>
                 }
             }
@@ -53,7 +79,7 @@
             {
                 <button type="button" @onclick='() => SetActiveMainTab("upload")' class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-accent-300 bg-accent-soft text-accent-700 hover:bg-accent-100 transition-colors shadow-xs">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    + Scan / Upload Document
+                    + AI Invoice Wizard
                 </button>
                 <button type="button" @onclick="OpenAddModal" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-accent-500 text-white hover:bg-accent-600 transition-colors shadow-xs">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -82,10 +108,117 @@
 <div class="w-full pt-4 space-y-6">
     @if (activeMainTab == "upload")
     {
+        <style>
+            @@media print {
+                body * {
+                    visibility: hidden !important;
+                }
+                #printable-qr-sheet, #printable-qr-sheet * {
+                    visibility: visible !important;
+                }
+                #printable-qr-sheet {
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 16px !important;
+                    background: white !important;
+                    color: black !important;
+                }
+                .no-print {
+                    display: none !important;
+                }
+            }
+        </style>
+
+        @if (captureMode == 1)
+        {
+            <!-- 4-STEP WIZARD PROGRESS BAR -->
+            <div class="max-w-3xl mx-auto mb-8 px-4 no-print">
+                <div class="relative flex items-center justify-between">
+                    <div class="absolute left-6 right-6 top-5 -translate-y-1/2 h-1 bg-line rounded-full z-0"></div>
+                    <div class="absolute left-6 top-5 -translate-y-1/2 h-1 bg-accent-500 rounded-full transition-all duration-500 z-0" 
+                         style="width: calc(@(StepProgressPercent)% * 0.88);"></div>
+
+                    <!-- STEP 1: Upload -->
+                    <div class="relative z-10 flex flex-col items-center cursor-pointer select-none" @onclick="() => GoToStep(1)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 @(currentStep > 1 ? "bg-emerald-500 text-white shadow-sm ring-4 ring-emerald-100" : currentStep == 1 ? "bg-accent-500 text-white shadow-md ring-4 ring-accent-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep > 1)
+                            {
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            }
+                            else
+                            {
+                                <span>1</span>
+                            }
+                        </div>
+                        <span class="mt-2 text-xs font-bold @(currentStep == 1 ? "text-accent-600" : currentStep > 1 ? "text-emerald-600" : "text-txt-lo")">
+                            Upload Invoice
+                        </span>
+                        <span class="text-[10px] text-txt-lo hidden sm:block">PDF / Image</span>
+                    </div>
+
+                    <!-- STEP 2: Review Invoice -->
+                    <div class="relative z-10 flex flex-col items-center @(currentStep >= 2 ? "cursor-pointer" : "cursor-not-allowed") select-none" @onclick="() => GoToStep(2)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 @(currentStep > 2 ? "bg-emerald-500 text-white shadow-sm ring-4 ring-emerald-100" : currentStep == 2 ? "bg-accent-500 text-white shadow-md ring-4 ring-accent-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep > 2)
+                            {
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            }
+                            else
+                            {
+                                <span>2</span>
+                            }
+                        </div>
+                        <span class="mt-2 text-xs font-bold @(currentStep == 2 ? "text-accent-600" : currentStep > 2 ? "text-emerald-600" : "text-txt-lo")">
+                            Review &amp; Verify
+                        </span>
+                        <span class="text-[10px] text-txt-lo hidden sm:block">Items &amp; Costs</span>
+                    </div>
+
+                    <!-- STEP 3: Tag Serials -->
+                    <div class="relative z-10 flex flex-col items-center @(currentStep >= 3 ? "cursor-pointer" : "cursor-not-allowed") select-none" @onclick="() => GoToStep(3)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 @(currentStep > 3 ? "bg-emerald-500 text-white shadow-sm ring-4 ring-emerald-100" : currentStep == 3 ? "bg-accent-500 text-white shadow-md ring-4 ring-accent-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep > 3)
+                            {
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            }
+                            else
+                            {
+                                <span>3</span>
+                            }
+                        </div>
+                        <span class="mt-2 text-xs font-bold @(currentStep == 3 ? "text-accent-600" : currentStep > 3 ? "text-emerald-600" : "text-txt-lo")">
+                            Tag Asset Serials
+                        </span>
+                        <span class="text-[10px] text-txt-lo hidden sm:block">Unit Allocation</span>
+                    </div>
+
+                    <!-- STEP 4: Complete & QR -->
+                    <div class="relative z-10 flex flex-col items-center @(currentStep >= 4 ? "cursor-pointer" : "cursor-not-allowed") select-none" @onclick="() => GoToStep(4)">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 @(currentStep == 4 ? "bg-emerald-600 text-white shadow-md ring-4 ring-emerald-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep == 4)
+                            {
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            }
+                            else
+                            {
+                                <span>4</span>
+                            }
+                        </div>
+                        <span class="mt-2 text-xs font-bold @(currentStep == 4 ? "text-emerald-600" : "text-txt-lo")">
+                            Complete &amp; QR
+                        </span>
+                        <span class="text-[10px] text-txt-lo hidden sm:block">Print &amp; Inventory</span>
+                    </div>
+                </div>
+            </div>
+        }
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="mb-6 p-4 rounded-xl bg-danger-50 text-danger-700 border border-danger-200 text-sm flex items-start gap-3">
+        <div class="mb-6 p-4 rounded-xl bg-danger-50 text-danger-700 border border-danger-200 text-sm flex items-start gap-3 max-w-4xl mx-auto">
             <svg class="w-5 h-5 shrink-0 mt-0.5 text-danger-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01"/></svg>
             <div class="flex-1">
                 <div class="font-bold">Extraction / Validation Alert</div>
@@ -431,22 +564,30 @@
                 </div>
 
                 <!-- Bottom Actions -->
-                <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-line-soft">
-                    <button type="button" @onclick="ResetForm" class="px-5 py-2.5 text-xs font-semibold rounded-xl bg-surface border border-line-strong text-txt-hi hover:bg-elevated transition-colors whitespace-nowrap">
-                        Cancel &amp; Reset
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-line-soft">
+                    <button type="button" @onclick="() => currentStep = 1" class="text-xs font-semibold text-txt-mid hover:text-txt-hi">
+                        &larr; Back to Upload
                     </button>
-                    <button type="button" @onclick="PostPurchase" disabled="@isPosting" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-semibold rounded-xl bg-accent-500 hover:bg-accent-600 text-white shadow-sm transition-colors whitespace-nowrap shrink-0">
-                        @if (isPosting)
-                        {
-                            <svg class="animate-spin h-3.5 w-3.5 text-white shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            <span>Posting to Database...</span>
-                        }
-                        else
-                        {
-                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            <span>Confirm &amp; Post Purchase</span>
-                        }
-                    </button>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="button" @onclick="ResetForm" class="px-4 py-2.5 text-xs font-semibold rounded-xl bg-surface border border-line-strong text-txt-hi hover:bg-elevated transition-colors whitespace-nowrap">
+                            Cancel &amp; Reset
+                        </button>
+                        <button type="button" @onclick="SaveDirectToStoreOnly" disabled="@isPosting" class="px-4 py-2.5 text-xs font-semibold rounded-xl bg-surface border border-line hover:bg-elevated text-txt-hi transition-colors whitespace-nowrap">
+                            Save to Store Only (Skip Tagging)
+                        </button>
+                        <button type="button" @onclick="PostPurchase" disabled="@isPosting" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold rounded-xl bg-accent-500 hover:bg-accent-600 text-white shadow-sm transition-colors whitespace-nowrap shrink-0 cursor-pointer">
+                            @if (isPosting)
+                            {
+                                <svg class="animate-spin h-3.5 w-3.5 text-white shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span>Saving Purchase...</span>
+                            }
+                            else
+                            {
+                                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                <span>Save &amp; Continue to Tag Assets &rarr;</span>
+                            }
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -642,61 +783,284 @@
             </div>
         </div>
     }
-    else if (currentStep == 3)
+    else if (currentStep == 3 && (savedPurchase != null || purchaseForm != null))
     {
-        <!-- Confirmation Step -->
-        <div class="rounded-2xl border border-line bg-surface p-10 shadow-sm max-w-xl mx-auto text-center">
-            <div class="mb-6 flex justify-center">
-                <div class="w-16 h-16 bg-emerald-50 border-4 border-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-xs">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        var activeP = savedPurchase ?? purchaseForm!;
+        <!-- STEP 3: FAST BULK UNIT TAGGING GRID -->
+        <div class="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+            <!-- Success Banner -->
+            <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Purchase Order Saved</span>
+                            <span class="font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300">@activeP.PurchaseNumber</span>
+                        </div>
+                        <p class="text-xs text-txt-mid mt-0.5">
+                            Supplier: <strong>@activeP.Supplier</strong> &bull; Invoice: <strong>@(activeP.InvoiceNumber ?? "—")</strong> &bull; Total Units: <strong>@unitTagEntries.Count</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+                    <button type="button" @onclick="() => showBulkSerialModal = true" class="px-3.5 py-1.5 rounded-xl border border-line bg-surface hover:bg-elevated text-xs font-semibold text-txt-hi transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        <span>Paste Serials List</span>
+                    </button>
                 </div>
             </div>
 
-            @if (captureMode == 1)
-            {
-                <h2 class="text-2xl font-black text-txt-hi tracking-tight">Purchase Posted Successfully!</h2>
-                <p class="text-sm text-txt-mid mt-2">
-                    Purchase reference <strong class="text-txt-hi font-mono">@purchaseForm?.PurchaseNumber</strong> has been saved. The line items are now ready for physical asset serial onboarding.
-                </p>
+            <!-- Batch Settings Bar -->
+            <div class="p-3.5 bg-surface rounded-2xl border border-line flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+                <div class="flex items-center gap-2 text-txt-mid">
+                    <svg class="w-4 h-4 text-txt-lo" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    <span class="font-bold text-txt-hi">Apply Defaults to All Untagged:</span>
+                </div>
 
-                <div class="my-6 p-6 bg-elevated rounded-2xl border border-line inline-block">
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-3">Purchase Reference QR</div>
-                    <div class="bg-white p-3 rounded-xl border border-line inline-block shadow-xs">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=2&data=@(Uri.EscapeDataString(purchaseForm?.PurchaseNumber ?? ""))" alt="Purchase QR" class="w-40 h-40 object-contain mx-auto" />
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-txt-lo">Location:</span>
+                        <select value="@batchDefaultLocation" @onchange="e => ApplyBatchLocation(e.Value?.ToString() ?? officeLocations[0])" class="bg-elevated border border-line rounded-lg px-2.5 py-1 text-xs text-txt-hi font-medium focus:border-accent-500 outline-none">
+                            @foreach (var loc in officeLocations)
+                            {
+                                <option value="@loc">@loc</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-txt-lo">Company:</span>
+                        <select value="@batchDefaultCompany" @onchange="e => ApplyBatchCompany(e.Value?.ToString() ?? ownerCompanies[0])" class="bg-elevated border border-line rounded-lg px-2.5 py-1 text-xs text-txt-hi font-medium focus:border-accent-500 outline-none">
+                            @foreach (var comp in ownerCompanies)
+                            {
+                                <option value="@comp">@comp</option>
+                            }
+                        </select>
                     </div>
                 </div>
+            </div>
 
-                <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="@($"/device-register/{purchaseForm?.Id}")" class="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-6 py-2.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent-600 transition-colors">
-                        Register Physical Assets
-                    </a>
-                    <button type="button" @onclick="ResetForm" class="inline-flex items-center justify-center rounded-xl bg-surface border border-line-strong px-6 py-2.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
-                        Capture Another Invoice
-                    </button>
+            <!-- Tagging Units Table -->
+            <div class="rounded-2xl border border-line bg-surface shadow-sm overflow-hidden">
+                <div class="px-5 py-3.5 bg-elevated border-b border-line flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-txt-hi">Hardware Units Awaiting Physical Serial Numbers</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent-soft text-accent-700">
+                            @unitTagEntries.Count(u => !string.IsNullOrWhiteSpace(u.SerialNumber)) / @unitTagEntries.Count Ready
+                        </span>
+                    </div>
+                    <span class="text-[11px] text-txt-lo hidden sm:inline">Type or scan barcode directly into each serial field</span>
                 </div>
-            }
-            else
-            {
-                <h2 class="text-2xl font-black text-txt-hi tracking-tight">Physical Asset Registered!</h2>
-                <p class="text-sm text-txt-mid mt-2">
-                    Asset <strong class="text-txt-hi">@(createdDevice?.Brand) @(createdDevice?.DeviceName)</strong> with Serial <strong class="text-txt-hi font-mono">@(createdDevice?.Serial)</strong> has been successfully added to inventory.
-                </p>
 
-                <div class="my-6 p-6 bg-elevated rounded-2xl border border-line inline-block">
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-2">Assigned Asset Tag</div>
-                    <div class="text-lg font-black font-mono text-emerald-600 mb-3">@(createdDevice?.AssetTag)</div>
-                    <div class="bg-white p-3 rounded-xl border border-line inline-block shadow-xs">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=2&data=@(Uri.EscapeDataString(createdDevice?.AssetTag ?? ""))" alt="Asset QR" class="w-40 h-40 object-contain mx-auto" />
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-elevated/50 text-[11px] font-semibold uppercase tracking-wider text-txt-mid border-b border-line">
+                            <tr>
+                                <th class="px-4 py-3">Unit</th>
+                                <th class="px-4 py-3">Category</th>
+                                <th class="px-4 py-3">Asset Tag</th>
+                                <th class="px-4 py-3 min-w-[220px]">Serial Number <span class="text-danger-500">*</span></th>
+                                <th class="px-4 py-3">Office Location</th>
+                                <th class="px-4 py-3">Owner Company</th>
+                                <th class="px-4 py-3 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line-soft">
+                            @for (int idx = 0; idx < unitTagEntries.Count; idx++)
+                            {
+                                var entry = unitTagEntries[idx];
+                                <tr class="hover:bg-elevated/40 transition-colors @(entry.IsRegistered ? "bg-emerald-50/20" : "")">
+                                    <td class="px-4 py-3">
+                                        <div class="font-bold text-txt-hi">@entry.Brand @entry.ModelName</div>
+                                        <div class="text-[10px] text-txt-lo font-mono">Unit @entry.UnitIndex of @entry.TotalUnitsForItem</div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-elevated border border-line text-txt-hi">
+                                            @entry.Category
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input type="text" @bind="entry.AssetTag" disabled="@entry.IsRegistered" class="w-32 bg-elevated border border-line rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-accent-700 disabled:opacity-60 focus:border-accent-500 outline-none" />
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input type="text" @bind="entry.SerialNumber" @bind:event="oninput" disabled="@entry.IsRegistered" placeholder="Scan or enter serial..." class="w-full bg-elevated border border-line rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-txt-hi placeholder:text-txt-lo placeholder:font-normal focus:border-emerald-500 outline-none disabled:opacity-60" />
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <select @bind="entry.Location" disabled="@entry.IsRegistered" class="bg-elevated border border-line rounded-lg px-2.5 py-1 text-xs text-txt-hi focus:border-accent-500 outline-none disabled:opacity-60">
+                                            @foreach (var loc in officeLocations)
+                                            {
+                                                <option value="@loc">@loc</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <select @bind="entry.OwnerCompany" disabled="@entry.IsRegistered" class="bg-elevated border border-line rounded-lg px-2.5 py-1 text-xs text-txt-hi focus:border-accent-500 outline-none disabled:opacity-60 max-w-[160px] truncate">
+                                            @foreach (var comp in ownerCompanies)
+                                            {
+                                                <option value="@comp">@comp</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        @if (entry.IsRegistered)
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                Registered
+                                            </span>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(entry.SerialNumber))
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-accent-soft text-accent-700">
+                                                Ready to Register
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">
+                                                Needs Serial
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="p-4 bg-elevated/30 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <button type="button" @onclick="() => currentStep = 2" class="text-xs font-semibold text-txt-mid hover:text-txt-hi">
+                        &larr; Back to Invoice Review
+                    </button>
+
+                    <div class="flex items-center gap-2.5">
+                        <button type="button" @onclick="SkipAndFinishStep3" class="px-4 py-2 text-xs font-semibold rounded-xl bg-surface border border-line hover:bg-elevated text-txt-hi transition-colors whitespace-nowrap">
+                            Skip Remaining &amp; Keep in Store
+                        </button>
+
+                        <button type="button" @onclick="RegisterTaggedUnits" disabled="@isRegisteringUnits" class="inline-flex items-center gap-2 px-6 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors whitespace-nowrap cursor-pointer">
+                            @if (isRegisteringUnits)
+                            {
+                                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span>Registering Assets...</span>
+                            }
+                            else
+                            {
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                <span>Confirm &amp; Register Units (@unitTagEntries.Count(u => !u.IsRegistered && !string.IsNullOrWhiteSpace(u.SerialNumber))) &rarr;</span>
+                            }
+                        </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    }
+    else if (currentStep == 4)
+    {
+        var activeP = savedPurchase ?? purchaseForm;
+        <!-- STEP 4: CELEBRATION SUMMARY & QR LABEL SHEET -->
+        <div class="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
+            <!-- Hero Header -->
+            <div class="rounded-3xl border border-line bg-surface p-8 shadow-sm text-center relative overflow-hidden">
+                <div class="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 mb-4 shadow-xs">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <h2 class="text-2xl font-black text-txt-hi tracking-tight">Invoice Intake &amp; Asset Onboarding Complete!</h2>
+                <p class="text-sm text-txt-mid mt-1.5 max-w-lg mx-auto">
+                    Purchase reference <strong class="text-txt-hi font-mono">@(activeP?.PurchaseNumber ?? "—")</strong> is safely committed to the database.
+                </p>
 
-                <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="/devices" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors">
-                        View in Inventory
+                <!-- Metrics Pills -->
+                <div class="mt-6 flex flex-wrap justify-center gap-3">
+                    <div class="px-4 py-2 rounded-xl bg-elevated border border-line text-left">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Supplier / Vendor</div>
+                        <div class="text-xs font-bold text-txt-hi font-mono">@(activeP?.Supplier ?? "—")</div>
+                    </div>
+                    <div class="px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-left">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Assets Activated</div>
+                        <div class="text-xs font-bold text-emerald-700 font-mono">@registeredUnitsList.Count unit(s)</div>
+                    </div>
+                    @if (activeP != null)
+                    {
+                        var inStoreRemaining = activeP.Items.Sum(i => i.RemainingQuantity);
+                        if (inStoreRemaining > 0)
+                        {
+                            <div class="px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-left">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-amber-800">In Store (Unassigned)</div>
+                                <div class="text-xs font-bold text-amber-700 font-mono">@inStoreRemaining unit(s)</div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <!-- Top Level Action Buttons -->
+                <div class="mt-8 flex flex-wrap items-center justify-center gap-3 no-print">
+                    @if (registeredUnitsList.Any())
+                    {
+                        <button type="button" @onclick="PrintQrLabels" class="inline-flex items-center gap-2 rounded-xl bg-accent-500 hover:bg-accent-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-colors cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            <span>Print All QR Labels</span>
+                        </button>
+                    }
+                    <a href="/devices" class="inline-flex items-center gap-2 rounded-xl bg-surface border border-line hover:bg-elevated px-5 py-2.5 text-xs font-bold text-txt-hi transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                        <span>View in All Assets</span>
                     </a>
-                    <button type="button" @onclick="ResetForm" class="inline-flex items-center justify-center rounded-xl bg-surface border border-line-strong px-6 py-2.5 text-xs font-semibold text-txt-hi hover:bg-elevated transition-colors">
-                        Register Another Device
+                    <button type="button" @onclick='() => SetActiveMainTab("registry")' class="inline-flex items-center gap-2 rounded-xl bg-surface border border-line hover:bg-elevated px-5 py-2.5 text-xs font-bold text-txt-hi transition-colors">
+                        <span>View Invoices Registry</span>
                     </button>
+                    <button type="button" @onclick="ResetForm" class="inline-flex items-center gap-2 rounded-xl bg-surface border border-line-strong hover:bg-elevated px-5 py-2.5 text-xs font-bold text-txt-hi transition-colors">
+                        <span>+ New Invoice Upload</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PRINTABLE QR LABEL SHEET -->
+            @if (registeredUnitsList.Any())
+            {
+                <div id="printable-qr-sheet" class="space-y-4">
+                    <div class="flex items-center justify-between pb-2 border-b border-line no-print">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-txt-lo">Ready-to-Print Hardware Labels (@registeredUnitsList.Count)</h3>
+                        <span class="text-[11px] text-txt-mid">Optimized for sticker printers or standard sheets</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @foreach (var dev in registeredUnitsList)
+                        {
+                            <div class="p-4 rounded-2xl border-2 border-line bg-surface shadow-xs flex flex-col justify-between break-inside-avoid print:border-black print:p-2">
+                                <div class="flex items-start justify-between gap-3 border-b border-line pb-2 mb-2">
+                                    <div>
+                                        <span class="text-[9px] font-black uppercase tracking-wider text-accent-700 block">PrimeTech Solutions Ltd.</span>
+                                        <span class="text-sm font-black font-mono text-txt-hi block">@dev.AssetTag</span>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-elevated border border-line text-txt-hi">
+                                        @dev.Category
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-3 my-2">
+                                    <div class="space-y-1">
+                                        <p class="text-xs font-bold text-txt-hi">@dev.Brand @dev.DeviceName</p>
+                                        <p class="text-[11px] text-txt-mid font-mono">SN: <strong>@dev.Serial</strong></p>
+                                        <p class="text-[10px] text-txt-lo">Loc: @(dev.Location ?? "Store")</p>
+                                    </div>
+
+                                    <div class="bg-white p-1 rounded-lg border border-line shrink-0">
+                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=2&data=@(Uri.EscapeDataString(dev.AssetTag ?? dev.Serial ?? ""))" alt="Asset QR" class="w-16 h-16 object-contain" />
+                                    </div>
+                                </div>
+
+                                <div class="text-[9px] text-txt-lo pt-1 border-t border-line-soft font-mono flex justify-between">
+                                    <span>PO: @(activeP?.PurchaseNumber ?? "—")</span>
+                                    <span>@DateTime.Now.ToString("dd-MMM-yyyy")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -894,10 +1258,19 @@
                                 </td>
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="inline-flex items-center gap-1.5">
-                                        <a href="/device-register/@p.Id" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-semibold transition-colors shadow-xs" title="Register physical devices with serial numbers">
-                                            <span>Register</span>
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                        </a>
+                                        @if (remainingUnits > 0)
+                                        {
+                                            <button type="button" @onclick="() => StartTaggingFromPurchase(p)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors shadow-xs" title="Tag remaining physical units in Wizard">
+                                                <span>Tag Units (@remainingUnits)</span>
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" @onclick="() => StartTaggingFromPurchase(p)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-line bg-elevated hover:bg-surface text-txt-mid font-medium transition-colors text-xs" title="View purchase details & assets">
+                                                <span>View Units</span>
+                                            </button>
+                                        }
                                         <button type="button" @onclick="() => OpenEditModal(p)" class="p-1 rounded-lg border border-line bg-surface hover:bg-elevated text-txt-mid hover:text-txt-hi transition-colors" title="Edit purchase details">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                         </button>
@@ -1232,6 +1605,37 @@
     </div>
 }
 
+<!-- QUICK PASTE BULK SERIALS MODAL -->
+@if (showBulkSerialModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+        <div class="bg-surface rounded-2xl border border-line p-6 shadow-2xl max-w-md w-full space-y-4">
+            <div class="flex items-center justify-between border-b border-line-soft pb-3">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <h3 class="text-sm font-bold text-txt-hi">Quick Paste Serials List</h3>
+                </div>
+                <button type="button" @onclick="() => showBulkSerialModal = false" class="text-txt-lo hover:text-txt-hi text-lg leading-none cursor-pointer">&times;</button>
+            </div>
+
+            <p class="text-xs text-txt-mid">
+                Paste your serial numbers below (one per line, comma-separated, or tab-separated). They will be automatically applied in order to untagged rows in the table.
+            </p>
+
+            <textarea @bind="bulkSerialPasteText" rows="6" placeholder="SN100234&#10;SN100235&#10;SN100236&#10;..." class="w-full bg-elevated border border-line rounded-xl p-3 text-xs font-mono text-txt-hi focus:border-accent-500 outline-none"></textarea>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" @onclick="() => showBulkSerialModal = false" class="px-4 py-2 rounded-xl border border-line text-xs font-semibold text-txt-mid hover:bg-elevated transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="ApplyBulkSerials" class="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer">
+                    Apply Serials
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private string activeMainTab = "upload";
     private void SetActiveMainTab(string tab)
@@ -1393,9 +1797,30 @@
         }
     }
 
+    [SupplyParameterFromQuery]
+    public string? PurchaseId { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAllPurchasesAsync();
+        try
+        {
+            var cats = await SettingsService.GetCategoriesAsync();
+            if (cats != null && cats.Any())
+            {
+                var names = cats.Select(c => c.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+                if (names.Any())
+                {
+                    deviceCategories = names;
+                }
+            }
+        }
+        catch { }
+
+        if (!string.IsNullOrEmpty(PurchaseId))
+        {
+            await LoadPurchaseForTaggingAsync(PurchaseId);
+        }
     }
 
     // Invoice Document Viewer
@@ -1697,14 +2122,65 @@
         }
     }
 
+    public class UnitTagEntry
+    {
+        public string UnitKey { get; set; } = Guid.NewGuid().ToString("N");
+        public string PurchaseItemId { get; set; } = "";
+        public string LineItemDescription { get; set; } = "";
+        public int UnitIndex { get; set; }
+        public int TotalUnitsForItem { get; set; }
+        public string Brand { get; set; } = "";
+        public string ModelName { get; set; } = "";
+        public string Category { get; set; } = "Laptop";
+        public string AssetTag { get; set; } = "";
+        public string SerialNumber { get; set; } = "";
+        public string Location { get; set; } = "TK Bhaban";
+        public string OwnerCompany { get; set; } = "PrimeTech Solutions Ltd.";
+        public string Condition { get; set; } = "New";
+        public int? WarrantyMonths { get; set; } = 12;
+        public bool IsRegistered { get; set; } = false;
+        public string? RegisteredDeviceId { get; set; }
+    }
+
     private int currentStep = 1;
     private int captureMode = 1; // 1 = Supplier Invoice / Challan First, 2 = Physical Device Label / Specs First
     private bool isAnalyzing = false;
     private bool isPosting = false;
     private bool isRegisteringDevice = false;
+    private bool isRegisteringUnits = false;
     private string? errorMessage;
     private bool isDuplicate = false;
     private List<string> validationWarnings = new();
+
+    // Wizard Step 3 & 4 State
+    private Purchase? savedPurchase;
+    private List<UnitTagEntry> unitTagEntries = new();
+    private List<Device> registeredUnitsList = new();
+    private bool showBulkSerialModal = false;
+    private string bulkSerialPasteText = "";
+    private string batchDefaultLocation = "TK Bhaban";
+    private string batchDefaultCompany = "PrimeTech Solutions Ltd.";
+    private List<string> officeLocations = new() { "TK Bhaban", "BSEC Bhaban" };
+    private List<string> ownerCompanies = new() { "PrimeTech Solutions Ltd." };
+    private List<string> deviceCategories = new() { "Laptop", "Desktop", "Monitor", "Network Switch", "Access Point", "Server", "Component", "IT Equipment", "Printer", "UPS" };
+
+    private int StepProgressPercent => currentStep switch
+    {
+        1 => 0,
+        2 => 33,
+        3 => 66,
+        4 => 100,
+        _ => 0
+    };
+
+    private void GoToStep(int step)
+    {
+        if (step < currentStep)
+        {
+            currentStep = step;
+            StateHasChanged();
+        }
+    }
 
     // Mode 1 State
     private Purchase? purchaseForm;
@@ -2163,9 +2639,14 @@
             }
 
             await PurchaseService.AddPurchaseAsync(purchaseForm);
+            savedPurchase = await PurchaseService.GetPurchaseByIdAsync(purchaseForm.Id);
             await LoadAllPurchasesAsync();
+
+            // Populate Step 3 tagging grid
+            await InitializeUnitTagEntriesAsync(savedPurchase ?? purchaseForm);
+
             currentStep = 3;
-            Notifications.ShowSuccess($"Purchase #{purchaseForm.PurchaseNumber} committed to inventory with {purchaseForm.Items.Count} item(s).");
+            Notifications.ShowSuccess($"Purchase #{purchaseForm.PurchaseNumber} committed to database. Tag your units below.");
         }
         catch (Exception ex)
         {
@@ -2177,6 +2658,246 @@
             isPosting = false;
             StateHasChanged();
         }
+    }
+
+    private async Task SaveDirectToStoreOnly()
+    {
+        await PostPurchase();
+        if (errorMessage == null)
+        {
+            currentStep = 4;
+            StateHasChanged();
+        }
+    }
+
+    private async Task InitializeUnitTagEntriesAsync(Purchase p)
+    {
+        unitTagEntries.Clear();
+        registeredUnitsList.Clear();
+
+        var remainingCandidateSerials = new Queue<string>(candidateSerials);
+        var usedTagsInBatch = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in p.Items)
+        {
+            int remaining = item.RemainingQuantity;
+            if (remaining <= 0) continue;
+
+            int totalForThisItem = item.Quantity ?? remaining;
+
+            for (int i = 1; i <= remaining; i++)
+            {
+                var dummyDevice = new Device
+                {
+                    Category = item.Category,
+                    OwnerCompany = batchDefaultCompany,
+                    Brand = item.Manufacturer
+                };
+
+                string generatedTag = await DeviceService.GenerateAssetTagAsync(dummyDevice);
+
+                // Ensure unique in batch
+                int attempt = 1;
+                string candidateTag = generatedTag;
+                while (usedTagsInBatch.Contains(candidateTag))
+                {
+                    var parts = generatedTag.Split('-');
+                    if (parts.Length >= 2 && int.TryParse(parts.Last(), out int seq))
+                    {
+                        var prefix = string.Join("-", parts.Take(parts.Length - 1));
+                        candidateTag = $"{prefix}-{(seq + attempt):D3}";
+                    }
+                    else
+                    {
+                        candidateTag = $"{generatedTag}_{attempt}";
+                    }
+                    attempt++;
+                }
+                usedTagsInBatch.Add(candidateTag);
+
+                string serialVal = "";
+                if (!string.IsNullOrWhiteSpace(item.CandidateSerial) && i == 1)
+                {
+                    serialVal = item.CandidateSerial;
+                }
+                else if (remainingCandidateSerials.Count > 0)
+                {
+                    serialVal = remainingCandidateSerials.Dequeue();
+                }
+
+                unitTagEntries.Add(new UnitTagEntry
+                {
+                    PurchaseItemId = item.Id,
+                    LineItemDescription = $"{item.Manufacturer} {item.ModelName}".Trim(),
+                    UnitIndex = (totalForThisItem - remaining) + i,
+                    TotalUnitsForItem = totalForThisItem,
+                    Brand = item.Manufacturer,
+                    ModelName = item.ModelName,
+                    Category = string.IsNullOrWhiteSpace(item.Category) ? "Laptop" : item.Category,
+                    AssetTag = candidateTag,
+                    SerialNumber = serialVal,
+                    Location = batchDefaultLocation,
+                    OwnerCompany = batchDefaultCompany,
+                    Condition = "New",
+                    WarrantyMonths = 12,
+                    IsRegistered = false
+                });
+            }
+        }
+    }
+
+    private async Task RegisterTaggedUnits()
+    {
+        var entriesToRegister = unitTagEntries
+            .Where(u => !u.IsRegistered && !string.IsNullOrWhiteSpace(u.SerialNumber))
+            .ToList();
+
+        if (!entriesToRegister.Any())
+        {
+            errorMessage = "Please enter a serial number for at least one unit, or click 'Skip Remaining & Keep in Store'.";
+            return;
+        }
+
+        var duplicates = entriesToRegister
+            .GroupBy(u => u.SerialNumber.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicates.Any())
+        {
+            errorMessage = $"Duplicate serial number entered: {string.Join(", ", duplicates)}. Each physical device must have a unique serial.";
+            return;
+        }
+
+        isRegisteringUnits = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        int count = 0;
+        try
+        {
+            foreach (var entry in entriesToRegister)
+            {
+                var device = new Device
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DeviceName = $"{entry.Brand} {entry.ModelName}".Trim(),
+                    Brand = entry.Brand,
+                    Category = entry.Category,
+                    Serial = entry.SerialNumber.Trim(),
+                    AssetTag = entry.AssetTag,
+                    Location = entry.Location,
+                    OwnerCompany = entry.OwnerCompany,
+                    Condition = entry.Condition,
+                    WarrantyMonths = entry.WarrantyMonths,
+                    ReceivedDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Status = DeviceStatus.InStore
+                };
+
+                var registered = await DeviceService.RegisterPhysicalAssetFromPurchaseAsync(device, entry.PurchaseItemId);
+                entry.IsRegistered = true;
+                entry.RegisteredDeviceId = registered.Id;
+                registeredUnitsList.Add(registered);
+                count++;
+            }
+
+            if (savedPurchase != null)
+            {
+                savedPurchase = await PurchaseService.GetPurchaseByIdAsync(savedPurchase.Id);
+            }
+            await LoadAllPurchasesAsync();
+
+            Notifications.ShowSuccess($"Successfully registered {count} physical asset(s) to inventory!");
+            currentStep = 4;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error registering units: {ex.Message}";
+            Notifications.ShowError($"Registration error: {ex.Message}");
+        }
+        finally
+        {
+            isRegisteringUnits = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SkipAndFinishStep3()
+    {
+        currentStep = 4;
+        StateHasChanged();
+    }
+
+    private void ApplyBulkSerials()
+    {
+        if (string.IsNullOrWhiteSpace(bulkSerialPasteText)) return;
+        var lines = bulkSerialPasteText
+            .Split(new[] { '\r', '\n', ',', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToList();
+
+        int lineIndex = 0;
+        foreach (var entry in unitTagEntries.Where(u => !u.IsRegistered))
+        {
+            if (lineIndex < lines.Count)
+            {
+                entry.SerialNumber = lines[lineIndex];
+                lineIndex++;
+            }
+        }
+
+        showBulkSerialModal = false;
+        bulkSerialPasteText = "";
+        Notifications.ShowSuccess($"Applied {lineIndex} serial number(s) to untagged units.");
+        StateHasChanged();
+    }
+
+    private void ApplyBatchLocation(string loc)
+    {
+        batchDefaultLocation = loc;
+        foreach (var entry in unitTagEntries.Where(u => !u.IsRegistered))
+        {
+            entry.Location = loc;
+        }
+        StateHasChanged();
+    }
+
+    private void ApplyBatchCompany(string comp)
+    {
+        batchDefaultCompany = comp;
+        foreach (var entry in unitTagEntries.Where(u => !u.IsRegistered))
+        {
+            entry.OwnerCompany = comp;
+        }
+        StateHasChanged();
+    }
+
+    private async Task StartTaggingFromPurchase(Purchase p)
+    {
+        var fullPurchase = await PurchaseService.GetPurchaseByIdAsync(p.Id);
+        if (fullPurchase == null) return;
+
+        savedPurchase = fullPurchase;
+        await InitializeUnitTagEntriesAsync(fullPurchase);
+        activeMainTab = "upload";
+        currentStep = 3;
+        StateHasChanged();
+    }
+
+    private async Task LoadPurchaseForTaggingAsync(string id)
+    {
+        var p = await PurchaseService.GetPurchaseByIdAsync(id);
+        if (p != null)
+        {
+            await StartTaggingFromPurchase(p);
+        }
+    }
+
+    private async Task PrintQrLabels()
+    {
+        await JS.InvokeVoidAsync("window.print");
     }
 
     private async Task RegisterDirectDevice()
@@ -2203,7 +2924,9 @@
             directDevice.PurchaseItemId = null; // Unbilled / Direct intake
             await DeviceService.AddDeviceAsync(directDevice);
             createdDevice = directDevice;
-            currentStep = 3;
+            registeredUnitsList.Clear();
+            registeredUnitsList.Add(directDevice);
+            currentStep = 4;
             Notifications.ShowSuccess($"Asset '{directDevice.DeviceName}' ({directDevice.AssetTag ?? directDevice.Serial}) registered successfully.");
         }
         catch (Exception ex)
@@ -2223,14 +2946,19 @@
         currentStep = 1;
         uploadedFiles.Clear();
         purchaseForm = null;
+        savedPurchase = null;
         directDevice = null;
         createdDevice = null;
         candidateSerials.Clear();
+        unitTagEntries.Clear();
+        registeredUnitsList.Clear();
         errorMessage = null;
         isDuplicate = false;
         validationWarnings.Clear();
         selectedPreviewIndex = 0;
         zoomScale = 1.0;
+        bulkSerialPasteText = "";
+        showBulkSerialModal = false;
     }
 
     public async ValueTask DisposeAsync()

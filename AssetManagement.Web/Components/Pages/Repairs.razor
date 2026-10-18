@@ -5,164 +5,386 @@
 @using AssetManagement.Core.Enums
 @using AssetManagement.Infrastructure.Services
 @using AssetManagement.Web.Models
+@using AssetManagement.Web.Components.Shared
 @inject RepairService RepairService
 @inject DeviceService DeviceService
 @inject HandoverService HandoverService
 @inject NavigationManager NavigationManager
 @inject NotificationService Notifications
+@inject IJSRuntime JS
 
 <PageTitle>Repair center - PrimeTech Asset Manager</PageTitle>
 
-<div class="bg-surface pb-4 border-b border-line-soft">
-<PageHeader Title="Repair center">
-    <Actions>
-        <button type="button" @onclick='() => OpenCloseRepairModal("")' class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 border border-line-soft bg-surface">
-            Close a repair
-        </button>
-        <button type="button" @onclick="OpenSendToRepairModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            Send to repair
-        </button>
-    </Actions>
-    <ChildContent>
-        <div class="mt-5 flex flex-row gap-3">
-            <div class="flex-1 group relative overflow-hidden rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-900/20 text-left shadow-sm">
-                <div class="relative z-10 flex items-start justify-between p-4">
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-rose-800 dark:text-rose-400">Currently in repair</p>
-                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-txt-hi">@inRepairCount</p>
-                        <p class="mt-0.5 text-[11px] text-txt-lo">Active tickets</p>
+<div class="bg-surface pb-3 border-b border-line-soft">
+    <PageHeader Title="Repair center">
+        <Actions>
+            <button type="button" @onclick='() => OpenCloseRepairModal("")' class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 border border-line-soft bg-surface shadow-xs">
+                Close a repair
+            </button>
+            <button type="button" @onclick="OpenSendToRepairModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                Send to repair
+            </button>
+        </Actions>
+        <ChildContent>
+            <!-- Interactive KPI Cards -->
+            <div class="mt-4 flex flex-row gap-3">
+                <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" 
+                     style="@(currentCardFilter == "active" ? "background: #fff1f2; border: 1px solid #fecdd3; border-bottom: 3px solid #e11d48;" : "background: #fff1f2; border: 1px solid #fecdd3;")" 
+                     @onclick='() => SetCardFilter("active")'>
+                    <div class="relative z-10 flex items-start justify-between p-3.5">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-rose-800">Currently in repair</p>
+                            <p class="tnum mt-1 text-2xl font-bold tracking-tight text-rose-950">@inRepairCount</p>
+                            <p class="mt-0.5 text-[11px] font-medium text-rose-700">Active tickets</p>
+                        </div>
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-200/80 text-rose-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                        </span>
                     </div>
-                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:text-rose-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                    </span>
                 </div>
-            </div>
 
-            <div class="flex-1 group relative overflow-hidden rounded-xl border border-green-200 bg-green-50 dark:bg-green-900/20 text-left">
-                <div class="relative z-10 flex items-start justify-between p-4">
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-green-800 dark:text-green-400">Repairs completed</p>
-                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-txt-hi">@completedCount</p>
-                        <p class="mt-0.5 text-[11px] text-txt-lo">Total fixed</p>
+                <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" 
+                     style="@(currentCardFilter == "completed" ? "background: #ecfdf5; border: 1px solid #a7f3d0; border-bottom: 3px solid #059669;" : "background: #ecfdf5; border: 1px solid #a7f3d0;")" 
+                     @onclick='() => SetCardFilter("completed")'>
+                    <div class="relative z-10 flex items-start justify-between p-3.5">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-800">Repairs completed</p>
+                            <p class="tnum mt-1 text-2xl font-bold tracking-tight text-emerald-950">@completedCount</p>
+                            <p class="mt-0.5 text-[11px] font-medium text-emerald-700">Total fixed</p>
+                        </div>
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-200/80 text-emerald-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                        </span>
                     </div>
-                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700 dark:text-green-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                    </span>
                 </div>
-            </div>
 
-            <div class="flex-1 group relative overflow-hidden rounded-xl border border-sky-200 bg-sky-50 dark:bg-sky-900/20 text-left">
-                <div class="relative z-10 flex items-start justify-between p-4">
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-sky-800 dark:text-sky-400">Repair movements logged</p>
-                        <p class="tnum mt-1 text-xl font-bold tracking-tight text-txt-hi">@totalRepairMovements</p>
-                        <p class="mt-0.5 text-[11px] text-txt-lo">Activity history</p>
+                <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" 
+                     style="@(currentCardFilter == "all" ? "background: #eff6ff; border: 1px solid #bfdbfe; border-bottom: 3px solid #2563eb;" : "background: #eff6ff; border: 1px solid #bfdbfe;")" 
+                     @onclick='() => SetCardFilter("all")'>
+                    <div class="relative z-10 flex items-start justify-between p-3.5">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-blue-800">All repair records</p>
+                            <p class="tnum mt-1 text-2xl font-bold tracking-tight text-blue-950">@repairs.Count</p>
+                            <p class="mt-0.5 text-[11px] font-medium text-blue-700">Activity history</p>
+                        </div>
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-200/80 text-blue-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                        </span>
                     </div>
-                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:text-sky-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                    </span>
                 </div>
             </div>
-        </div>
-    </ChildContent>
-</PageHeader>
+        </ChildContent>
+    </PageHeader>
 </div>
 
-<section aria-label="Repair queue" class="bg-surface">
-    <h2 class="px-6 pb-2 pt-5 text-[11px] font-medium uppercase tracking-widest text-txt-lo lg:px-9">
-        Repair queue
-    </h2>
-    
-    <div class="flex flex-col gap-4 px-6 pb-6 lg:px-9">
-        @foreach (var repair in activeRepairs)
-        {
-            var device = repair.Device;
-            var isExpanded = expandedRepairIds.Contains(repair.Id);
-            var assetId = string.IsNullOrEmpty(device?.AssetTag) ? device?.Id.ToString() : device?.AssetTag;
-            var kind = GetItemKind(device);
-            var warrantyText = GetWarrantyText(device, out var isExpired, out var isExpiring);
+<!-- List View with Details (Hide / Unhide) -->
+<section id="repairs-section" aria-label="Repair items" class="bg-surface">
+    <!-- Filter Tabs & Toolbar -->
+    <div class="px-6 pt-4 lg:px-9 flex flex-wrap items-center justify-between border-b border-line-soft gap-4">
+        <!-- Tabs on left -->
+        <div class="flex items-center gap-6">
+            <button type="button" @onclick='() => SetCardFilter("active")' 
+                    class="pb-3 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(currentCardFilter == "active" ? "border-rose-500 text-rose-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+                <span>Active in Repair</span>
+                <span class="rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-[10px] font-mono font-bold">@inRepairCount</span>
+            </button>
+            <button type="button" @onclick='() => SetCardFilter("completed")' 
+                    class="pb-3 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(currentCardFilter == "completed" ? "border-emerald-500 text-emerald-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+                <span>Completed</span>
+                <span class="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-mono font-bold">@completedCount</span>
+            </button>
+            <button type="button" @onclick='() => SetCardFilter("all")' 
+                    class="pb-3 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(currentCardFilter == "all" ? "border-accent-500 text-accent-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+                <span>All Records</span>
+                <span class="rounded-full bg-elevated text-txt-hi px-2 py-0.5 text-[10px] font-mono font-bold border border-line-soft">@repairs.Count</span>
+            </button>
+        </div>
 
-            <div class="flex flex-col">
-                <div class="flex flex-col rounded-xl border border-line bg-surface p-5 shadow-sm @(isExpanded ? "rounded-b-none border-b-0" : "")">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0 flex-1">
-                            <span class="tnum block font-mono text-[11px] text-accent-400">@assetId</span>
-                            <h3 class="mt-0.5 truncate text-base font-semibold text-txt-hi">@device?.Brand @device?.DeviceName</h3>
-                            <p class="truncate text-xs text-txt-mid">@device?.ProcessorFamily · @device?.Ram · @device?.Ssd · serial @device?.Serial</p>
-                        </div>
-                        <span class="inline-flex items-center rounded-md bg-elevated px-1.5 py-0.5 text-[10px] font-medium tracking-widest text-txt-mid ring-1 ring-inset ring-line-strong">
-                            @kind
-                        </span>
-                    </div>
-                    
-                    <div class="mt-4 grid grid-cols-[auto_1fr_auto_1fr] items-baseline gap-x-3 gap-y-2 text-xs">
-                        <span class="text-txt-lo">Reported issue</span>
-                        <span class="truncate font-medium text-txt-mid">@repair.IssueDescription</span>
-                        <span class="text-txt-lo">Vendor</span>
-                        <span class="truncate font-medium text-txt-hi">@repair.VendorName</span>
-                        
-                        <span class="text-txt-lo">Sent on</span>
-                        <span class="font-medium text-txt-hi">@(DateTime.TryParse(repair.SentDate, out var dt) ? dt.ToString("d MMM yyyy") : repair.SentDate)</span>
-                        <span class="text-txt-lo">Return to</span>
-                        <span class="truncate font-medium text-txt-hi">@(string.IsNullOrEmpty(device?.UserName) ? "IT inventory" : device.UserName)</span>
-                        
-                        @if (!string.IsNullOrEmpty(repair.ExpectedReturnDate))
-                        {
-                            <span class="text-txt-lo">Expected</span>
-                            <span class="font-medium text-warn-500">@(DateTime.TryParse(repair.ExpectedReturnDate, out var dtExp) ? dtExp.ToString("d MMM yyyy") : repair.ExpectedReturnDate)</span>
-                            <span class="text-txt-lo"></span>
-                            <span></span>
-                        }
-                    </div>
-                    
-                    <div class="mt-4 flex items-end justify-between gap-3 pt-4 border-t border-line-soft">
-                        <span class="text-[11px] font-medium @(isExpired ? "text-danger-400" : (isExpiring ? "text-warn-400" : "text-txt-mid"))">
-                            @if (isExpired) { <span class="font-semibold text-danger-500">Expired</span> }
-                            else if (isExpiring) { <span class="font-semibold text-warn-500">Expiring</span> }
-                            @warrantyText
-                        </span>
-                        
-                        <div class="flex items-center gap-2">
-                            <button type="button" class="inline-flex items-center justify-center rounded-lg bg-elevated px-2 py-1.5 text-xs font-semibold text-txt-hi shadow-sm ring-1 ring-inset ring-line transition-colors hover:bg-raised" @onclick="() => ToggleExpanded(repair.Id)" @onclick:stopPropagation>
-                                <span class="mr-1">@(isExpanded ? "Hide specs" : "View specs")</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200 @(isExpanded ? "rotate-180" : "")"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
-                            <button type="button" @onclick="() => OpenCloseRepairModal(repair.Id)" @onclick:stopPropagation class="inline-flex items-center justify-center rounded-lg bg-accent-500 px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-                                Close repair
-                            </button>
-                        </div>
+        <!-- Filters & Search on right -->
+        <div class="relative flex flex-wrap items-center gap-2.5 pb-2">
+            <!-- Vendor select -->
+            <select @bind="selectedVendor" @bind:after="OnFilterChanged" class="rounded-md border border-line bg-elevated py-1.5 px-2.5 text-xs text-txt-hi transition-colors duration-150 hover:border-line-strong focus:outline-none">
+                <option value="">All Vendors (@repairs.Count)</option>
+                @foreach (var v in distinctVendors)
+                {
+                    <option value="@v.Name">@v.Name (@v.Count)</option>
+                }
+            </select>
+
+            <!-- Search box -->
+            <div class="relative w-64">
+                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-txt-lo" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke-width="2"/></svg>
+                <input type="search" @bind="searchQuery" @bind:event="oninput" @bind:after="OnFilterChanged" placeholder="Search asset, vendor, issue..." class="w-full rounded-lg border border-line bg-elevated py-1.5 pl-9 pr-3 text-sm text-txt-hi placeholder:text-txt-lo hover:border-line-strong focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
+            </div>
+
+            @if (HasActiveFilters)
+            {
+                <button type="button" @onclick="ClearFilters" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-line bg-surface py-1.5 px-2 text-xs font-medium text-txt-mid hover:text-txt-hi hover:bg-elevated transition-colors" title="Clear filters">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 6 6 18M6 6l12 12"/></svg>
+                    Clear
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Main List Table -->
+    <AppTable TItem="RepairRecord" Items="paginatedRepairs" 
+              OnRowClick="@(async (RepairRecord r) => await ToggleExpand(r.Id))" 
+              IsRowExpanded="@((RepairRecord r) => expandedRepairIds.Contains(r.Id))"
+              EmptyHint="No repair records matching the selected filters.">
+        <HeaderContent>
+            <th scope="col" class="py-2.5 pl-6 pr-3 font-semibold text-[10px] uppercase tracking-widest text-txt-mid lg:pl-9 cursor-pointer hover:bg-elevated transition-colors select-none group" @onclick='() => SortBy("Asset")'>
+                <div class="flex items-center gap-1.5">Asset ID @RenderSortIcon("Asset")</div>
+            </th>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors select-none group" @onclick='() => SortBy("Device")'>
+                <div class="flex items-center gap-1.5">Device &amp; Specs @RenderSortIcon("Device")</div>
+            </th>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors select-none group" @onclick='() => SortBy("Issue")'>
+                <div class="flex items-center gap-1.5">Reported Issue @RenderSortIcon("Issue")</div>
+            </th>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors select-none group" @onclick='() => SortBy("Vendor")'>
+                <div class="flex items-center gap-1.5">Vendor @RenderSortIcon("Vendor")</div>
+            </th>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors select-none group" @onclick='() => SortBy("Date")'>
+                <div class="flex items-center gap-1.5">Timeline @RenderSortIcon("Date")</div>
+            </th>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors select-none group" @onclick='() => SortBy("Status")'>
+                <div class="flex items-center gap-1.5">Status @RenderSortIcon("Status")</div>
+            </th>
+            <th scope="col" class="py-2.5 pr-6 lg:pr-9 text-right font-semibold text-[10px] uppercase tracking-widest text-txt-mid">
+                Actions
+            </th>
+        </HeaderContent>
+
+        <RowTemplate Context="repair">
+            @{
+                var device = repair.Device;
+                var isExpanded = expandedRepairIds.Contains(repair.Id);
+                var assetId = string.IsNullOrEmpty(device?.AssetTag) ? device?.Id.ToString() : device?.AssetTag;
+                var kind = GetItemKind(device);
+            }
+            <td class="py-3 pl-6 pr-3 lg:pl-9">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-elevated text-txt-mid border border-line-soft">
+                        <AssetManagement.Web.Components.Shared.DeviceIcon Category="@device?.Category" CssClass="h-4 w-4" />
+                    </span>
+                    <div>
+                        <span class="font-mono text-xs font-bold text-accent-700">@assetId</span>
+                        <span class="block text-[11px] text-txt-lo">@(device?.Brand ?? "Generic")</span>
                     </div>
                 </div>
-                
-                @if (isExpanded && device != null)
+            </td>
+            <td class="px-3 py-3">
+                <div class="flex items-center gap-1.5">
+                    <span class="font-semibold text-xs text-txt-hi truncate max-w-[200px]">@device?.Brand @device?.DeviceName</span>
+                    <span class="inline-flex items-center rounded-md bg-elevated px-1.5 py-0.5 text-[9px] font-medium tracking-wider text-txt-mid border border-line-soft shrink-0">
+                        @kind
+                    </span>
+                </div>
+                <div class="text-[11px] text-txt-mid truncate max-w-xs mt-0.5">
+                    @string.Join(" · ", new[] { device?.Processor, device?.Ram, device?.Ssd, !string.IsNullOrEmpty(device?.Serial) ? $"SN: {device.Serial}" : null }.Where(s => !string.IsNullOrEmpty(s)))
+                </div>
+            </td>
+            <td class="px-3 py-3">
+                <div class="text-xs font-medium text-txt-hi truncate max-w-xs" title="@repair.IssueDescription">
+                    @(string.IsNullOrWhiteSpace(repair.IssueDescription) ? "General repair / servicing" : repair.IssueDescription)
+                </div>
+                <div class="text-[11px] text-txt-lo mt-0.5">
+                    Return to: <span class="font-medium text-txt-mid">@(string.IsNullOrEmpty(device?.UserName) ? "IT inventory" : device.UserName)</span>
+                </div>
+            </td>
+            <td class="px-3 py-3 text-xs text-txt-hi">
+                <span class="font-medium">@(string.IsNullOrWhiteSpace(repair.VendorName) ? "Unspecified vendor" : repair.VendorName)</span>
+                @if (repair.Cost.HasValue && repair.Cost.Value > 0)
                 {
-                    <div class="border-x border-b border-line bg-canvas shadow-inner overflow-hidden rounded-b-xl border-t border-t-line-soft">
-                        <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" IsInline="true" HideEmployeeProfileLink="false" />
+                    <span class="block text-[10px] font-mono text-emerald-700 font-bold mt-0.5">@String.Format(new System.Globalization.CultureInfo("bn-BD"), "{0:C0}", repair.Cost.Value)</span>
+                }
+            </td>
+            <td class="px-3 py-3 text-xs">
+                <div class="text-txt-hi">
+                    Sent: <span class="font-medium">@(DateTime.TryParse(repair.SentDate, out var dt) ? dt.ToString("d MMM yyyy") : repair.SentDate)</span>
+                </div>
+                @if (!string.IsNullOrEmpty(repair.ExpectedReturnDate) && repair.Status != "Completed")
+                {
+                    <div class="text-[11px] text-amber-600 font-medium mt-0.5">
+                        Exp: @(DateTime.TryParse(repair.ExpectedReturnDate, out var dtExp) ? dtExp.ToString("d MMM yyyy") : repair.ExpectedReturnDate)
                     </div>
                 }
+                else if (!string.IsNullOrEmpty(repair.ActualReturnDate))
+                {
+                    <div class="text-[11px] text-emerald-700 font-medium mt-0.5">
+                        Returned: @(DateTime.TryParse(repair.ActualReturnDate, out var dtRet) ? dtRet.ToString("d MMM yyyy") : repair.ActualReturnDate)
+                    </div>
+                }
+            </td>
+            <td class="px-3 py-3">
+                @if (repair.Status == "Completed")
+                {
+                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        Completed
+                    </span>
+                }
+                else
+                {
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-800 px-2.5 py-0.5 text-[11px] font-bold">
+                        <span class="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+                        In Repair
+                    </span>
+                }
+            </td>
+            <td class="py-3 pr-6 lg:pr-9 text-right" @onclick:stopPropagation>
+                <div class="flex items-center justify-end gap-2">
+                    @if (repair.Status != "Completed")
+                    {
+                        <button type="button" @onclick="() => OpenCloseRepairModal(repair.Id)" class="inline-flex items-center gap-1 rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-xs font-semibold px-2.5 py-1.5 transition-colors shadow-xs">
+                            <span>Close</span>
+                        </button>
+                    }
+                    <button type="button" @onclick="() => ToggleExpanded(repair.Id)" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-line bg-elevated hover:bg-raised text-txt-mid hover:text-txt-hi transition-colors text-xs font-medium" title="@(isExpanded ? "Hide details" : "View details")">
+                        <span>@(isExpanded ? "Hide" : "Details")</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200 @(isExpanded ? "rotate-180 text-accent-600" : "")"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                </div>
+            </td>
+        </RowTemplate>
+
+        <ExpandedRowTemplate Context="repair">
+            @{
+                var device = repair.Device;
+                var warrantyText = GetWarrantyText(device, out var isExpired, out var isExpiring);
+            }
+            <td colspan="7" class="p-0 border-b-4 border-accent-500 bg-canvas shadow-inner overflow-hidden">
+                <div class="p-4 sm:p-6 space-y-4">
+                    <!-- Repair Ticket Details Card -->
+                    <div class="rounded-xl border border-line bg-surface p-4 shadow-xs">
+                        <div class="flex items-center justify-between pb-3 border-b border-line-soft">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full @(repair.Status == "Completed" ? "bg-emerald-500" : "bg-rose-500")"></span>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-txt-hi">Repair Ticket Information — @(device?.Brand) @(device?.DeviceName) (@(device?.AssetTag ?? repair.DeviceId))</h4>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                @if (repair.Status != "Completed")
+                                {
+                                    <button type="button" @onclick="() => OpenCloseRepairModal(repair.Id)" class="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold px-3 py-1.5 shadow-sm transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span>Close Repair</span>
+                                    </button>
+                                }
+                                <button type="button" @onclick="() => ToggleExpanded(repair.Id)" class="text-xs font-semibold text-txt-mid hover:text-txt-hi px-2.5 py-1 rounded-lg border border-line bg-elevated hover:bg-surface transition-colors">
+                                    Hide details ▲
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-3 text-xs">
+                            <div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block">Reported Issue</span>
+                                <span class="font-medium text-txt-hi text-xs mt-0.5 block">@(string.IsNullOrWhiteSpace(repair.IssueDescription) ? "General repair / servicing" : repair.IssueDescription)</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block">Vendor / Workshop</span>
+                                <span class="font-medium text-txt-hi text-xs mt-0.5 block">@(string.IsNullOrWhiteSpace(repair.VendorName) ? "Unspecified vendor" : repair.VendorName)</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block">Timeline</span>
+                                <span class="text-txt-mid block mt-0.5">Sent: @repair.SentDate</span>
+                                @if (!string.IsNullOrEmpty(repair.ExpectedReturnDate))
+                                {
+                                    <span class="text-amber-700 block mt-0.5">Expected: @repair.ExpectedReturnDate</span>
+                                }
+                                @if (!string.IsNullOrEmpty(repair.ActualReturnDate))
+                                {
+                                    <span class="text-emerald-700 block font-semibold mt-0.5">Returned: @repair.ActualReturnDate</span>
+                                }
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block">Warranty Status</span>
+                                <span class="font-medium text-xs mt-0.5 block @(isExpired ? "text-danger-500" : (isExpiring ? "text-amber-600" : (device?.WarrantyEndDate.HasValue == true ? "text-emerald-600" : "text-txt-lo")))">
+                                    @warrantyText
+                                </span>
+                                @if (repair.Cost.HasValue && repair.Cost > 0)
+                                {
+                                    <span class="mt-1 block text-txt-lo">Repair Cost: <strong class="text-emerald-700 font-mono font-bold">@String.Format(new System.Globalization.CultureInfo("bn-BD"), "{0:C0}", repair.Cost.Value)</strong></span>
+                                }
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(repair.Remarks))
+                        {
+                            <div class="mt-3 pt-3 border-t border-line-soft text-xs">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block">Resolution Notes / Remarks</span>
+                                <p class="text-txt-mid mt-0.5 italic">@repair.Remarks</p>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Embedded Full Device Detail View -->
+                    @if (device != null)
+                    {
+                        <div class="rounded-xl border border-line bg-surface overflow-hidden shadow-xs">
+                            <div class="px-4 py-2 bg-elevated/60 border-b border-line flex items-center justify-between">
+                                <h5 class="text-xs font-bold uppercase tracking-wider text-txt-hi">Hardware Specifications &amp; Profile</h5>
+                                <span class="text-[10px] font-mono text-txt-lo">Tag: @device.AssetTag</span>
+                            </div>
+                            <div class="px-2 lg:px-3">
+                                <AssetManagement.Web.Components.Shared.DeviceDetailView DeviceId="@device.Id" OnStateChanged="OnInitializedAsync" IsInline="true" HideEmployeeProfileLink="false" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            </td>
+        </ExpandedRowTemplate>
+    </AppTable>
+
+    <!-- Pagination Footer -->
+    @if (TotalItems > 0)
+    {
+        <div class="px-6 py-4 flex items-center justify-between border-t border-line-soft">
+            <div class="flex items-center gap-4">
+                <div class="text-xs text-txt-mid">
+                    Showing @(TotalItems == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1) to @(Math.Min(CurrentPage * PageSize, TotalItems)) of @TotalItems repair records
+                </div>
+                <div class="flex items-center gap-2 text-xs text-txt-mid">
+                    <span>Rows per page:</span>
+                    <select class="bg-elevated border border-line rounded px-2 py-1 focus:outline-none focus:border-accent-500 font-medium" @bind="PageSize" @bind:after="() => { CurrentPage = 1; StateHasChanged(); }">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
             </div>
-        }
-    </div>
+            <div class="flex gap-1">
+                <button type="button" class="px-3 py-1 rounded border border-line bg-surface text-xs font-medium hover:bg-elevated disabled:opacity-50 transition-colors" @onclick="() => ChangePage(CurrentPage - 1)" disabled="@(CurrentPage == 1)">Previous</button>
+                <button type="button" class="px-3 py-1 rounded border border-line bg-surface text-xs font-medium hover:bg-elevated disabled:opacity-50 transition-colors" @onclick="() => ChangePage(CurrentPage + 1)" disabled="@(CurrentPage >= TotalPages || TotalPages == 0)">Next</button>
+            </div>
+        </div>
+    }
 </section>
 
+@if (showSendToRepairModal)
+{
+    <AssetManagement.Web.Components.Shared.RepairDeviceModal 
+        @bind-IsOpen="showSendToRepairModal" 
+        FaultyDevices="eligibleDevices" 
+        OnRepaired="HandleRepairStarted" />
+}
 
-<AssetManagement.Web.Components.Shared.RepairDeviceModal 
-    @bind-IsOpen="showSendToRepairModal" 
-    FaultyDevices="eligibleDevices" 
-    OnRepaired="HandleRepairStarted" />
-
-<AssetManagement.Web.Components.Shared.CloseRepairModal 
-    @bind-IsOpen="showCloseRepairModal" 
-    ActiveRepairs="activeRepairs" 
-    PreselectedRepairId="@preselectedRepairId"
-    OnClosed="HandleRepairClosed" />
+@if (showCloseRepairModal)
+{
+    <AssetManagement.Web.Components.Shared.CloseRepairModal 
+        @bind-IsOpen="showCloseRepairModal" 
+        ActiveRepairs="activeRepairs" 
+        PreselectedRepairId="@preselectedRepairId"
+        OnClosed="HandleRepairClosed" />
+}
 
 @code {
     private bool showSendToRepairModal = false;
     private bool showCloseRepairModal = false;
     private string preselectedRepairId = string.Empty;
-    private bool showRepairLog = false;
     
     private List<Device> eligibleDevices = new();
     private List<RepairRecord> repairs = new();
@@ -170,6 +392,61 @@
     private List<MovementDto> repairMovements = new();
     
     private HashSet<string> expandedRepairIds = new();
+
+    private string currentCardFilter = "active"; // "active", "completed", "all"
+    private string searchQuery = "";
+    private string selectedVendor = "";
+
+    private string SortColumn = "Date";
+    private bool SortAscending = false;
+    private int CurrentPage = 1;
+    private int PageSize = 20;
+    private int TotalItems = 0;
+    private int TotalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
+
+    private bool HasActiveFilters => !string.IsNullOrWhiteSpace(searchQuery) || !string.IsNullOrWhiteSpace(selectedVendor);
+
+    private void SetCardFilter(string filter)
+    {
+        currentCardFilter = filter;
+        CurrentPage = 1;
+        StateHasChanged();
+    }
+
+    private void OnFilterChanged()
+    {
+        CurrentPage = 1;
+        StateHasChanged();
+    }
+
+    private void ClearFilters()
+    {
+        searchQuery = "";
+        selectedVendor = "";
+        CurrentPage = 1;
+        StateHasChanged();
+    }
+
+    public record VendorCountItem(string Name, int Count);
+    private IEnumerable<VendorCountItem> distinctVendors =>
+        repairs
+            .Where(r => !string.IsNullOrWhiteSpace(r.VendorName))
+            .GroupBy(r => r.VendorName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => new VendorCountItem(g.Key, g.Count()))
+            .OrderByDescending(v => v.Count)
+            .ThenBy(v => v.Name);
+
+    private async Task ToggleExpand(string repairId)
+    {
+        try
+        {
+            var selection = await JS.InvokeAsync<string>("eval", "window.getSelection().toString()");
+            if (!string.IsNullOrWhiteSpace(selection)) return;
+        }
+        catch { }
+
+        ToggleExpanded(repairId);
+    }
 
     private void ToggleExpanded(string repairId)
     {
@@ -182,6 +459,117 @@
             expandedRepairIds.Add(repairId);
         }
     }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= TotalPages)
+        {
+            CurrentPage = page;
+            StateHasChanged();
+        }
+    }
+
+    private void SortBy(string column)
+    {
+        if (SortColumn == column)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            SortColumn = column;
+            SortAscending = true;
+        }
+        CurrentPage = 1;
+        StateHasChanged();
+    }
+
+    private RenderFragment RenderSortIcon(string column) => builder =>
+    {
+        if (SortColumn != column) return;
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "class", "w-3 h-3 inline-block");
+        builder.AddAttribute(2, "fill", "none");
+        builder.AddAttribute(3, "stroke", "currentColor");
+        builder.AddAttribute(4, "viewBox", "0 0 24 24");
+        builder.OpenElement(5, "path");
+        builder.AddAttribute(6, "stroke-linecap", "round");
+        builder.AddAttribute(7, "stroke-linejoin", "round");
+        builder.AddAttribute(8, "stroke-width", "2");
+        builder.AddAttribute(9, "d", SortAscending ? "M5 15l7-7 7 7" : "M19 9l-7 7-7 7");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private List<RepairRecord> filteredRepairs
+    {
+        get
+        {
+            var query = repairs.AsEnumerable();
+
+            if (currentCardFilter == "active")
+            {
+                query = query.Where(r => r.Status != "Completed");
+            }
+            else if (currentCardFilter == "completed")
+            {
+                query = query.Where(r => r.Status == "Completed");
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedVendor))
+            {
+                query = query.Where(r => !string.IsNullOrEmpty(r.VendorName) && 
+                    r.VendorName.Equals(selectedVendor, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var terms = searchQuery.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                query = query.Where(r => terms.All(term =>
+                    (r.Device?.AssetTag != null && r.Device.AssetTag.ToLower().Contains(term)) ||
+                    (r.Device?.DeviceName != null && r.Device.DeviceName.ToLower().Contains(term)) ||
+                    (r.Device?.Brand != null && r.Device.Brand.ToLower().Contains(term)) ||
+                    (r.Device?.Serial != null && r.Device.Serial.ToLower().Contains(term)) ||
+                    (r.VendorName != null && r.VendorName.ToLower().Contains(term)) ||
+                    (r.IssueDescription != null && r.IssueDescription.ToLower().Contains(term)) ||
+                    (r.Device?.UserName != null && r.Device.UserName.ToLower().Contains(term))
+                ));
+            }
+
+            query = SortColumn switch
+            {
+                "Asset" => SortAscending 
+                    ? query.OrderBy(r => r.Device?.AssetTag ?? r.DeviceId)
+                    : query.OrderByDescending(r => r.Device?.AssetTag ?? r.DeviceId),
+                "Device" => SortAscending
+                    ? query.OrderBy(r => r.Device?.Brand).ThenBy(r => r.Device?.DeviceName)
+                    : query.OrderByDescending(r => r.Device?.Brand).ThenByDescending(r => r.Device?.DeviceName),
+                "Issue" => SortAscending
+                    ? query.OrderBy(r => r.IssueDescription)
+                    : query.OrderByDescending(r => r.IssueDescription),
+                "Vendor" => SortAscending
+                    ? query.OrderBy(r => r.VendorName)
+                    : query.OrderByDescending(r => r.VendorName),
+                "Date" => SortAscending
+                    ? query.OrderBy(r => DateTime.TryParse(r.SentDate, out var d) ? d : DateTime.MinValue)
+                    : query.OrderByDescending(r => DateTime.TryParse(r.SentDate, out var d) ? d : DateTime.MinValue),
+                "Status" => SortAscending
+                    ? query.OrderBy(r => r.Status)
+                    : query.OrderByDescending(r => r.Status),
+                _ => query.OrderByDescending(r => DateTime.TryParse(r.SentDate, out var d) ? d : DateTime.MinValue)
+            };
+
+            var list = query.ToList();
+            TotalItems = list.Count;
+            return list;
+        }
+    }
+
+    private List<RepairRecord> paginatedRepairs =>
+        filteredRepairs
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
     
     private int inRepairCount = 0;
     private int completedCount = 0;
@@ -258,18 +646,18 @@
     {
         isExpired = false;
         isExpiring = false;
-        if (device == null || !device.WarrantyEndDate.HasValue) return "No warranty";
+        if (device == null || !device.WarrantyEndDate.HasValue) return "No warranty recorded";
         
         var end = device.WarrantyEndDate.Value;
         if (end < DateTime.Now)
         {
             isExpired = true;
-            return $" ended {end.ToString("d MMM yyyy")}";
+            return $"Expired on {end.ToString("d MMM yyyy")}";
         }
         else
         {
-            isExpiring = true;
-            return $" {(end - DateTime.Now).Days}d left — claimable";
+            isExpiring = (end - DateTime.Now).TotalDays <= 30;
+            return $"Valid until {end.ToString("d MMM yyyy")} ({(end - DateTime.Now).Days}d left)";
         }
     }
 
@@ -297,6 +685,7 @@
         }
         
         Notifications.ShowSuccess($"Repair ticket logged for asset {device?.AssetTag ?? record.DeviceId} successfully.");
+        showSendToRepairModal = false;
         await OnInitializedAsync();
     }
 
@@ -351,11 +740,7 @@
         }
         
         Notifications.ShowSuccess("Repair marked as completed and asset status updated.");
+        showCloseRepairModal = false;
         await OnInitializedAsync();
     }
 }
-
-
-
-
-

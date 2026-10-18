@@ -20,13 +20,14 @@ public class RequisitionService
     public async Task<List<Requisition>> GetAllAsync()
     {
         return await _context.Requisitions
+            .AsNoTracking()
             .OrderByDescending(r => r.RequestedAt)
             .ToListAsync();
     }
 
     public async Task<Requisition?> GetByIdAsync(string id)
     {
-        return await _context.Requisitions.FindAsync(id);
+        return await _context.Requisitions.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id);
     }
 
     public async Task<Requisition> CreateAsync(Requisition requisition)
@@ -74,7 +75,8 @@ public class RequisitionService
 
     public async Task DeleteAsync(string id)
     {
-        var r = await _context.Requisitions.FindAsync(id);
+        var r = _context.Requisitions.Local.FirstOrDefault(x => x.Id == id) 
+                ?? await _context.Requisitions.FindAsync(id);
         if (r != null)
         {
             _context.Requisitions.Remove(r);
@@ -82,10 +84,25 @@ public class RequisitionService
         }
     }
 
-    
     public async Task UpdateAsync(Requisition requisition)
     {
-        _context.Requisitions.Update(requisition);
+        var tracked = _context.Requisitions.Local.FirstOrDefault(r => r.Id == requisition.Id);
+        if (tracked != null)
+        {
+            _context.Entry(tracked).CurrentValues.SetValues(requisition);
+        }
+        else
+        {
+            var existing = await _context.Requisitions.FindAsync(requisition.Id);
+            if (existing != null)
+            {
+                _context.Entry(existing).CurrentValues.SetValues(requisition);
+            }
+            else
+            {
+                _context.Requisitions.Update(requisition);
+            }
+        }
         await _context.SaveChangesAsync();
     }
 

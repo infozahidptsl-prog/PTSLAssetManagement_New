@@ -1,0 +1,1214 @@
+@using AssetManagement.Core.Entities
+@using AssetManagement.Core.Enums
+@using AssetManagement.Core.Interfaces
+@using AssetManagement.Infrastructure.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject IOcrService OcrService
+@inject IAiDocumentExtractionService AiService
+@inject IAiFieldMappingService FieldMappingService
+@inject IAiValidationService ValidationService
+@inject PurchaseService PurchaseService
+@inject DeviceService DeviceService
+@inject ISettingsService SettingsService
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+@inject IWebHostEnvironment Env
+
+@if (IsOpen)
+{
+    <style>
+        @@media print {
+            body * {
+                visibility: hidden !important;
+            }
+            #wizard-printable-qr-sheet, #wizard-printable-qr-sheet * {
+                visibility: visible !important;
+            }
+            #wizard-printable-qr-sheet {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 16px !important;
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 no-print" 
+         style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(6px);">
+        
+        <div class="w-full flex flex-col rounded-2xl bg-surface shadow-2xl relative mx-auto border border-line-soft overflow-hidden" 
+             style="max-width: 980px; height: 92vh; max-height: 900px;">
+            
+            <!-- Modal Header with Progress Stepper -->
+            <div class="px-6 py-4 border-b border-line-soft bg-elevated/40 shrink-0">
+                <div class="flex items-center justify-between pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-sm"
+                             style="background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%);">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-base font-bold text-txt-hi">AI Invoice Capture &amp; Purchase Entry Wizard</h2>
+                                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                    Step @currentStep of 4
+                                </span>
+                            </div>
+                            <p class="text-xs text-txt-mid">Guided journey: Upload invoice document ➔ Verify extracted data ➔ Tag physical units ➔ Enter into inventory</p>
+                        </div>
+                    </div>
+                    <button type="button" @onclick="CloseAsync" class="rounded-lg p-1.5 text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors border border-line-soft">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Stepper Bar -->
+                <div class="relative flex items-center justify-between pt-2 px-2 sm:px-6">
+                    <div class="absolute left-6 right-6 top-6 -translate-y-1/2 h-1 bg-line rounded-full z-0"></div>
+                    <div class="absolute left-6 top-6 -translate-y-1/2 h-1 bg-emerald-500 rounded-full transition-all duration-300 z-0" 
+                         style="width: calc(@(StepProgressPercent)% * 0.88);"></div>
+
+                    <!-- Step 1 -->
+                    <div class="relative z-10 flex flex-col items-center cursor-pointer select-none" @onclick="() => GoToStep(1)">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all @(currentStep > 1 ? "bg-emerald-500 text-white shadow-sm ring-4 ring-emerald-100" : currentStep == 1 ? "bg-accent-500 text-white shadow-md ring-4 ring-accent-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep > 1) { <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> } else { <span>1</span> }
+                        </div>
+                        <span class="mt-1 text-[11px] font-bold @(currentStep == 1 ? "text-accent-600" : currentStep > 1 ? "text-emerald-600" : "text-txt-lo")">1. Upload Invoice</span>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="relative z-10 flex flex-col items-center @(currentStep >= 2 ? "cursor-pointer" : "cursor-not-allowed") select-none" @onclick="() => GoToStep(2)">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all @(currentStep > 2 ? "bg-emerald-500 text-white shadow-sm ring-4 ring-emerald-100" : currentStep == 2 ? "bg-accent-500 text-white shadow-md ring-4 ring-accent-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep > 2) { <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> } else { <span>2</span> }
+                        </div>
+                        <span class="mt-1 text-[11px] font-bold @(currentStep == 2 ? "text-accent-600" : currentStep > 2 ? "text-emerald-600" : "text-txt-lo")">2. Review &amp; Verify</span>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="relative z-10 flex flex-col items-center @(currentStep >= 3 ? "cursor-pointer" : "cursor-not-allowed") select-none" @onclick="() => GoToStep(3)">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all @(currentStep > 3 ? "bg-emerald-500 text-white shadow-sm ring-4 ring-emerald-100" : currentStep == 3 ? "bg-accent-500 text-white shadow-md ring-4 ring-accent-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep > 3) { <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> } else { <span>3</span> }
+                        </div>
+                        <span class="mt-1 text-[11px] font-bold @(currentStep == 3 ? "text-accent-600" : currentStep > 3 ? "text-emerald-600" : "text-txt-lo")">3. Tag Asset Serials</span>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="relative z-10 flex flex-col items-center @(currentStep == 4 ? "cursor-pointer" : "cursor-not-allowed") select-none">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all @(currentStep == 4 ? "bg-emerald-600 text-white shadow-md ring-4 ring-emerald-100" : "bg-surface border-2 border-line text-txt-lo")">
+                            @if (currentStep == 4) { <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> } else { <span>4</span> }
+                        </div>
+                        <span class="mt-1 text-[11px] font-bold @(currentStep == 4 ? "text-emerald-600" : "text-txt-lo")">4. Complete &amp; QR Labels</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrollable Modal Body -->
+            <div class="flex-1 overflow-y-auto px-6 py-5">
+                
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start justify-between">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path d="m15 9-6 6m0-6 6 6" stroke-width="2"/></svg>
+                            <span>@errorMessage</span>
+                        </div>
+                        <button type="button" @onclick="() => errorMessage = null" class="text-red-500 hover:text-red-700">✕</button>
+                    </div>
+                }
+
+                @* ==========================================
+                   STEP 1: UPLOAD INVOICE
+                   ========================================== *@
+                @if (currentStep == 1)
+                {
+                    <div class="space-y-6">
+                        <!-- Guidance Banner -->
+                        <div class="rounded-xl border border-accent-200 bg-accent-soft/40 p-4 flex items-start gap-3">
+                            <div class="p-2 rounded-lg bg-accent-100 text-accent-700 shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-accent-800 uppercase tracking-wider">Step 1: Upload Invoice Document</h3>
+                                <p class="text-xs text-txt-mid mt-0.5 leading-relaxed">
+                                    Drop your supplier invoice or delivery challan (PDF or Image) below. Our dynamic OCR and AI will automatically extract the supplier, invoice number, purchase date, line items, specifications, and costs.
+                                </p>
+                            </div>
+                        </div>
+
+                        @if (isAnalyzing)
+                        {
+                            <!-- AI Scanning Visualizer -->
+                            <div class="rounded-2xl border border-line bg-elevated/40 p-10 flex flex-col items-center justify-center text-center space-y-4">
+                                <div class="relative w-16 h-16">
+                                    <div class="absolute inset-0 rounded-full border-4 border-accent-200 animate-ping opacity-30"></div>
+                                    <div class="w-16 h-16 rounded-full border-4 border-accent-500 border-t-transparent animate-spin flex items-center justify-center"></div>
+                                    <div class="absolute inset-0 flex items-center justify-center text-accent-600">
+                                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-txt-hi">AI Intelligence Engine Processing...</h4>
+                                    <p class="text-xs text-txt-mid mt-1">@analyzingStatusText</p>
+                                </div>
+                                <div class="w-64 h-1.5 bg-line rounded-full overflow-hidden">
+                                    <div class="h-full bg-accent-500 rounded-full animate-pulse" style="width: 75%;"></div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- Upload Dropzone -->
+                            <div class="relative rounded-2xl border-2 border-dashed border-line-strong hover:border-accent-500 bg-canvas/50 hover:bg-accent-soft/10 p-8 sm:p-12 text-center transition-all cursor-pointer group">
+                                <InputFile OnChange="HandleFilesSelected" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" 
+                                           class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                
+                                <div class="flex flex-col items-center justify-center pointer-events-none">
+                                    <div class="w-14 h-14 rounded-2xl bg-accent-soft text-accent-600 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-accent-100 transition-all shadow-sm">
+                                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-txt-hi group-hover:text-accent-600 transition-colors">
+                                        Click to browse or drag &amp; drop invoice here
+                                    </h4>
+                                    <p class="text-xs text-txt-mid mt-1">Supports PDF invoices, scanned challans, PNG, JPG (up to 15MB)</p>
+                                </div>
+                            </div>
+
+                            <!-- Alternate Test Option: Try Sample Invoice -->
+                            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl border border-line bg-elevated/30">
+                                <div class="flex items-center gap-2 text-xs text-txt-mid">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <span>Don't have an invoice PDF right now? Test with pre-extracted sample data:</span>
+                                </div>
+                                <button type="button" @onclick="LoadSampleInvoice" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line hover:border-accent-400 bg-surface hover:bg-elevated text-xs font-semibold text-txt-hi transition-colors shadow-xs">
+                                    <svg class="w-3.5 h-3.5 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                    <span>Load Sample Purchase Invoice</span>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @* STEP 2: REVIEW & VERIFY PURCHASE DETAILS *@
+                @if (currentStep == 2 && purchaseForm != null)
+                {
+                    <div class="space-y-6">
+                        <!-- Guidance Banner -->
+                        <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-start gap-3">
+                            <div class="p-2 rounded-lg bg-emerald-100 text-emerald-700 shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Step 2: Review &amp; Verify AI Extraction</h3>
+                                <p class="text-xs text-txt-mid mt-0.5 leading-relaxed">
+                                    Verify the vendor, invoice number, items, and quantities below. You can adjust details before committing to the purchase inventory.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Purchase Info Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-1">Supplier / Vendor *</label>
+                                <input type="text" @bind="purchaseForm.Supplier" class="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-line bg-surface focus:outline-none focus:border-accent-500" placeholder="e.g. Star Tech Ltd." />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-1">Invoice / Challan # *</label>
+                                <input type="text" @bind="purchaseForm.InvoiceNumber" class="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-line bg-surface focus:outline-none focus:border-accent-500" placeholder="e.g. INV-98421" />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-1">Purchase Date</label>
+                                <input type="date" @bind="purchaseForm.PurchaseDate" class="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-line bg-surface focus:outline-none focus:border-accent-500" />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold uppercase tracking-wider text-txt-lo mb-1">System PO Number</label>
+                                <input type="text" @bind="purchaseForm.PurchaseNumber" readonly class="w-full text-xs font-mono font-bold px-3 py-2 rounded-lg border border-line bg-elevated text-txt-mid" />
+                            </div>
+                        </div>
+
+                        <!-- Extracted Items Table -->
+                        <div class="rounded-xl border border-line bg-surface overflow-hidden shadow-xs">
+                            <div class="px-4 py-3 bg-elevated/50 border-b border-line flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-txt-hi">Line Items Extracted (@purchaseForm.Items.Count)</h4>
+                                    <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                        Total Units: @purchaseForm.Items.Sum(i => i.Quantity ?? 0)
+                                    </span>
+                                </div>
+                                <button type="button" @onclick="AddItemRow" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface border border-line hover:bg-elevated text-txt-hi transition-colors">
+                                    + Add Item
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="border-b border-line bg-canvas/40 text-[10px] uppercase tracking-wider text-txt-lo font-bold">
+                                        <tr>
+                                            <th class="py-2.5 px-3">Category</th>
+                                            <th class="py-2.5 px-3">Brand</th>
+                                            <th class="py-2.5 px-3">Model / Specification</th>
+                                            <th class="py-2.5 px-3 w-20 text-center">Qty</th>
+                                            <th class="py-2.5 px-3 w-28 text-right">Unit Cost</th>
+                                            <th class="py-2.5 px-3 w-28 text-right">Subtotal</th>
+                                            <th class="py-2.5 px-2 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-line-soft">
+                                        @foreach (var item in purchaseForm.Items)
+                                        {
+                                            <tr class="hover:bg-elevated/20 transition-colors">
+                                                <td class="py-2 px-3">
+                                                    <select @bind="item.Category" class="w-full text-xs py-1 px-2 rounded border border-line bg-surface">
+                                                        @foreach (var cat in availableCategoryNames)
+                                                        {
+                                                            <option value="@cat">@cat</option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td class="py-2 px-3">
+                                                    <input type="text" @bind="item.Manufacturer" placeholder="Brand" class="w-full text-xs py-1 px-2 rounded border border-line bg-surface" />
+                                                </td>
+                                                <td class="py-2 px-3">
+                                                    <input type="text" @bind="item.ModelName" placeholder="Model or description" class="w-full text-xs font-medium py-1 px-2 rounded border border-line bg-surface" />
+                                                </td>
+                                                <td class="py-2 px-3 text-center">
+                                                    <input type="number" min="1" @bind="item.Quantity" class="w-16 text-center text-xs py-1 px-1 rounded border border-line bg-surface font-bold" />
+                                                </td>
+                                                <td class="py-2 px-3 text-right">
+                                                    <input type="number" step="0.01" min="0" @bind="item.UnitCost" class="w-24 text-right text-xs py-1 px-2 rounded border border-line bg-surface font-mono" />
+                                                </td>
+                                                <td class="py-2 px-3 text-right font-mono font-bold text-txt-hi">
+                                                    @String.Format(new System.Globalization.CultureInfo("bn-BD"), "{0:C0}", (item.Quantity ?? 0) * (item.UnitCost ?? 0m))
+                                                </td>
+                                                <td class="py-2 px-2 text-center">
+                                                    <button type="button" @onclick="() => RemoveItem(item)" class="text-txt-lo hover:text-red-600 transition-colors">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot class="border-t border-line bg-elevated/40 font-bold">
+                                        <tr>
+                                            <td colspan="3" class="py-2.5 px-3 text-right text-txt-lo text-[11px] uppercase tracking-wider">Total Purchase Value:</td>
+                                            <td class="py-2.5 px-3 text-center text-xs font-bold text-accent-700">@purchaseForm.Items.Sum(i => i.Quantity ?? 0)</td>
+                                            <td></td>
+                                            <td class="py-2.5 px-3 text-right font-mono text-sm text-emerald-700">
+                                                @String.Format(new System.Globalization.CultureInfo("bn-BD"), "{0:C0}", CalculatedSum)
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 Bottom Actions -->
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-line-soft">
+                            <button type="button" @onclick="() => currentStep = 1" class="w-full sm:w-auto px-4 py-2 rounded-xl border border-line bg-surface hover:bg-elevated text-xs font-semibold text-txt-mid transition-colors">
+                                ← Back to Upload
+                            </button>
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <button type="button" @onclick="SaveDirectToStoreOnly" disabled="@isPosting" class="flex-1 sm:flex-none px-4 py-2 rounded-xl border border-line bg-surface hover:bg-elevated text-xs font-semibold text-txt-hi transition-colors shadow-xs">
+                                    Save to Store Only (Skip Tagging)
+                                </button>
+                                <button type="button" @onclick="SavePurchaseAndProceedToTagging" disabled="@isPosting" class="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5">
+                                    @if (isPosting)
+                                    {
+                                        <div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Save &amp; Continue to Tag Assets ➔</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* STEP 3: FAST BULK TAGGING OF PHYSICAL UNITS *@
+                @if (currentStep == 3)
+                {
+                    <div class="space-y-6">
+                        <!-- Guidance Banner -->
+                        <div class="rounded-xl border border-blue-200 bg-blue-50/50 p-4 flex items-start justify-between gap-3">
+                            <div class="flex items-start gap-3">
+                                <div class="p-2 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-xs font-bold text-blue-800 uppercase tracking-wider">Step 3: Fast Tag Physical Asset Units</h3>
+                                    <p class="text-xs text-txt-mid mt-0.5 leading-relaxed">
+                                        Sequential Asset Tags are pre-allocated automatically. Enter serial numbers for physical units, or paste a list of serials. Any untagged units will safely stay in store.
+                                    </p>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 shrink-0">
+                                @unitTagEntries.Count Units
+                            </span>
+                        </div>
+
+                        <!-- Batch Defaults & Quick Paste Toolbar -->
+                        <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-line bg-elevated/40">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" @onclick="() => showBulkSerialModal = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-soft hover:bg-accent-100 text-accent-700 border border-accent-300 text-xs font-bold transition-colors shadow-xs">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                    <span>Paste Serials List</span>
+                                </button>
+                                <div class="h-4 w-px bg-line"></div>
+                                <div class="flex items-center gap-1.5 text-xs text-txt-mid">
+                                    <span>Default Location:</span>
+                                    <select @bind="batchDefaultLocation" @bind:after="ApplyBatchLocation" class="text-xs py-1 px-2 rounded-md border border-line bg-surface text-txt-hi font-medium">
+                                        @foreach (var loc in officeLocations)
+                                        {
+                                            <option value="@loc">@loc</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-1.5 text-xs text-txt-mid">
+                                    <span>Owner Company:</span>
+                                    <select @bind="batchDefaultCompany" @bind:after="ApplyBatchCompany" class="text-xs py-1 px-2 rounded-md border border-line bg-surface text-txt-hi font-medium">
+                                        @foreach (var comp in ownerCompanies)
+                                        {
+                                            <option value="@comp">@comp</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="text-xs text-txt-mid font-medium">
+                                <span class="font-bold text-emerald-700">@unitTagEntries.Count(u => !string.IsNullOrWhiteSpace(u.SerialNumber))</span> of @unitTagEntries.Count serials entered
+                            </div>
+                        </div>
+
+                        <!-- Bulk Unit Tagging Grid -->
+                        <div class="rounded-xl border border-line bg-surface overflow-hidden shadow-xs">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="border-b border-line bg-canvas/40 text-[10px] uppercase tracking-wider text-txt-lo font-bold">
+                                        <tr>
+                                            <th class="py-2.5 px-3 w-12 text-center">#</th>
+                                            <th class="py-2.5 px-3">Item / Model</th>
+                                            <th class="py-2.5 px-3 w-40">Allocated Asset Tag</th>
+                                            <th class="py-2.5 px-3">Serial Number *</th>
+                                            <th class="py-2.5 px-3 w-36">Location</th>
+                                            <th class="py-2.5 px-3 w-48">Company</th>
+                                            <th class="py-2.5 px-3 w-28 text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-line-soft">
+                                        @for (int i = 0; i < unitTagEntries.Count; i++)
+                                        {
+                                            var entry = unitTagEntries[i];
+                                            var rowIdx = i;
+                                            <tr class="hover:bg-elevated/20 transition-colors @(string.IsNullOrWhiteSpace(entry.SerialNumber) ? "" : "bg-emerald-50/20")">
+                                                <td class="py-2.5 px-3 text-center font-mono text-txt-lo">
+                                                    @(rowIdx + 1)
+                                                </td>
+                                                <td class="py-2.5 px-3">
+                                                    <div class="font-bold text-txt-hi">@entry.Brand @entry.ModelName</div>
+                                                    <div class="text-[10px] text-txt-lo">Unit @entry.UnitIndex of @entry.TotalUnitsForItem (@entry.Category)</div>
+                                                </td>
+                                                <td class="py-2.5 px-3 font-mono font-bold text-accent-700">
+                                                    <input type="text" @bind="entry.AssetTag" class="w-full text-xs font-mono font-bold py-1 px-2 rounded border border-line bg-surface text-accent-700" />
+                                                </td>
+                                                <td class="py-2.5 px-3">
+                                                    <input type="text" @bind="entry.SerialNumber" placeholder="Scan or type serial..." class="w-full text-xs font-mono font-semibold py-1 px-2 rounded border border-line bg-surface focus:outline-none focus:border-accent-500 @(string.IsNullOrWhiteSpace(entry.SerialNumber) ? "border-amber-300 bg-amber-50/20" : "border-emerald-400 bg-emerald-50/30")" />
+                                                </td>
+                                                <td class="py-2.5 px-3">
+                                                    <select @bind="entry.Location" class="w-full text-xs py-1 px-1.5 rounded border border-line bg-surface">
+                                                        @foreach (var loc in officeLocations)
+                                                        {
+                                                            <option value="@loc">@loc</option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td class="py-2.5 px-3">
+                                                    <select @bind="entry.OwnerCompany" class="w-full text-xs py-1 px-1.5 rounded border border-line bg-surface">
+                                                        @foreach (var comp in ownerCompanies)
+                                                        {
+                                                            <option value="@comp">@comp</option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td class="py-2.5 px-3 text-center">
+                                                    @if (!string.IsNullOrWhiteSpace(entry.SerialNumber))
+                                                    {
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                            Ready to Tag
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
+                                                            Stay in Store
+                                                        </span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 Bottom Actions -->
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-line-soft">
+                            <button type="button" @onclick="() => currentStep = 2" class="w-full sm:w-auto px-4 py-2 rounded-xl border border-line bg-surface hover:bg-elevated text-xs font-semibold text-txt-mid transition-colors">
+                                ← Back to Purchase Items
+                            </button>
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <button type="button" @onclick="SkipAndFinishStep3" disabled="@isRegisteringUnits" class="flex-1 sm:flex-none px-4 py-2 rounded-xl border border-line bg-surface hover:bg-elevated text-xs font-semibold text-txt-hi transition-colors shadow-xs">
+                                    Skip Untagged &amp; Keep in Store
+                                </button>
+                                <button type="button" @onclick="RegisterTaggedUnits" disabled="@isRegisteringUnits" class="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5">
+                                    @if (isRegisteringUnits)
+                                    {
+                                        <div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Registering Units...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Register &amp; Finish Tagging ➔</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* STEP 4: CELEBRATION & READY-TO-PRINT QR LABELS *@
+                @if (currentStep == 4)
+                {
+                    <div class="space-y-6">
+                        <!-- Celebration Success Card -->
+                        <div class="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-6 shadow-sm">
+                            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                                <div class="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+                                <div class="space-y-1">
+                                    <h3 class="text-base font-bold text-emerald-950">Purchase Successfully Entered into Inventory!</h3>
+                                    <p class="text-xs text-emerald-800 leading-relaxed">
+                                        Purchase <strong>#@(savedPurchase?.PurchaseNumber ?? purchaseForm?.PurchaseNumber ?? "—")</strong> from <strong>@(savedPurchase?.Supplier ?? purchaseForm?.Supplier ?? "—")</strong> is committed. Physical asset records have been generated.
+                                    </p>
+                                    <div class="flex flex-wrap items-center gap-3 pt-2">
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-200/80 text-emerald-900">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                                            @registeredUnitsList.Count Physical Assets Tagged &amp; Active
+                                        </span>
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-200/80 text-slate-800">
+                                            @((savedPurchase?.Items.Sum(i => i.RemainingQuantity) ?? 0)) Units Remaining in Store
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Printable QR Labels Sheet -->
+                        @if (registeredUnitsList.Any())
+                        {
+                            <div class="rounded-xl border border-line bg-surface p-5 space-y-4">
+                                <div class="flex items-center justify-between pb-3 border-b border-line-soft">
+                                    <div>
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-txt-hi">Printable Asset QR Sticker Labels (@registeredUnitsList.Count)</h4>
+                                        <p class="text-xs text-txt-mid mt-0.5">High-contrast scannable QR labels ready for physical labeling.</p>
+                                    </div>
+                                    <button type="button" @onclick="PrintQrLabels" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold shadow-sm transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                        <span>Print QR Sticker Labels</span>
+                                    </button>
+                                </div>
+
+                                <div id="wizard-printable-qr-sheet" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                    @foreach (var dev in registeredUnitsList)
+                                    {
+                                        <div class="rounded-xl border border-line p-3 bg-surface text-txt-hi space-y-2 shadow-xs">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <div class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">@dev.OwnerCompany</div>
+                                                    <div class="text-xs font-mono font-black text-accent-700">@dev.AssetTag</div>
+                                                    <div class="text-xs font-bold text-txt-hi truncate max-w-[140px]">@dev.Brand @dev.DeviceName</div>
+                                                    <div class="text-[10px] text-txt-mid font-mono truncate max-w-[140px]">SN: @dev.Serial</div>
+                                                    <div class="text-[10px] text-txt-lo">Loc: @dev.Location</div>
+                                                </div>
+                                                <div class="bg-white p-1 rounded-lg border border-line shrink-0">
+                                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=2&data=@(Uri.EscapeDataString(dev.AssetTag ?? dev.Serial ?? ""))" alt="Asset QR" class="w-14 h-14 object-contain" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Final Completion Button -->
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-line-soft">
+                            <button type="button" @onclick="ResetWizard" class="w-full sm:w-auto px-4 py-2 rounded-xl border border-line bg-surface hover:bg-elevated text-xs font-semibold text-txt-mid transition-colors">
+                                + Process Another Invoice
+                            </button>
+                            <button type="button" @onclick="CompleteAndCloseAsync" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                <span>Done &amp; View in Purchases Table</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Paste Serials Modal -->
+    @if (showBulkSerialModal)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+            <div class="w-full max-w-md rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-txt-hi">Quick Paste Serials List</h3>
+                    <button type="button" @onclick="() => showBulkSerialModal = false" class="text-txt-mid hover:text-txt-hi">✕</button>
+                </div>
+                <p class="text-xs text-txt-mid">Paste a multi-line list of serial numbers. They will be assigned to untagged units from top to bottom.</p>
+                <textarea @bind="bulkSerialPasteText" rows="6" class="w-full text-xs font-mono p-3 rounded-xl border border-line bg-surface focus:outline-none focus:border-accent-500" placeholder="SN-100234&#10;SN-100235&#10;SN-100236"></textarea>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" @onclick="() => showBulkSerialModal = false" class="px-3 py-1.5 rounded-lg border border-line text-xs font-semibold text-txt-mid">Cancel</button>
+                    <button type="button" @onclick="ApplyBulkSerials" class="px-4 py-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold">Apply Serials</button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; } = false;
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback<Purchase?> OnPurchaseCompleted { get; set; }
+
+    private int currentStep = 1;
+    private bool isAnalyzing = false;
+    private string analyzingStatusText = "Extracting text with OCR...";
+    private bool isPosting = false;
+    private bool isRegisteringUnits = false;
+    private string? errorMessage;
+
+    private int StepProgressPercent => currentStep switch
+    {
+        1 => 0,
+        2 => 33,
+        3 => 66,
+        4 => 100,
+        _ => 0
+    };
+
+    private Purchase? purchaseForm;
+    private Purchase? savedPurchase;
+    private List<UnitTagEntry> unitTagEntries = new();
+    private List<Device> registeredUnitsList = new();
+    private bool showBulkSerialModal = false;
+    private string bulkSerialPasteText = "";
+
+    private string batchDefaultLocation = "TK Bhaban";
+    private string batchDefaultCompany = "PrimeTech Solutions Ltd.";
+    private List<string> officeLocations = new() { "TK Bhaban", "BSEC Bhaban" };
+    private List<string> ownerCompanies = new() { "PrimeTech Solutions Ltd." };
+    private List<string> availableCategoryNames = new() { "Laptop", "Desktop", "Monitor", "Network Switch", "Access Point", "Server", "Component", "IT Equipment", "Printer", "UPS" };
+
+    public class UnitTagEntry
+    {
+        public string UnitKey { get; set; } = Guid.NewGuid().ToString("N");
+        public string PurchaseItemId { get; set; } = "";
+        public string LineItemDescription { get; set; } = "";
+        public int UnitIndex { get; set; }
+        public int TotalUnitsForItem { get; set; }
+        public string Brand { get; set; } = "";
+        public string ModelName { get; set; } = "";
+        public string Category { get; set; } = "Laptop";
+        public string AssetTag { get; set; } = "";
+        public string SerialNumber { get; set; } = "";
+        public string Location { get; set; } = "TK Bhaban";
+        public string OwnerCompany { get; set; } = "PrimeTech Solutions Ltd.";
+        public string Condition { get; set; } = "New";
+        public int? WarrantyMonths { get; set; } = 12;
+    }
+
+    private class FileUploadInfo
+    {
+        public string Name { get; set; } = "";
+        public byte[] Bytes { get; set; } = Array.Empty<byte>();
+        public string ContentType { get; set; } = "";
+    }
+    private List<FileUploadInfo> uploadedFiles = new();
+
+    private decimal CalculatedSum => purchaseForm?.Items.Sum(i => (i.Quantity ?? 0) * (i.UnitCost ?? 0m)) ?? 0m;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookupDataAsync();
+    }
+
+    private async Task LoadLookupDataAsync()
+    {
+        try
+        {
+            var locs = await SettingsService.GetLocationsAsync();
+            if (locs != null && locs.Any())
+            {
+                officeLocations = locs.Select(l => l.Name).ToList();
+                if (officeLocations.Any()) batchDefaultLocation = officeLocations.First();
+            }
+
+            var comps = await SettingsService.GetOwnerCompaniesAsync();
+            if (comps != null && comps.Any())
+            {
+                ownerCompanies = comps.Select(c => c.Name).ToList();
+                if (ownerCompanies.Any()) batchDefaultCompany = ownerCompanies.First();
+            }
+
+            var cats = await SettingsService.GetCategoriesAsync();
+            if (cats != null && cats.Any())
+            {
+                availableCategoryNames = cats.Select(c => c.Name).Distinct().ToList();
+            }
+        }
+        catch { }
+    }
+
+    private void GoToStep(int step)
+    {
+        if (step < currentStep)
+        {
+            currentStep = step;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private async Task CompleteAndCloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+        await OnPurchaseCompleted.InvokeAsync(savedPurchase ?? purchaseForm);
+    }
+
+    private void ResetWizard()
+    {
+        currentStep = 1;
+        purchaseForm = null;
+        savedPurchase = null;
+        unitTagEntries.Clear();
+        registeredUnitsList.Clear();
+        uploadedFiles.Clear();
+        errorMessage = null;
+    }
+
+    private void LoadSampleInvoice()
+    {
+        purchaseForm = new Purchase
+        {
+            PurchaseNumber = "PUR-" + DateTime.Now.ToString("yyMMdd") + new Random().Next(100, 999),
+            Supplier = "Smart Technologies (BD) Ltd.",
+            InvoiceNumber = "STBL-INV-" + new Random().Next(10000, 99999),
+            PurchaseDate = DateTime.Today,
+            Notes = "Captured via AI Purchase Capture Wizard"
+        };
+
+        purchaseForm.Items = new List<PurchaseItem>
+        {
+            new PurchaseItem
+            {
+                PurchaseId = purchaseForm.Id,
+                Category = "Laptop",
+                Manufacturer = "Dell",
+                ModelName = "Latitude 5420 Core i5 11th Gen 16GB 512GB SSD",
+                Quantity = 3,
+                UnitCost = 85000m,
+                CandidateSerial = "DELL-LAT-5420-A1, DELL-LAT-5420-A2, DELL-LAT-5420-A3"
+            },
+            new PurchaseItem
+            {
+                PurchaseId = purchaseForm.Id,
+                Category = "Monitor",
+                Manufacturer = "Dell",
+                ModelName = "P2422H 24-inch Full HD IPS Monitor",
+                Quantity = 2,
+                UnitCost = 22000m,
+                CandidateSerial = "DELL-MON-P24-01, DELL-MON-P24-02"
+            }
+        };
+
+        currentStep = 2;
+        Notifications.ShowSuccess("Sample invoice loaded successfully. Review line items below.");
+    }
+
+    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        uploadedFiles.Clear();
+
+        var files = e.GetMultipleFiles(5);
+        foreach (var file in files)
+        {
+            if (file.Size > 15 * 1024 * 1024)
+            {
+                errorMessage = $"File '{file.Name}' exceeds 15MB limit.";
+                continue;
+            }
+
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(15 * 1024 * 1024).CopyToAsync(ms);
+            uploadedFiles.Add(new FileUploadInfo
+            {
+                Name = file.Name,
+                Bytes = ms.ToArray(),
+                ContentType = file.ContentType
+            });
+        }
+
+        if (uploadedFiles.Any())
+        {
+            await ProcessUploadedDocumentsAsync();
+        }
+    }
+
+    private async Task ProcessUploadedDocumentsAsync()
+    {
+        isAnalyzing = true;
+        analyzingStatusText = "Extracting text with OCR...";
+        StateHasChanged();
+
+        try
+        {
+            string fullOcrText = "";
+            string firstBase64 = "";
+
+            foreach (var file in uploadedFiles)
+            {
+                using var stream = new MemoryStream(file.Bytes);
+                var ocrRes = await OcrService.ExtractTextAsync(stream, file.Name, file.ContentType);
+                if (ocrRes.IsSuccess && !string.IsNullOrWhiteSpace(ocrRes.Text))
+                {
+                    fullOcrText += ocrRes.Text + "\n\n";
+                }
+
+                if (string.IsNullOrEmpty(firstBase64) && !file.ContentType.Contains("pdf"))
+                {
+                    firstBase64 = Convert.ToBase64String(file.Bytes);
+                }
+            }
+
+            if (string.IsNullOrEmpty(firstBase64) && uploadedFiles.Any())
+            {
+                firstBase64 = Convert.ToBase64String(uploadedFiles.First().Bytes);
+            }
+
+            analyzingStatusText = "AI extracting vendor, line items, and hardware specs...";
+            StateHasChanged();
+
+            var aiResult = await AiService.ExtractDocumentAsync(fullOcrText, firstBase64);
+            var mapped = await FieldMappingService.MapPurchaseAsync(aiResult);
+
+            purchaseForm = new Purchase
+            {
+                PurchaseNumber = "PUR-" + DateTime.Now.ToString("yyMMdd") + new Random().Next(100, 999),
+                Supplier = !string.IsNullOrWhiteSpace(mapped.Data?.Vendor) ? mapped.Data.Vendor : (!string.IsNullOrWhiteSpace(aiResult.Vendor) ? aiResult.Vendor : "Supplier From Invoice"),
+                InvoiceNumber = !string.IsNullOrWhiteSpace(mapped.Data?.InvoiceNumber) ? mapped.Data.InvoiceNumber : (!string.IsNullOrWhiteSpace(aiResult.InvoiceNumber) ? aiResult.InvoiceNumber : ("INV-" + DateTime.Now.ToString("MMdd"))),
+                PurchaseDate = mapped.Data?.InvoiceDate ?? aiResult.DocumentDate ?? DateTime.Today,
+                Notes = "Captured via AI Purchase Capture Wizard"
+            };
+
+            if (mapped.Data?.Items != null && mapped.Data.Items.Any())
+            {
+                purchaseForm.Items = mapped.Data.Items.Select(i => new PurchaseItem
+                {
+                    PurchaseId = purchaseForm.Id,
+                    Category = InferCategory(i.Description, i.Model),
+                    Manufacturer = i.Manufacturer ?? "",
+                    ModelName = !string.IsNullOrWhiteSpace(i.Model) ? $"{i.Description} ({i.Model})" : i.Description ?? "Item",
+                    Quantity = i.Quantity > 0 ? i.Quantity : 1,
+                    UnitCost = i.UnitPrice,
+                    CandidateSerial = (i.SerialNumbers != null && i.SerialNumbers.Any()) ? string.Join(", ", i.SerialNumbers) : (i.SerialNumber ?? "")
+                }).ToList();
+            }
+            else
+            {
+                purchaseForm.Items = new List<PurchaseItem>
+                {
+                    new PurchaseItem
+                    {
+                        PurchaseId = purchaseForm.Id,
+                        Category = "Laptop",
+                        Manufacturer = aiResult.Manufacturer ?? "",
+                        ModelName = aiResult.Model ?? "System Item",
+                        Quantity = 1,
+                        UnitCost = 0m
+                    }
+                };
+            }
+
+            currentStep = 2;
+            Notifications.ShowSuccess("Invoice parsed successfully! Please review details.");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"AI Processing Error: {ex.Message}";
+        }
+        finally
+        {
+            isAnalyzing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddItemRow()
+    {
+        if (purchaseForm == null) return;
+        purchaseForm.Items.Add(new PurchaseItem
+        {
+            PurchaseId = purchaseForm.Id,
+            Category = "Laptop",
+            Manufacturer = "",
+            ModelName = "",
+            Quantity = 1,
+            UnitCost = 0m
+        });
+    }
+
+    private void RemoveItem(PurchaseItem item)
+    {
+        if (purchaseForm == null) return;
+        purchaseForm.Items.Remove(item);
+    }
+
+    private async Task SaveDirectToStoreOnly()
+    {
+        await CommitPurchaseAsync();
+        if (errorMessage == null)
+        {
+            currentStep = 4;
+            Notifications.ShowSuccess("Purchase entered into store inventory! Physical units can be tagged later.");
+        }
+    }
+
+    private async Task SavePurchaseAndProceedToTagging()
+    {
+        await CommitPurchaseAsync();
+        if (errorMessage == null && savedPurchase != null)
+        {
+            await InitializeUnitTagEntriesAsync(savedPurchase);
+            currentStep = 3;
+        }
+    }
+
+    private async Task CommitPurchaseAsync()
+    {
+        if (purchaseForm == null) return;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(purchaseForm.Supplier))
+        {
+            errorMessage = "Supplier / Vendor name is required.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(purchaseForm.InvoiceNumber))
+        {
+            errorMessage = "Invoice number is required.";
+            return;
+        }
+        if (!purchaseForm.Items.Any())
+        {
+            errorMessage = "At least one item is required.";
+            return;
+        }
+
+        isPosting = true;
+        StateHasChanged();
+
+        try
+        {
+            if (uploadedFiles.Any() && string.IsNullOrEmpty(purchaseForm.InvoiceFilePath))
+            {
+                var uploadsDir = Path.Combine(Env.WebRootPath, "uploads", "invoices");
+                Directory.CreateDirectory(uploadsDir);
+                var savedPaths = new List<string>();
+
+                foreach (var upFile in uploadedFiles)
+                {
+                    var ext = Path.GetExtension(upFile.Name);
+                    if (string.IsNullOrEmpty(ext)) ext = upFile.ContentType.Contains("pdf") ? ".pdf" : ".png";
+                    var safeName = $"{purchaseForm.PurchaseNumber}_{Guid.NewGuid().ToString("N").Substring(0, 8)}{ext}";
+                    var fullPath = Path.Combine(uploadsDir, safeName);
+                    await File.WriteAllBytesAsync(fullPath, upFile.Bytes);
+                    savedPaths.Add($"/uploads/invoices/{safeName}");
+                }
+
+                if (savedPaths.Any())
+                {
+                    purchaseForm.InvoiceFilePath = string.Join("|", savedPaths);
+                }
+            }
+
+            await PurchaseService.AddPurchaseAsync(purchaseForm);
+            savedPurchase = await PurchaseService.GetPurchaseByIdAsync(purchaseForm.Id);
+            Notifications.ShowSuccess($"Purchase #{purchaseForm.PurchaseNumber} committed to database.");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving purchase: {ex.Message}";
+        }
+        finally
+        {
+            isPosting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task InitializeUnitTagEntriesAsync(Purchase p)
+    {
+        unitTagEntries.Clear();
+        var usedTagsInBatch = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in p.Items)
+        {
+            var remainingQty = item.RemainingQuantity;
+            if (remainingQty <= 0) continue;
+
+            var candidateList = (item.CandidateSerial ?? "")
+                .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            for (int i = 1; i <= remainingQty; i++)
+            {
+                var dummyDevice = new Device
+                {
+                    Category = item.Category,
+                    OwnerCompany = batchDefaultCompany,
+                    Brand = item.Manufacturer,
+                    DeviceName = item.ModelName
+                };
+
+                string allocatedTag = "";
+                try
+                {
+                    allocatedTag = await DeviceService.GenerateAssetTagAsync(dummyDevice);
+                    int bump = 1;
+                    while (usedTagsInBatch.Contains(allocatedTag))
+                    {
+                        var parts = allocatedTag.Split('-');
+                        if (parts.Length > 1 && int.TryParse(parts.Last(), out int seq))
+                        {
+                            var prefix = string.Join("-", parts.Take(parts.Length - 1));
+                            allocatedTag = $"{prefix}-{(seq + bump):D3}";
+                        }
+                        else
+                        {
+                            allocatedTag = $"{allocatedTag}-{bump}";
+                        }
+                        bump++;
+                    }
+                    usedTagsInBatch.Add(allocatedTag);
+                }
+                catch
+                {
+                    allocatedTag = $"TAG-{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()}";
+                }
+
+                string candidateSerial = (i - 1) < candidateList.Count ? candidateList[i - 1] : "";
+
+                unitTagEntries.Add(new UnitTagEntry
+                {
+                    PurchaseItemId = item.Id,
+                    LineItemDescription = $"{item.Manufacturer} {item.ModelName}".Trim(),
+                    UnitIndex = i,
+                    TotalUnitsForItem = remainingQty,
+                    Brand = item.Manufacturer ?? "",
+                    ModelName = item.ModelName ?? "",
+                    Category = item.Category ?? "Laptop",
+                    AssetTag = allocatedTag,
+                    SerialNumber = candidateSerial,
+                    Location = batchDefaultLocation,
+                    OwnerCompany = batchDefaultCompany,
+                    Condition = "New",
+                    WarrantyMonths = item.WarrantyMonths ?? 12
+                });
+            }
+        }
+    }
+
+    private void ApplyBatchLocation()
+    {
+        foreach (var entry in unitTagEntries)
+        {
+            entry.Location = batchDefaultLocation;
+        }
+    }
+
+    private void ApplyBatchCompany()
+    {
+        foreach (var entry in unitTagEntries)
+        {
+            entry.OwnerCompany = batchDefaultCompany;
+        }
+    }
+
+    private void ApplyBulkSerials()
+    {
+        if (string.IsNullOrWhiteSpace(bulkSerialPasteText))
+        {
+            showBulkSerialModal = false;
+            return;
+        }
+
+        var lines = bulkSerialPasteText
+            .Split(new[] { '\n', '\r', ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToList();
+
+        int targetIndex = 0;
+        foreach (var serial in lines)
+        {
+            while (targetIndex < unitTagEntries.Count && !string.IsNullOrWhiteSpace(unitTagEntries[targetIndex].SerialNumber))
+            {
+                targetIndex++;
+            }
+
+            if (targetIndex < unitTagEntries.Count)
+            {
+                unitTagEntries[targetIndex].SerialNumber = serial;
+                targetIndex++;
+            }
+            else break;
+        }
+
+        showBulkSerialModal = false;
+        bulkSerialPasteText = "";
+        Notifications.ShowSuccess($"Applied {Math.Min(lines.Count, unitTagEntries.Count)} serials to units.");
+    }
+
+    private async Task RegisterTaggedUnits()
+    {
+        var readyEntries = unitTagEntries
+            .Where(u => !string.IsNullOrWhiteSpace(u.SerialNumber))
+            .ToList();
+
+        if (!readyEntries.Any())
+        {
+            errorMessage = "No units have a serial number entered. Enter at least one serial number, or click 'Skip Untagged & Keep in Store'.";
+            return;
+        }
+
+        isRegisteringUnits = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        int successCount = 0;
+        var newRegisteredList = new List<Device>();
+
+        try
+        {
+            foreach (var entry in readyEntries)
+            {
+                var dev = new Device
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    AssetTag = entry.AssetTag,
+                    Serial = entry.SerialNumber.Trim(),
+                    Brand = entry.Brand,
+                    DeviceName = entry.ModelName,
+                    Category = entry.Category,
+                    Location = entry.Location,
+                    OwnerCompany = entry.OwnerCompany,
+                    Condition = entry.Condition,
+                    Status = DeviceStatus.InStore,
+                    HasWarranty = (entry.WarrantyMonths ?? 0) > 0,
+                    WarrantyMonths = entry.WarrantyMonths ?? 12,
+                    ProcurementDate = savedPurchase?.PurchaseDate ?? DateTime.Today,
+                    ReceivedDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                    PurchaseItemId = entry.PurchaseItemId,
+                    Note = $"Purchased under PO #{savedPurchase?.PurchaseNumber} - Inv #{savedPurchase?.InvoiceNumber}"
+                };
+
+                try
+                {
+                    var created = await DeviceService.RegisterPhysicalAssetFromPurchaseAsync(dev, entry.PurchaseItemId);
+                    newRegisteredList.Add(created);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    Notifications.ShowWarning($"Unit {entry.AssetTag} ({entry.SerialNumber}) skipped: {ex.Message}");
+                }
+            }
+
+            registeredUnitsList = newRegisteredList;
+            if (savedPurchase != null)
+            {
+                savedPurchase = await PurchaseService.GetPurchaseByIdAsync(savedPurchase.Id);
+            }
+
+            currentStep = 4;
+            Notifications.ShowSuccess($"Registered {successCount} physical assets! They are now active in inventory.");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error registering units: {ex.Message}";
+        }
+        finally
+        {
+            isRegisteringUnits = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SkipAndFinishStep3()
+    {
+        if (savedPurchase != null)
+        {
+            savedPurchase = await PurchaseService.GetPurchaseByIdAsync(savedPurchase.Id);
+        }
+        currentStep = 4;
+        Notifications.ShowInfo("Untagged units kept safely in store inventory.");
+        StateHasChanged();
+    }
+
+    private async Task PrintQrLabels()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private static string InferCategory(string? desc, string? model)
+    {
+        var text = $"{desc} {model}".ToLowerInvariant();
+        if (text.Contains("switch") || text.Contains("catalyst") || text.Contains("sfp") || text.Contains("router") || text.Contains("gateway"))
+            return "Network Switch";
+        if (text.Contains("access point") || text.Contains("wifi") || text.Contains("ap") || text.Contains("cbw"))
+            return "Access Point";
+        if (text.Contains("laptop") || text.Contains("expertbook") || text.Contains("thinkpad") || text.Contains("latitude") || text.Contains("notebook") || text.Contains("macbook"))
+            return "Laptop";
+        if (text.Contains("desktop") || text.Contains("workstation") || text.Contains("optiplex") || text.Contains("tower"))
+            return "Desktop";
+        if (text.Contains("monitor") || text.Contains("display") || text.Contains("screen") || text.Contains("led") || text.Contains("lcd") || text.Contains("k202"))
+            return "Monitor";
+        if (text.Contains("ssd") || text.Contains("ram") || text.Contains("hdd") || text.Contains("drive") || text.Contains("memory"))
+            return "Component";
+        if (text.Contains("server"))
+            return "Server";
+        return "IT Equipment";
+    }
+}

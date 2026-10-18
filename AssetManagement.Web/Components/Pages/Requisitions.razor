@@ -235,18 +235,31 @@
 @* ==================== NEW REQUISITION MODAL ==================== *@
 @if (showNewModal)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
-        <div class="relative w-full max-w-2xl rounded-2xl bg-surface shadow-2xl border border-line max-h-[90vh] flex flex-col" @onclick:stopPropagation="true">
-            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4 shrink-0">
-                <h2 class="text-base font-semibold text-txt-hi">New Asset Requisition</h2>
-                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-lo hover:bg-elevated hover:text-txt-hi transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150" @onclick="CloseModals">
+        <div class="relative w-full max-w-2xl rounded-2xl bg-surface shadow-2xl border border-line max-h-[92vh] flex flex-col overflow-hidden" @onclick:stopPropagation="true">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4 bg-canvas/30 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent-600 border border-accent-border font-bold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-txt-hi">New Asset Requisition</h2>
+                        <p class="text-[11px] text-txt-lo">Request new hardware, components, or peripherals</p>
+                    </div>
+                </div>
+                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors border border-line-soft">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
-            <div class="px-6 py-5 space-y-4 overflow-y-auto">
+
+            <!-- Modal Body -->
+            <div class="px-6 py-5 space-y-4 overflow-y-auto flex-1">
                 <div class="grid grid-cols-2 gap-4">
 
                     @* Requested By *@
                     <div class="col-span-2 sm:col-span-1">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Requested By <span class="text-rose-500">*</span></label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Requested By <span class="text-rose-500">*</span></label>
                         <SearchableSelect Value="@selectedEmployeeId"
                                           ValueChanged="OnEmployeeSelected"
                                           Options="@employeeOptions"
@@ -256,7 +269,7 @@
 
                     @* Project Manager *@
                     <div class="col-span-2 sm:col-span-1">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Project Manager</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Project Manager</label>
                         <SearchableSelect @bind-Value="newReq.ProjectManagerName"
                                           Options="@managerOptions"
                                           Placeholder="Select PM..."
@@ -265,13 +278,13 @@
 
                     @* Requisition Received Date *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Requisition Received Date</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Requisition Received Date</label>
                         <input type="date" @bind="newReqReceivedDate" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none" />
                     </div>
 
                     @* Priority *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Priority</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Priority</label>
                         <SearchableSelect @bind-Value="newReq.Priority"
                                           Options="@priorityOptions"
                                           Placeholder="Select priority..."
@@ -281,7 +294,7 @@
 
                     @* Asset Category *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Category <span class="text-rose-500">*</span></label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Asset Category <span class="text-rose-500">*</span></label>
                         <SearchableSelect Value="@newReq.AssetCategory"
                                           ValueChanged="OnCategorySelected"
                                           Options="@categoryOptions"
@@ -292,7 +305,7 @@
 
                     @* Asset Type *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Type / Name <span class="text-rose-500">*</span></label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Asset Type / Name <span class="text-rose-500">*</span></label>
                         <SearchableSelect Value="@newReq.AssetType"
                                           ValueChanged="OnAssetTypeSelected"
                                           Options="@assetTypeOptions"
@@ -303,65 +316,120 @@
 
                     @* Specification *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Specification</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Specification</label>
                         <input type="text" @bind="newReq.AssetSpecification" placeholder="e.g. Intel i5, 16GB, 512GB SSD" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none" />
                     </div>
 
                     @* Quantity *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Quantity</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Quantity</label>
                         <input type="number" @bind="newReq.Quantity" min="1" max="99" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none" />
                     </div>
 
                     @* Justification *@
                     <div class="col-span-2">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Justification / Note</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Justification / Reason</label>
                         <textarea @bind="newReq.JustificationNote" rows="2" placeholder="Why is this asset needed?" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none resize-none"></textarea>
                     </div>
 
-                    @* File Upload *@
+                    @* File Upload with Thumbnail, View & Download *@
                     <div class="col-span-2">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Attach File (email / image)</label>
-                        <div class="relative rounded-xl border-2 border-dashed border-line p-4 text-center hover:border-accent-border transition-colors group">
-                            @if (uploadedFilePreview == null)
-                            {
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Attach File (email screenshot / image / document)</label>
+                        
+                        @if (string.IsNullOrEmpty(uploadedFilePreview))
+                        {
+                            <div class="relative rounded-xl border-2 border-dashed border-line-soft hover:border-accent-500/60 bg-canvas/30 hover:bg-canvas/60 p-5 text-center transition-all group cursor-pointer">
                                 <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.eml,.msg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="reqFileInput" />
-                            }
-                            @if (uploadedFilePreview != null)
-                            {
-                                <div class="flex flex-col items-center gap-2 relative z-20">
-                                    @if (uploadedFileIsImage)
-                                    {
-                                        <img src="@uploadedFilePreview" alt="Preview" class="max-h-28 max-w-full rounded-lg object-contain border border-line shadow-sm" />
-                                    }
-                                    else
-                                    {
-                                        <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-elevated border border-line">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-hi"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                <div class="flex flex-col items-center gap-2 pointer-events-none">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-elevated border border-line-soft text-txt-mid group-hover:text-accent-500 group-hover:scale-105 transition-all shadow-xs">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-semibold text-txt-hi">Click to upload or drag & drop</span>
+                                        <span class="text-xs text-txt-mid">, or press <kbd class="px-1.5 py-0.5 border border-line-soft rounded text-[10px] bg-elevated font-mono font-semibold text-txt-hi shadow-2xs">Ctrl+V</kbd> to paste</span>
+                                    </div>
+                                    <p class="text-[11px] text-txt-lo">Images (PNG, JPG, WEBP), PDF, or email files (.eml, .msg) up to 20MB</p>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="rounded-xl border border-line bg-elevated/40 p-3.5 shadow-2xs">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        @if (uploadedFileIsImage)
+                                        {
+                                            <div class="relative group/thumb shrink-0 cursor-pointer overflow-hidden rounded-lg border border-line shadow-xs"
+                                                 @onclick='() => OpenPreviewModal(uploadedFilePreview, uploadedFileName ?? "Image Attachment", true)'>
+                                                <img src="@uploadedFilePreview" alt="Thumbnail" class="h-16 w-16 sm:h-20 sm:w-20 object-cover group-hover/thumb:scale-105 transition-transform duration-200" />
+                                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-lg bg-surface border border-line shadow-xs text-txt-hi">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                            </div>
+                                        }
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-600 border border-accent-border">
+                                                    @(uploadedFileIsImage ? "Image" : "Document")
+                                                </span>
+                                                @if (uploadedFileSize > 0)
+                                                {
+                                                    <span class="text-[11px] text-txt-lo">@FormatFileSize(uploadedFileSize)</span>
+                                                }
+                                            </div>
+                                            <p class="text-xs font-semibold text-txt-hi truncate" title="@uploadedFileName">@uploadedFileName</p>
+                                            <p class="text-[11px] text-txt-lo mt-0.5">Click thumbnail or actions to view / download</p>
                                         </div>
-                                    }
-                                    <p class="text-xs font-medium text-txt-hi">@uploadedFileName</p>
-                                    <button type="button" @onclick="ClearFile" class="text-[11px] text-txt-mid hover:text-danger-500 transition-colors">Remove file</button>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
+                                        @* 1. View / Preview *@
+                                        <button type="button" @onclick='() => OpenPreviewModal(uploadedFilePreview, uploadedFileName ?? "Attachment", uploadedFileIsImage)'
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-txt-hi hover:bg-elevated hover:border-line-strong transition-colors shadow-2xs" title="View Fullscreen">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            <span>View</span>
+                                        </button>
+
+                                        @* 2. Download *@
+                                        <a href="@uploadedFilePreview" download="@(string.IsNullOrEmpty(uploadedFileName) ? "requisition-file" : uploadedFileName)"
+                                           class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-txt-hi hover:bg-elevated hover:border-line-strong transition-colors shadow-2xs" title="Download File">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                            <span>Download</span>
+                                        </a>
+
+                                        @* 3. Replace / Change *@
+                                        <label class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-txt-mid hover:text-txt-hi hover:bg-elevated hover:border-line-strong transition-colors cursor-pointer shadow-2xs" title="Change file">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" x2="22" y1="5" y2="5"/><line x1="19" x2="19" y1="2" y2="8"/></svg>
+                                            <span>Change</span>
+                                            <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.eml,.msg" class="hidden" />
+                                        </label>
+
+                                        @* 4. Remove *@
+                                        <button type="button" @onclick="ClearFile"
+                                                class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50/60 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors shadow-2xs" title="Remove attachment">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                        </button>
+                                    </div>
                                 </div>
-                            }
-                            else
-                            {
-                                <div class="flex flex-col items-center gap-2 relative z-0 pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo group-hover:text-txt-hi transition-colors"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                    <span class="text-xs text-txt-mid">Click, drop, or <kbd class="px-1 py-0.5 border border-line-soft rounded text-[10px] bg-elevated font-mono">Ctrl+V</kbd> to paste <span class="font-medium text-txt-hi">image/email</span></span>
-                                    <span class="text-[11px] text-txt-lo">JPG, PNG, PDF, EML, MSG</span>
-                                </div>
-                            }
-                        </div>
+                            </div>
+                        }
                     </div>
 
                 </div>
-                @if (!string.IsNullOrEmpty(formError)) { <p class="text-xs text-danger-500">@formError</p> }
+                @if (!string.IsNullOrEmpty(formError)) { <p class="text-xs text-danger-500 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200">@formError</p> }
             </div>
-            <div class="flex justify-end gap-2 border-t border-line-soft px-6 py-4 shrink-0">
-                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors">Cancel</button>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end gap-2 border-t border-line-soft px-6 py-4 bg-canvas/20 shrink-0">
+                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi hover:bg-elevated transition-colors">Cancel</button>
                 <button type="button" @onclick="SubmitNewRequisition" disabled="@isSaving"
-                        class="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600 transition-colors disabled:opacity-60">
+                        class="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-white hover:bg-accent-600 transition-colors shadow-sm disabled:opacity-60">
                     @if (isSaving) { <span>Saving&#x2026;</span> } else { <span>Submit Requisition</span> }
                 </button>
             </div>
@@ -372,21 +440,34 @@
 @* ==================== EDIT REQUISITION MODAL ==================== *@
 @if (showEditModal)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
-        <div class="relative w-full max-w-2xl rounded-2xl bg-surface shadow-2xl border border-line max-h-[90vh] flex flex-col" @onclick:stopPropagation="true">
-            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4 shrink-0">
-                <div>
-                    <h2 class="text-base font-semibold text-txt-hi">Edit Requisition</h2>
-                    <span class="font-mono text-xs text-txt-lo">@editingReq.RequisitionNumber</span>
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150" @onclick="CloseModals">
+        <div class="relative w-full max-w-2xl rounded-2xl bg-surface shadow-2xl border border-line max-h-[92vh] flex flex-col overflow-hidden" @onclick:stopPropagation="true">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4 bg-canvas/30 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent-600 border border-accent-border font-bold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-bold text-txt-hi">Edit Requisition</h2>
+                            <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-elevated border border-line text-txt-mid">@editingReq.RequisitionNumber</span>
+                        </div>
+                        <p class="text-[11px] text-txt-lo">Update requisition details or change attached screenshot</p>
+                    </div>
                 </div>
-                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-lo hover:bg-elevated hover:text-txt-hi transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors border border-line-soft">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
-            <div class="px-6 py-5 space-y-4 overflow-y-auto">
+
+            <!-- Modal Body -->
+            <div class="px-6 py-5 space-y-4 overflow-y-auto flex-1">
                 <div class="grid grid-cols-2 gap-4">
 
                     @* Status *@
                     <div class="col-span-2 sm:col-span-1">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Status</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Status</label>
                         <select @bind="editingReq.Status" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none">
                             <option value="Pending">Pending</option>
                             <option value="Done">Done</option>
@@ -395,13 +476,13 @@
 
                     @* Requisition Received Date *@
                     <div class="col-span-2 sm:col-span-1">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Requisition Received Date</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Requisition Received Date</label>
                         <input type="date" @bind="editReqReceivedDate" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none" />
                     </div>
 
                     @* Requested By *@
                     <div class="col-span-2 sm:col-span-1">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Requested By <span class="text-rose-500">*</span></label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Requested By <span class="text-rose-500">*</span></label>
                         <SearchableSelect Value="@editEmployeeId"
                                           ValueChanged="OnEditEmployeeSelected"
                                           Options="@employeeOptions"
@@ -411,7 +492,7 @@
 
                     @* Project Manager *@
                     <div class="col-span-2 sm:col-span-1">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Project Manager</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Project Manager</label>
                         <SearchableSelect @bind-Value="editingReq.ProjectManagerName"
                                           Options="@managerOptions"
                                           Placeholder="Select PM..."
@@ -420,7 +501,7 @@
 
                     @* Priority *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Priority</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Priority</label>
                         <SearchableSelect @bind-Value="editingReq.Priority"
                                           Options="@priorityOptions"
                                           Placeholder="Select priority..."
@@ -430,13 +511,13 @@
 
                     @* Quantity *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Quantity</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Quantity</label>
                         <input type="number" @bind="editingReq.Quantity" min="1" max="99" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi focus:border-accent-border focus:outline-none" />
                     </div>
 
                     @* Asset Category *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Category <span class="text-rose-500">*</span></label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Asset Category <span class="text-rose-500">*</span></label>
                         <SearchableSelect Value="@editingReq.AssetCategory"
                                           ValueChanged="OnEditCategorySelected"
                                           Options="@categoryOptions"
@@ -447,7 +528,7 @@
 
                     @* Asset Type *@
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Asset Type / Name <span class="text-rose-500">*</span></label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Asset Type / Name <span class="text-rose-500">*</span></label>
                         <SearchableSelect Value="@editingReq.AssetType"
                                           ValueChanged="OnEditAssetTypeSelected"
                                           Options="@editAssetTypeOptions"
@@ -458,59 +539,118 @@
 
                     @* Specification *@
                     <div class="col-span-2">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Specification</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Specification</label>
                         <input type="text" @bind="editingReq.AssetSpecification" placeholder="e.g. Intel i5, 16GB, 512GB SSD" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none" />
                     </div>
 
                     @* Justification *@
                     <div class="col-span-2">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Justification / Note</label>
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Justification / Reason</label>
                         <textarea @bind="editingReq.JustificationNote" rows="2" placeholder="Why is this asset needed?" class="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-txt-hi placeholder:text-txt-lo focus:border-accent-border focus:outline-none resize-none"></textarea>
                     </div>
 
-                    @* File Upload *@
+                    @* File Upload with Thumbnail, View & Download *@
                     <div class="col-span-2">
-                        <label class="mb-1.5 block text-xs font-medium text-txt-mid">Attach File (email / image)</label>
-                        <div class="relative rounded-xl border-2 border-dashed border-line p-4 text-center hover:border-accent-border transition-colors group">
-                            @if (uploadedFilePreview == null)
-                            {
+                        <label class="mb-1.5 block text-xs font-semibold text-txt-mid">Attach File (email screenshot / image / document)</label>
+                        
+                        @if (string.IsNullOrEmpty(uploadedFilePreview))
+                        {
+                            <div class="relative rounded-xl border-2 border-dashed border-line-soft hover:border-accent-500/60 bg-canvas/30 hover:bg-canvas/60 p-5 text-center transition-all group cursor-pointer">
                                 <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.eml,.msg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="reqEditFileInput" />
-                            }
-                            @if (uploadedFilePreview != null)
-                            {
-                                <div class="flex flex-col items-center gap-2 relative z-20">
-                                    @if (uploadedFileIsImage)
-                                    {
-                                        <img src="@uploadedFilePreview" alt="Preview" class="max-h-28 max-w-full rounded-lg object-contain border border-line shadow-sm" />
-                                    }
-                                    else
-                                    {
-                                        <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-elevated border border-line">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-hi"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                <div class="flex flex-col items-center gap-2 pointer-events-none">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-elevated border border-line-soft text-txt-mid group-hover:text-accent-500 group-hover:scale-105 transition-all shadow-xs">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-semibold text-txt-hi">Click to upload or drag & drop</span>
+                                        <span class="text-xs text-txt-mid">, or press <kbd class="px-1.5 py-0.5 border border-line-soft rounded text-[10px] bg-elevated font-mono font-semibold text-txt-hi shadow-2xs">Ctrl+V</kbd> to paste</span>
+                                    </div>
+                                    <p class="text-[11px] text-txt-lo">Images (PNG, JPG, WEBP), PDF, or email files (.eml, .msg) up to 20MB</p>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="rounded-xl border border-line bg-elevated/40 p-3.5 shadow-2xs">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        @if (uploadedFileIsImage)
+                                        {
+                                            <div class="relative group/thumb shrink-0 cursor-pointer overflow-hidden rounded-lg border border-line shadow-xs"
+                                                 @onclick='() => OpenPreviewModal(uploadedFilePreview, uploadedFileName ?? "Image Attachment", true)'>
+                                                <img src="@uploadedFilePreview" alt="Thumbnail" class="h-16 w-16 sm:h-20 sm:w-20 object-cover group-hover/thumb:scale-105 transition-transform duration-200" />
+                                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-lg bg-surface border border-line shadow-xs text-txt-hi">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                            </div>
+                                        }
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-600 border border-accent-border">
+                                                    @(uploadedFileIsImage ? "Image" : "Document")
+                                                </span>
+                                                @if (uploadedFileSize > 0)
+                                                {
+                                                    <span class="text-[11px] text-txt-lo">@FormatFileSize(uploadedFileSize) (New upload)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-[11px] text-txt-lo">Current file</span>
+                                                }
+                                            </div>
+                                            <p class="text-xs font-semibold text-txt-hi truncate" title="@uploadedFileName">@uploadedFileName</p>
+                                            <p class="text-[11px] text-txt-lo mt-0.5">Click thumbnail or actions to view / download</p>
                                         </div>
-                                    }
-                                    <p class="text-xs font-medium text-txt-hi">@uploadedFileName</p>
-                                    <button type="button" @onclick="ClearEditFile" class="text-[11px] text-txt-mid hover:text-danger-500 transition-colors">Remove file</button>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
+                                        @* 1. View / Preview *@
+                                        <button type="button" @onclick='() => OpenPreviewModal(uploadedFilePreview, uploadedFileName ?? "Attachment", uploadedFileIsImage)'
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-txt-hi hover:bg-elevated hover:border-line-strong transition-colors shadow-2xs" title="View Fullscreen">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            <span>View</span>
+                                        </button>
+
+                                        @* 2. Download *@
+                                        <a href="@uploadedFilePreview" download="@(string.IsNullOrEmpty(uploadedFileName) ? "requisition-file" : uploadedFileName)"
+                                           class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-txt-hi hover:bg-elevated hover:border-line-strong transition-colors shadow-2xs" title="Download File">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                            <span>Download</span>
+                                        </a>
+
+                                        @* 3. Replace / Change *@
+                                        <label class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-txt-mid hover:text-txt-hi hover:bg-elevated hover:border-line-strong transition-colors cursor-pointer shadow-2xs" title="Change file">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" x2="22" y1="5" y2="5"/><line x1="19" x2="19" y1="2" y2="8"/></svg>
+                                            <span>Change</span>
+                                            <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.eml,.msg" class="hidden" />
+                                        </label>
+
+                                        @* 4. Remove *@
+                                        <button type="button" @onclick="ClearEditFile"
+                                                class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50/60 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors shadow-2xs" title="Remove attachment">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                        </button>
+                                    </div>
                                 </div>
-                            }
-                            else
-                            {
-                                <div class="flex flex-col items-center gap-2 relative z-0 pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo group-hover:text-txt-hi transition-colors"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                    <span class="text-xs text-txt-mid">Click, drop, or <kbd class="px-1 py-0.5 border border-line-soft rounded text-[10px] bg-elevated font-mono">Ctrl+V</kbd> to paste <span class="font-medium text-txt-hi">image/email</span></span>
-                                    <span class="text-[11px] text-txt-lo">JPG, PNG, PDF, EML, MSG</span>
-                                </div>
-                            }
-                        </div>
+                            </div>
+                        }
                     </div>
 
                 </div>
-                @if (!string.IsNullOrEmpty(formError)) { <p class="text-xs text-danger-500">@formError</p> }
+                @if (!string.IsNullOrEmpty(formError)) { <p class="text-xs text-danger-500 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200">@formError</p> }
             </div>
-            <div class="flex justify-end gap-2 border-t border-line-soft px-6 py-4 shrink-0">
-                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors">Cancel</button>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end gap-2 border-t border-line-soft px-6 py-4 bg-canvas/20 shrink-0">
+                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi hover:bg-elevated transition-colors">Cancel</button>
                 <button type="button" @onclick="SaveEditRequisition" disabled="@isSaving"
-                        class="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600 transition-colors disabled:opacity-60">
+                        class="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-white hover:bg-accent-600 transition-colors shadow-sm disabled:opacity-60">
                     @if (isSaving) { <span>Saving&#x2026;</span> } else { <span>Save Changes</span> }
                 </button>
             </div>
@@ -521,89 +661,310 @@
 @* ==================== VIEW MODAL ==================== *@
 @if (showViewModal && selectedReq != null)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @onclick="CloseModals">
-        <div class="relative w-full max-w-md rounded-2xl bg-surface shadow-2xl border border-line" @onclick:stopPropagation="true">
-            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4">
-                <div>
-                    <h2 class="text-base font-semibold text-txt-hi">@selectedReq.RequisitionNumber</h2>
-                    <p class="text-xs text-txt-lo mt-0.5">@selectedReq.RequestedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p>
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150" @onclick="CloseModals">
+        <div class="relative w-full max-w-xl rounded-2xl bg-surface shadow-2xl border border-line flex flex-col overflow-hidden max-h-[92vh]" @onclick:stopPropagation="true">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-line-soft px-6 py-4 bg-canvas/30 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent-600 border border-accent-border font-bold shadow-2xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-base font-bold text-txt-hi tracking-tight">@selectedReq.RequisitionNumber</span>
+                            @if (selectedReq.Status == "Done")
+                            {
+                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Done
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+                                    <span class="relative flex h-2 w-2">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                    </span>
+                                    Pending
+                                </span>
+                            }
+                        </div>
+                        <p class="text-[11px] text-txt-lo flex items-center gap-1 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Requested on @selectedReq.RequestedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                        </p>
+                    </div>
                 </div>
-                <button type="button" @onclick="CloseModals" class="rounded-lg p-1.5 text-txt-lo hover:bg-elevated hover:text-txt-hi transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+
+                <div class="flex items-center gap-1">
+                    @if (!string.IsNullOrEmpty(selectedReq.AttachmentPath))
+                    {
+                        <a href="@selectedReq.AttachmentPath" download="@(string.IsNullOrEmpty(selectedReq.AttachmentOriginalName) ? "requisition-file" : selectedReq.AttachmentOriginalName)"
+                           class="rounded-lg p-2 text-txt-mid hover:bg-elevated hover:text-accent-600 transition-colors border border-line-soft inline-flex items-center" title="Download attachment">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </a>
+                    }
+                    <button type="button" @onclick="() => SwitchToEditModal(selectedReq)" class="rounded-lg p-2 text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors border border-line-soft" title="Edit requisition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </button>
+                    <button type="button" @onclick="CloseModals" class="rounded-lg p-2 text-txt-mid hover:bg-elevated hover:text-txt-hi transition-colors border border-line-soft" title="Close modal">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
             </div>
-            <div class="px-6 py-5 space-y-3 text-sm max-h-[60vh] overflow-y-auto">
-                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Status</span><span class="text-txt-hi font-medium">@selectedReq.Status</span></div>
-                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Requested by</span><span class="text-txt-hi font-medium">@selectedReq.RequestedByName @(string.IsNullOrEmpty(selectedReq.RequestedByEmployeeId) ? "" : $"({selectedReq.RequestedByEmployeeId})")</span></div>
-                @if (!string.IsNullOrEmpty(selectedReq.ProjectManagerName))
-                {
-                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Project Manager</span><span class="text-txt-hi">@selectedReq.ProjectManagerName</span></div>
-                }
-                @if (selectedReq.RequisitionReceivedDate.HasValue)
-                {
-                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Req. Received</span><span class="text-txt-hi">@selectedReq.RequisitionReceivedDate.Value.ToString("dd MMM yyyy")</span></div>
-                }
-                @if (!string.IsNullOrEmpty(selectedReq.AssetCategory))
-                {
-                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Category</span><span class="text-txt-hi">@selectedReq.AssetCategory</span></div>
-                }
-                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Asset Type</span><span class="text-txt-hi font-medium">@selectedReq.AssetType</span></div>
-                @if (!string.IsNullOrEmpty(selectedReq.AssetSpecification))
-                {
-                    <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Specification</span><span class="text-txt-hi">@selectedReq.AssetSpecification</span></div>
-                }
-                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Quantity</span><span class="text-txt-hi font-mono font-semibold">@selectedReq.Quantity</span></div>
-                <div class="flex justify-between border-b border-line-soft pb-2"><span class="text-txt-mid">Priority</span><span class="text-txt-hi">@selectedReq.Priority</span></div>
+
+            <!-- Modal Content (Scrollable) -->
+            <div class="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+                
+                <!-- Asset Showcase Card -->
+                <div class="rounded-xl border border-line bg-gradient-to-br from-elevated/70 to-surface p-4 shadow-2xs">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface border border-line shadow-xs text-accent-500">
+                                @RenderCategoryIcon(selectedReq.AssetCategory)
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-base font-bold text-txt-hi">@selectedReq.AssetType</h3>
+                                    @if (!string.IsNullOrEmpty(selectedReq.AssetCategory))
+                                    {
+                                        <span class="rounded-md bg-canvas px-2 py-0.5 text-[10px] font-semibold text-txt-mid border border-line-soft">
+                                            @selectedReq.AssetCategory
+                                        </span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(selectedReq.AssetSpecification))
+                                {
+                                    <p class="mt-1 text-xs text-txt-mid font-mono bg-canvas/70 px-2 py-0.5 rounded border border-line-soft/80 inline-block">
+                                        @selectedReq.AssetSpecification
+                                    </p>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col items-end gap-1.5 shrink-0">
+                            <span class="inline-flex items-center rounded-lg bg-surface border border-line px-2.5 py-1 text-xs font-bold text-txt-hi shadow-2xs">
+                                Qty: <span class="font-mono ml-1 text-accent-600">@selectedReq.Quantity</span>
+                            </span>
+                            @RenderPriorityBadge(selectedReq.Priority)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Requester & Approver Information Cards Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    
+                    <!-- Requester Card -->
+                    <div class="rounded-xl border border-line bg-surface p-3.5 shadow-2xs">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block mb-2">Requested By</span>
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-xs shadow-xs">
+                                @GetInitials(selectedReq.RequestedByName)
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-txt-hi truncate">@selectedReq.RequestedByName</p>
+                                @if (!string.IsNullOrEmpty(selectedReq.RequestedByEmployeeId))
+                                {
+                                    <span class="inline-block mt-0.5 font-mono text-[11px] text-txt-mid bg-elevated px-1.5 py-0.5 rounded border border-line-soft">
+                                        @selectedReq.RequestedByEmployeeId
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Manager & Received Date Card -->
+                    <div class="rounded-xl border border-line bg-surface p-3.5 shadow-2xs">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block mb-2">Project Manager & Date</span>
+                        <div class="space-y-1.5">
+                            <div class="flex items-center gap-2 text-xs">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo shrink-0"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <span class="text-txt-hi font-medium truncate">
+                                    @(string.IsNullOrEmpty(selectedReq.ProjectManagerName) ? "No PM assigned" : selectedReq.ProjectManagerName)
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo shrink-0"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="16" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span class="text-txt-mid">
+                                    @(selectedReq.RequisitionReceivedDate.HasValue ? $"Received: {selectedReq.RequisitionReceivedDate.Value:dd MMM yyyy}" : "No receive date")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Justification / Note -->
                 @if (!string.IsNullOrEmpty(selectedReq.JustificationNote))
                 {
-                    <div class="border-b border-line-soft pb-2"><span class="text-txt-mid block mb-1">Justification</span><p class="text-txt-hi">@selectedReq.JustificationNote</p></div>
-                }
-                @if (!string.IsNullOrEmpty(selectedReq.AttachmentPath))
-                {
-                    <div class="border-t border-line-soft pt-3">
-                        <span class="text-txt-mid block mb-2 text-xs font-medium uppercase tracking-widest">Attached File</span>
-                        @if (IsImageFile(selectedReq.AttachmentOriginalName ?? ""))
-                        {
-                            <img src="@selectedReq.AttachmentPath" alt="Attachment" class="max-w-full rounded-lg border border-line shadow-sm cursor-pointer hover:opacity-90" @onclick="() => OpenPreviewModal(selectedReq)" />
-                        }
-                        else
-                        {
-                            <div class="flex items-center gap-3 rounded-lg border border-line bg-elevated p-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-txt-hi"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                <span class="flex-1 text-sm text-txt-hi truncate">@selectedReq.AttachmentOriginalName</span>
-                                <a href="@selectedReq.AttachmentPath" download="@selectedReq.AttachmentOriginalName" class="inline-flex items-center gap-1 rounded-md border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-txt-hi hover:bg-elevated transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                    Download
-                                </a>
-                            </div>
-                        }
+                    <div class="rounded-xl border border-line bg-canvas/40 p-3.5">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block mb-1">Justification / Reason</span>
+                        <p class="text-xs text-txt-hi leading-relaxed italic">"@selectedReq.JustificationNote"</p>
                     </div>
                 }
+
+                <!-- Attachment / Image Showcase (Requirement 2 in View Modal) -->
+                <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo block mb-2">Attached File / Screenshot</span>
+                    @if (!string.IsNullOrEmpty(selectedReq.AttachmentPath))
+                    {
+                        var isImage = IsImageFile(selectedReq.AttachmentOriginalName ?? "");
+                        <div class="rounded-xl border border-line bg-elevated/40 p-3.5 shadow-2xs">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    @if (isImage)
+                                    {
+                                        <div class="relative group/viewthumb shrink-0 cursor-pointer overflow-hidden rounded-lg border border-line shadow-xs"
+                                             @onclick="() => OpenPreviewModal(selectedReq)">
+                                            <img src="@selectedReq.AttachmentPath" alt="Attachment" class="h-16 w-16 sm:h-20 sm:w-20 object-cover group-hover/viewthumb:scale-105 transition-transform duration-200" />
+                                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/viewthumb:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-lg bg-surface border border-line shadow-xs text-txt-hi">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                        </div>
+                                    }
+                                    <div class="min-w-0 flex-1">
+                                        <span class="inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-600 border border-accent-border mb-1">
+                                            @(isImage ? "Image attachment" : "Document")
+                                        </span>
+                                        <p class="text-xs font-semibold text-txt-hi truncate" title="@selectedReq.AttachmentOriginalName">
+                                            @selectedReq.AttachmentOriginalName
+                                        </p>
+                                        <p class="text-[11px] text-txt-lo mt-0.5">Click thumbnail to view full size or download below</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                    <button type="button" @onclick="() => OpenPreviewModal(selectedReq)"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium text-txt-hi hover:bg-elevated hover:border-line-strong transition-colors shadow-2xs">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        <span>View</span>
+                                    </button>
+                                    <a href="@selectedReq.AttachmentPath" download="@selectedReq.AttachmentOriginalName"
+                                       class="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors shadow-2xs">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <span>Download</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="rounded-xl border border-line-soft bg-canvas/30 p-4 text-center">
+                            <span class="text-xs text-txt-lo">No screenshot or document attached to this requisition.</span>
+                        </div>
+                    }
+                </div>
             </div>
-            <div class="flex justify-end border-t border-line-soft px-6 py-4">
-                <button type="button" @onclick="CloseModals" class="rounded-lg border border-line bg-elevated px-4 py-2 text-sm font-medium text-txt-mid hover:text-txt-hi transition-colors">Close</button>
+
+            <!-- Modal Footer -->
+            <div class="flex items-center justify-between border-t border-line-soft px-6 py-3.5 bg-canvas/20 shrink-0">
+                <div>
+                    @if (selectedReq.Status != "Done")
+                    {
+                        <button type="button" @onclick="() => MarkDoneFromView(selectedReq)"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-2xs">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            <span>Mark as Done</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="() => ReopenFromView(selectedReq)"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors shadow-2xs">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                            <span>Reopen as Pending</span>
+                        </button>
+                    }
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" @onclick="() => SwitchToEditModal(selectedReq)"
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-elevated px-3.5 py-2 text-xs font-semibold text-txt-hi hover:bg-surface hover:border-line-strong transition-colors shadow-2xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                        <span>Edit</span>
+                    </button>
+                    <button type="button" @onclick="CloseModals"
+                            class="rounded-lg bg-surface border border-line px-4 py-2 text-xs font-medium text-txt-mid hover:text-txt-hi hover:bg-elevated transition-colors">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 }
 
-@* ==================== FILE PREVIEW MODAL ==================== *@
-@if (showPreviewModal && selectedReq != null && !string.IsNullOrEmpty(selectedReq.AttachmentPath))
+@* ==================== FILE PREVIEW MODAL (LIGHTBOX) ==================== *@
+@if (showPreviewModal && !string.IsNullOrEmpty(previewModalUrl))
 {
-    <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm" @onclick="ClosePreviewModal">
-        <div class="relative max-w-3xl w-full mx-4" @onclick:stopPropagation="true">
-            <div class="flex items-center justify-between mb-3 px-1">
-                <span class="text-white text-sm font-medium">@selectedReq.AttachmentOriginalName</span>
-                <div class="flex items-center gap-2">
-                    <a href="@selectedReq.AttachmentPath" download="@selectedReq.AttachmentOriginalName" class="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Download
-                    </a>
-                    <button type="button" @onclick="ClosePreviewModal" class="rounded-lg bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                </div>
+    <div class="fixed inset-0 flex items-center justify-center p-4 sm:p-8 overflow-y-auto animate-in fade-in duration-150"
+         style="z-index: 99998; background-color: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
+         @onclick="ClosePreviewModal">
+        
+        <!-- Fixed Floating Actions (Top-Right - Always visible) -->
+        <div class="fixed top-4 right-4 sm:top-6 sm:right-8 flex items-center gap-3"
+             style="z-index: 99999;"
+             @onclick:stopPropagation="true">
+            <a href="@previewModalUrl" download="@(string.IsNullOrEmpty(previewModalTitle) ? "requisition-file" : previewModalTitle)"
+               class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold text-white transition-all shadow-xl hover:scale-105 active:scale-95"
+               style="background-color: rgba(255, 255, 255, 0.22); border: 1px solid rgba(255, 255, 255, 0.35); backdrop-filter: blur(12px);"
+               title="Download Attachment">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Download</span>
+            </a>
+            <button type="button" @onclick="ClosePreviewModal"
+                    class="flex h-10 w-10 items-center justify-center rounded-xl text-white transition-all shadow-xl hover:bg-red-600 hover:scale-105 active:scale-95"
+                    style="background-color: rgba(255, 255, 255, 0.22); border: 1px solid rgba(255, 255, 255, 0.35); backdrop-filter: blur(12px);"
+                    title="Close Preview (Esc)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <!-- Fixed Floating Title (Top-Left - Always visible) -->
+        <div class="fixed top-4 left-4 sm:top-6 sm:left-8 flex items-center gap-2.5 max-w-[50vw] sm:max-w-md rounded-xl px-3.5 py-2 text-white shadow-xl min-w-0"
+             style="z-index: 99999; background-color: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px);"
+             @onclick:stopPropagation="true">
+            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style="background-color: rgba(255, 255, 255, 0.18);">
+                @if (previewModalIsImage)
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                }
+                else
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                }
             </div>
-            @if (IsImageFile(selectedReq.AttachmentOriginalName ?? ""))
-            {
-                <img src="@selectedReq.AttachmentPath" alt="Preview" class="max-w-full max-h-[80vh] rounded-xl object-contain mx-auto block shadow-2xl" />
-            }
+            <span class="text-xs sm:text-sm font-semibold truncate text-white">@(string.IsNullOrEmpty(previewModalTitle) ? "Attachment Preview" : previewModalTitle)</span>
+        </div>
+
+        <!-- Fixed Bottom Hint -->
+        <div class="fixed bottom-4 inset-x-0 mx-auto w-fit flex items-center gap-1.5 rounded-full px-4 py-1.5 text-white/70 text-xs shadow-lg pointer-events-none select-none"
+             style="z-index: 99999; background-color: rgba(0, 0, 0, 0.65); border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px);">
+            <span>Click outside or press</span>
+            <kbd class="px-1.5 py-0.5 rounded font-mono text-[10px] text-white" style="background-color: rgba(255, 255, 255, 0.25);">Esc</kbd>
+            <span>to close</span>
+        </div>
+
+        <!-- Central Image / Document Card -->
+        <div class="relative max-w-5xl w-full flex items-center justify-center my-auto py-14" @onclick:stopPropagation="true">
+            <div class="relative flex items-center justify-center max-h-[82vh] overflow-hidden rounded-2xl shadow-2xl p-2 sm:p-3"
+                 style="background-color: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2);">
+                @if (previewModalIsImage)
+                {
+                    <img src="@previewModalUrl" alt="@previewModalTitle" class="max-w-full max-h-[76vh] object-contain rounded-xl shadow-2xl mx-auto block select-none" />
+                }
+                else
+                {
+                    <iframe src="@previewModalUrl" class="w-full h-[76vh] rounded-xl bg-white border-0 min-w-[70vw]"></iframe>
+                }
+            </div>
         </div>
     </div>
 }
@@ -791,22 +1152,27 @@
 
     // File upload state
     private IBrowserFile? uploadedFile;
-    private string? uploadedFilePreview;
-    private string? uploadedFileName;
-    private bool    uploadedFileIsImage;
+    private byte[]?       uploadedFileBytes;
+    private long          uploadedFileSize;
+    private string?       uploadedFilePreview;
+    private string?       uploadedFileName;
+    private bool          uploadedFileIsImage;
+
+    // Lightbox Preview state
+    private string? previewModalUrl;
+    private string? previewModalTitle;
+    private bool    previewModalIsImage;
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        try
         {
-            try
-            {
-                await JS.InvokeVoidAsync("setupFilePaste", "reqFileInput");
-            }
-            catch { }
+            await JS.InvokeVoidAsync("setupFilePaste", "reqFileInput");
+            await JS.InvokeVoidAsync("setupFilePaste", "reqEditFileInput");
         }
+        catch { }
     }
 
     private async Task LoadData()
@@ -833,6 +1199,8 @@
         newReqReceivedDate = null;
         formError = null;
         uploadedFile = null;
+        uploadedFileBytes = null;
+        uploadedFileSize = 0;
         uploadedFilePreview = null;
         uploadedFileName = null;
         uploadedFileIsImage = false;
@@ -870,6 +1238,8 @@
         editReqReceivedDate = req.RequisitionReceivedDate;
         formError = null;
         uploadedFile = null;
+        uploadedFileBytes = null;
+        uploadedFileSize = 0;
         uploadedFilePreview = !string.IsNullOrEmpty(req.AttachmentPath) ? req.AttachmentPath : null;
         uploadedFileName = req.AttachmentOriginalName;
         uploadedFileIsImage = IsImageFile(req.AttachmentOriginalName ?? "");
@@ -880,27 +1250,45 @@
     {
         uploadedFile = e.File;
         uploadedFileName = e.File.Name;
+        uploadedFileSize = e.File.Size;
         uploadedFileIsImage = IsImageFile(e.File.Name);
+        formError = null;
 
-        if (uploadedFileIsImage)
+        try
         {
-            var format = "image/jpeg";
-            var resized = await e.File.RequestImageFileAsync(format, 800, 600);
-            using var stream = resized.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            // Read stream into memory immediately while InputFile DOM element is active
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
             using var ms = new System.IO.MemoryStream();
             await stream.CopyToAsync(ms);
-            var base64 = Convert.ToBase64String(ms.ToArray());
-            uploadedFilePreview = $"data:{format};base64,{base64}";
+            uploadedFileBytes = ms.ToArray();
+
+            var ext = System.IO.Path.GetExtension(e.File.Name).ToLowerInvariant();
+            var mime = ext switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".webp" => "image/webp",
+                ".gif" => "image/gif",
+                ".pdf" => "application/pdf",
+                _ => string.IsNullOrEmpty(e.File.ContentType) ? "application/octet-stream" : e.File.ContentType
+            };
+
+            var base64 = Convert.ToBase64String(uploadedFileBytes);
+            uploadedFilePreview = $"data:{mime};base64,{base64}";
         }
-        else
+        catch (Exception ex)
         {
-            uploadedFilePreview = "file";
+            uploadedFileBytes = null;
+            uploadedFilePreview = null;
+            formError = $"Error reading uploaded file: {ex.Message}";
         }
     }
 
     private void ClearFile()
     {
         uploadedFile = null;
+        uploadedFileBytes = null;
+        uploadedFileSize = 0;
         uploadedFilePreview = null;
         uploadedFileName = null;
         uploadedFileIsImage = false;
@@ -911,6 +1299,8 @@
     private void ClearEditFile()
     {
         uploadedFile = null;
+        uploadedFileBytes = null;
+        uploadedFileSize = 0;
         uploadedFilePreview = null;
         uploadedFileName = null;
         uploadedFileIsImage = false;
@@ -953,15 +1343,63 @@
 
     private void OpenViewModal(Requisition req) { selectedReq = req; showViewModal = true; }
 
-    private void OpenPreviewModal(Requisition req) { selectedReq = req; showPreviewModal = true; }
-    private void ClosePreviewModal() { showPreviewModal = false; }
+    private void OpenPreviewModal(string? url, string? title, bool isImage)
+    {
+        if (string.IsNullOrEmpty(url)) return;
+        previewModalUrl = url;
+        previewModalTitle = string.IsNullOrEmpty(title) ? "File Preview" : title;
+        previewModalIsImage = isImage;
+        showPreviewModal = true;
+    }
+
+    private void OpenPreviewModal(Requisition req)
+    {
+        if (string.IsNullOrEmpty(req.AttachmentPath)) return;
+        OpenPreviewModal(req.AttachmentPath, req.AttachmentOriginalName ?? "Attachment", IsImageFile(req.AttachmentOriginalName ?? ""));
+    }
+
+    private void ClosePreviewModal()
+    {
+        showPreviewModal = false;
+        previewModalUrl = null;
+        previewModalTitle = null;
+        previewModalIsImage = false;
+    }
+
+    private void SwitchToEditModal(Requisition req)
+    {
+        showViewModal = false;
+        OpenEditModal(req);
+    }
+
+    private async Task MarkDoneFromView(Requisition req)
+    {
+        await MarkDone(req);
+        selectedReq = allRequisitions.FirstOrDefault(r => r.Id == req.Id) ?? req;
+    }
+
+    private async Task ReopenFromView(Requisition req)
+    {
+        await Reopen(req);
+        selectedReq = allRequisitions.FirstOrDefault(r => r.Id == req.Id) ?? req;
+    }
 
     private void CloseModals()
     {
         showNewModal = showEditModal = showViewModal = showPreviewModal = showDeleteModal = false;
-        selectedReq = null; formError = null;
+        selectedReq = null;
+        formError = null;
         selectedEmployeeId = "";
         editEmployeeId = "";
+        uploadedFile = null;
+        uploadedFileBytes = null;
+        uploadedFileSize = 0;
+        uploadedFilePreview = null;
+        uploadedFileName = null;
+        uploadedFileIsImage = false;
+        previewModalUrl = null;
+        previewModalTitle = null;
+        previewModalIsImage = false;
     }
 
     private async Task SubmitNewRequisition()
@@ -971,34 +1409,39 @@
         if (string.IsNullOrWhiteSpace(newReq.AssetType))       { formError = "Asset type is required."; return; }
 
         isSaving = true;
+        formError = null;
 
-        var emp = employees.FirstOrDefault(e => e.Name == newReq.RequestedByName);
-        newReq.RequestedByEmployeeId = emp?.EmployeeId;
-        newReq.RequisitionReceivedDate = newReqReceivedDate;
-
-        if (uploadedFile != null)
+        try
         {
-            try
+            var emp = employees.FirstOrDefault(e => e.Name == newReq.RequestedByName);
+            newReq.RequestedByEmployeeId = emp?.EmployeeId;
+            newReq.RequisitionReceivedDate = newReqReceivedDate;
+
+            if (uploadedFileBytes != null && !string.IsNullOrEmpty(uploadedFileName))
             {
-                var ext = System.IO.Path.GetExtension(uploadedFile.Name);
+                var ext = System.IO.Path.GetExtension(uploadedFileName);
                 var fileName = $"{Guid.NewGuid()}{ext}";
                 var folderPath = System.IO.Path.Combine("wwwroot", "uploads", "requisitions");
                 System.IO.Directory.CreateDirectory(folderPath);
                 var fullPath = System.IO.Path.Combine(folderPath, fileName);
-                using var fs = System.IO.File.Create(fullPath);
-                using var stream = uploadedFile.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-                await stream.CopyToAsync(fs);
+                await System.IO.File.WriteAllBytesAsync(fullPath, uploadedFileBytes);
                 newReq.AttachmentPath = $"/uploads/requisitions/{fileName}";
-                newReq.AttachmentOriginalName = uploadedFile.Name;
+                newReq.AttachmentOriginalName = uploadedFileName;
             }
-            catch { }
-        }
 
-        await RequisitionService.CreateAsync(newReq);
-        isSaving = false;
-        CloseModals();
-        Notifications.ShowSuccess($"Requisition for {newReq.AssetType} added successfully.");
-        await LoadData();
+            await RequisitionService.CreateAsync(newReq);
+            CloseModals();
+            Notifications.ShowSuccess($"Requisition for {newReq.AssetType} added successfully.");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            formError = $"Error saving requisition: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
     private async Task SaveEditRequisition()
@@ -1008,34 +1451,39 @@
         if (string.IsNullOrWhiteSpace(editingReq.AssetType))       { formError = "Asset type is required."; return; }
 
         isSaving = true;
+        formError = null;
 
-        var emp = employees.FirstOrDefault(e => e.Name == editingReq.RequestedByName);
-        editingReq.RequestedByEmployeeId = emp?.EmployeeId;
-        editingReq.RequisitionReceivedDate = editReqReceivedDate;
-
-        if (uploadedFile != null)
+        try
         {
-            try
+            var emp = employees.FirstOrDefault(e => e.Name == editingReq.RequestedByName);
+            editingReq.RequestedByEmployeeId = emp?.EmployeeId;
+            editingReq.RequisitionReceivedDate = editReqReceivedDate;
+
+            if (uploadedFileBytes != null && !string.IsNullOrEmpty(uploadedFileName))
             {
-                var ext = System.IO.Path.GetExtension(uploadedFile.Name);
+                var ext = System.IO.Path.GetExtension(uploadedFileName);
                 var fileName = $"{Guid.NewGuid()}{ext}";
                 var folderPath = System.IO.Path.Combine("wwwroot", "uploads", "requisitions");
                 System.IO.Directory.CreateDirectory(folderPath);
                 var fullPath = System.IO.Path.Combine(folderPath, fileName);
-                using var fs = System.IO.File.Create(fullPath);
-                using var stream = uploadedFile.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-                await stream.CopyToAsync(fs);
+                await System.IO.File.WriteAllBytesAsync(fullPath, uploadedFileBytes);
                 editingReq.AttachmentPath = $"/uploads/requisitions/{fileName}";
-                editingReq.AttachmentOriginalName = uploadedFile.Name;
+                editingReq.AttachmentOriginalName = uploadedFileName;
             }
-            catch { }
-        }
 
-        await RequisitionService.UpdateAsync(editingReq);
-        isSaving = false;
-        CloseModals();
-        Notifications.ShowSuccess($"Requisition {editingReq.RequisitionNumber} updated successfully.");
-        await LoadData();
+            await RequisitionService.UpdateAsync(editingReq);
+            CloseModals();
+            Notifications.ShowSuccess($"Requisition {editingReq.RequisitionNumber} updated successfully.");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            formError = $"Error updating requisition: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
     private static bool IsImageFile(string name)
@@ -1043,6 +1491,62 @@
         var ext = System.IO.Path.GetExtension(name).ToLowerInvariant();
         return ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp";
     }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "RQ";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Length >= 2 ? parts[0][..2].ToUpperInvariant() : parts[0].ToUpperInvariant();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{(bytes / 1024.0):F1} KB";
+        return $"{(bytes / (1024.0 * 1024.0)):F1} MB";
+    }
+
+    private RenderFragment RenderPriorityBadge(string priority) => __builder =>
+    {
+        var p = priority?.ToLowerInvariant() ?? "normal";
+        if (p == "high")
+        {
+            <span class="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 border border-rose-200">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                High
+            </span>
+        }
+        else if (p == "low")
+        {
+            <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 border border-slate-200">
+                Low
+            </span>
+        }
+        else
+        {
+            <span class="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-200">
+                Normal
+            </span>
+        }
+    };
+
+    private RenderFragment RenderCategoryIcon(string category) => __builder =>
+    {
+        var cat = category?.ToLowerInvariant() ?? "";
+        if (cat.Contains("system") || cat.Contains("laptop") || cat.Contains("desktop"))
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+        }
+        else if (cat.Contains("component") || cat.Contains("ram") || cat.Contains("ssd") || cat.Contains("hdd"))
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/></svg>
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>
+        }
+    };
 
     private void SortBy(string column)
     {
