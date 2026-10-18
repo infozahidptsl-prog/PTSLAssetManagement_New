@@ -270,22 +270,22 @@
 <section aria-label="Device List" class="bg-surface">
         <AppTable Items="PaginatedDevices" OnRowClick="@(async (Device device) => await ToggleExpand(device.Id))" IsRowExpanded="@((Device d) => d.Id == expandedDeviceId)">
         <HeaderContent>
-            <th scope="col" class="py-2 pl-6 pr-3 lg:pl-9 w-[18rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Device")'>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">ASSET ID @RenderSortIcon("Device")</div>
+            <th scope="col" class="py-2.5 pl-6 pr-3 lg:pl-9 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Device")'>
+                <div class="flex items-center gap-1.5">ASSET ID @RenderSortIcon("Device")</div>
             </th>
-            <th scope="col" class="px-3 py-2 w-[10rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Type")'>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">TYPE @RenderSortIcon("Type")</div>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Type")'>
+                <div class="flex items-center gap-1.5">TYPE @RenderSortIcon("Type")</div>
             </th>
-            <th scope="col" class="px-3 py-2 w-[16rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Specification")'>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">SPECIFICATION @RenderSortIcon("Specification")</div>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Specification")'>
+                <div class="flex items-center gap-1.5">SPECIFICATION @RenderSortIcon("Specification")</div>
             </th>
-            <th scope="col" class="px-3 py-2 w-[9rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Status")'>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">STATUS @RenderSortIcon("Status")</div>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("Status")'>
+                <div class="flex items-center gap-1.5">STATUS @RenderSortIcon("Status")</div>
             </th>
-            <th scope="col" class="px-3 py-2 w-[14rem] cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("User")'>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-txt-lo">USER @RenderSortIcon("User")</div>
+            <th scope="col" class="px-3 py-2.5 font-semibold text-[10px] uppercase tracking-widest text-txt-mid cursor-pointer hover:bg-elevated transition-colors group select-none" @onclick='() => SortBy("User")'>
+                <div class="flex items-center gap-1.5">USER @RenderSortIcon("User")</div>
             </th>
-            <th scope="col" class="relative py-2 pl-3 pr-6 lg:pr-9"><span class="sr-only">View</span></th>
+            <th scope="col" class="relative py-2.5 pl-3 pr-6 lg:pr-9 text-right w-12"><span class="sr-only">View</span></th>
         </HeaderContent>
         <RowTemplate Context="device">
             <td class="py-3 pl-6 pr-3 text-left lg:pl-9">
@@ -381,8 +381,8 @@
                     <span class="text-txt-mid">—</span>
                 }
             </td>
-            <td class="py-3 px-3 text-right pr-6 lg:pr-9">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-txt-lo transition-transform duration-200 @(expandedDeviceId == device.Id ? "rotate-180" : "")" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            <td class="py-3 px-3 text-right pr-6 lg:pr-9 w-12">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-txt-lo transition-transform duration-200 @(expandedDeviceId == device.Id ? "rotate-180 text-accent-500" : "")" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </td>
         </RowTemplate>
         <ExpandedRowTemplate Context="device">
