@@ -63,75 +63,81 @@ else
                     }
                 </div>
 
-                <!-- Profile Image Container (Adapts to cropped aspect ratio: 3:4, 1:1, card profile, or freeform) -->
-                <div class="group relative w-full flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner">
-                    @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
-                    {
-                        <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="w-full h-auto max-h-[380px] object-contain object-center block" />
-                    }
-                    else
-                    {
-                        <label for="empProfileUploadTop" class="flex flex-col items-center justify-center w-full h-56 cursor-pointer hover:bg-slate-200/60 transition-colors" title="Click to upload profile photo">
-                            <span class="select-none text-5xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
-                            <span class="text-[11px] font-medium text-slate-400 mt-1 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                Upload Photo
-                            </span>
-                        </label>
-                    }
-                    
-                    <!-- Hover Overlay for Image Controls -->
-                    <div class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-slate-900/65 opacity-0 backdrop-blur-xs transition-opacity duration-200 group-hover:opacity-100">
-                        <div class="flex items-center gap-1.5">
-                            @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
-                            {
-                                <button type="button" @onclick="OpenCropModalForExisting" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100 cursor-pointer" title="Crop & Adjust current photo">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
-                                    <span>Crop / Edit</span>
-                                </button>
-                            }
-
-                            <InputFile id="empProfileUploadOverlay" OnChange="HandleFileSelectedForCrop" class="hidden" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp" />
-                            <label for="empProfileUploadOverlay" class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100 cursor-pointer" title="Upload photo">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                <span>@(string.IsNullOrEmpty(employee.ProfileImageUrl) ? "Upload Photo" : "Upload New")</span>
+                <!-- Profile Card Body: Mobile horizontal avatar layout (< md) | Desktop vertical portrait card (md:) -->
+                <div class="flex flex-row items-center gap-3.5 sm:gap-4 md:flex-col md:items-stretch">
+                    <!-- Profile Image Container -->
+                    <div class="group relative shrink-0 overflow-hidden rounded-2xl bg-slate-100 border border-line-soft shadow-inner w-24 h-24 sm:w-28 sm:h-28 md:w-full md:h-auto md:max-h-[340px]">
+                        @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
+                        {
+                            <img src="@employee.ProfileImageUrl" alt="@employee.Name" class="w-full h-full object-cover md:object-contain md:h-auto md:max-h-[340px] block" />
+                        }
+                        else
+                        {
+                            <label for="empProfileUploadTop" class="flex flex-col items-center justify-center w-full h-full md:h-56 cursor-pointer hover:bg-slate-200/60 transition-colors" title="Click to upload profile photo">
+                                <span class="select-none text-3xl md:text-5xl font-bold text-slate-300">@GetInitials(employee.Name)</span>
+                                <span class="text-[10px] md:text-[11px] font-medium text-slate-400 mt-1 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    <span class="hidden md:inline">Upload Photo</span>
+                                </span>
                             </label>
+                        }
+                        
+                        <!-- Hover Overlay for Image Controls -->
+                        <div class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 md:gap-2 bg-slate-900/65 opacity-0 backdrop-blur-xs transition-opacity duration-200 group-hover:opacity-100">
+                            <div class="flex items-center gap-1.5 flex-wrap justify-center p-1">
+                                @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
+                                {
+                                    <button type="button" @onclick="OpenCropModalForExisting" class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100 cursor-pointer" title="Crop & Adjust current photo">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+                                        <span class="hidden sm:inline">Crop</span>
+                                    </button>
+                                }
 
-                            @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
-                            {
-                                <button type="button" @onclick="RemoveProfileImage" class="flex h-7 w-7 items-center justify-center rounded-lg bg-red-600 text-white shadow-md transition-all hover:bg-red-700 cursor-pointer" title="Remove photo">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                                </button>
-                            }
+                                <InputFile id="empProfileUploadOverlay" OnChange="HandleFileSelectedForCrop" class="hidden" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp" />
+                                <label for="empProfileUploadOverlay" class="inline-flex cursor-pointer items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-slate-800 shadow-md transition-all hover:bg-slate-100 cursor-pointer" title="Upload photo">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    <span class="hidden sm:inline">@(string.IsNullOrEmpty(employee.ProfileImageUrl) ? "Upload" : "New")</span>
+                                </label>
+
+                                @if (!string.IsNullOrEmpty(employee.ProfileImageUrl))
+                                {
+                                    <button type="button" @onclick="RemoveProfileImage" class="flex h-6 w-6 items-center justify-center rounded-md bg-red-600 text-white shadow-md transition-all hover:bg-red-700 cursor-pointer" title="Remove photo">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                }
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <h2 class="mt-2.5 text-base font-bold tracking-tight text-txt-hi text-center truncate px-1" title="@employee.Name">@employee.Name</h2>
-                <p class="mt-0.5 text-xs font-medium text-txt-mid text-center truncate px-1" title="@employee.Designation">@employee.Designation</p>
-                
-                <div class="mt-2.5 flex justify-center gap-2">
-                    @if (!string.IsNullOrEmpty(employee.Email))
-                    {
-                        <a href="mailto:@employee.Email" class="flex h-7 w-7 items-center justify-center rounded-full border border-indigo-100 bg-indigo-50 text-indigo-600 shadow-2xs transition-colors hover:bg-indigo-100 hover:border-indigo-200" title="Email: @employee.Email">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                        </a>
-                    }
-                    @if (!string.IsNullOrEmpty(employee.Contact))
-                    {
-                        <a href="https://wa.me/@(new string(employee.Contact.Where(char.IsDigit).ToArray()))" target="_blank" class="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-2xs transition-colors hover:bg-emerald-100 hover:border-emerald-200" title="WhatsApp: @employee.Contact">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>
-                        </a>
-                    }
-                    @{
-                        var linkedInLink = !string.IsNullOrWhiteSpace(employee.LinkedInUrl) 
-                            ? employee.LinkedInUrl 
-                            : $"https://www.linkedin.com/search/results/people/?keywords={Uri.EscapeDataString(employee.Name)}";
-                        var linkedInTitle = !string.IsNullOrWhiteSpace(employee.LinkedInUrl) ? "LinkedIn Profile" : "Search on LinkedIn";
-                    }
-                    <a href="@linkedInLink" target="_blank" class="flex h-7 w-7 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-600 shadow-2xs transition-colors hover:bg-blue-100 hover:border-blue-200" title="@linkedInTitle">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
-                    </a>
+
+                    <!-- Details: Name, Designation, Socials (side by side on mobile, centered below on desktop) -->
+                    <div class="min-w-0 flex-1 flex flex-col justify-center text-left md:text-center md:w-full md:mt-2.5">
+                        <h2 class="text-base font-bold tracking-tight text-txt-hi truncate px-0 md:px-1" title="@employee.Name">@employee.Name</h2>
+                        <p class="mt-0.5 text-xs font-medium text-txt-mid truncate px-0 md:px-1" title="@employee.Designation">@employee.Designation</p>
+                        
+                        <div class="mt-2.5 flex items-center md:justify-center gap-2">
+                            @if (!string.IsNullOrEmpty(employee.Email))
+                            {
+                                <a href="mailto:@employee.Email" class="flex h-7 w-7 items-center justify-center rounded-full border border-indigo-100 bg-indigo-50 text-indigo-600 shadow-2xs transition-colors hover:bg-indigo-100 hover:border-indigo-200" title="Email: @employee.Email">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                </a>
+                            }
+                            @if (!string.IsNullOrEmpty(employee.Contact))
+                            {
+                                <a href="https://wa.me/@(new string(employee.Contact.Where(char.IsDigit).ToArray()))" target="_blank" class="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-2xs transition-colors hover:bg-emerald-100 hover:border-emerald-200" title="WhatsApp: @employee.Contact">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>
+                                </a>
+                            }
+                            @{
+                                var linkedInLink = !string.IsNullOrWhiteSpace(employee.LinkedInUrl) 
+                                    ? employee.LinkedInUrl 
+                                    : $"https://www.linkedin.com/search/results/people/?keywords={Uri.EscapeDataString(employee.Name)}";
+                                var linkedInTitle = !string.IsNullOrWhiteSpace(employee.LinkedInUrl) ? "LinkedIn Profile" : "Search on LinkedIn";
+                            }
+                            <a href="@linkedInLink" target="_blank" class="flex h-7 w-7 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-600 shadow-2xs transition-colors hover:bg-blue-100 hover:border-blue-200" title="@linkedInTitle">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Digital ID / QR Pass Compact Horizontal Widget -->
@@ -196,24 +202,24 @@ else
                     </div>
                 </div>
 
-                <!-- 9 Fields Organized into Clean Property List (No bulky individual boxes) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 @(hasAbout ? "" : "lg:grid-cols-3") gap-x-6 gap-y-3 py-1">
+                <!-- 9 Fields Organized into Clean Property List: 2 columns on mobile, up to 3 columns on desktop -->
+                <div class="grid grid-cols-2 @(hasAbout ? "" : "lg:grid-cols-3") gap-x-4 sm:gap-x-6 gap-y-3 py-1">
                     <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Employee ID</span>
                         <span class="text-xs font-semibold text-txt-hi font-mono mt-0.5">@employee.EmployeeId</span>
                     </div>
                     <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Department</span>
-                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Department">@(string.IsNullOrEmpty(employee.Department) ? "—" : employee.Department)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5 truncate" title="@employee.Department">@(string.IsNullOrEmpty(employee.Department) ? "—" : employee.Department)</span>
                     </div>
                     <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Team</span>
-                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Team">@(string.IsNullOrEmpty(employee.Team) ? "—" : employee.Team)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5 truncate" title="@employee.Team">@(string.IsNullOrEmpty(employee.Team) ? "—" : employee.Team)</span>
                     </div>
 
                     <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Location</span>
-                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Location">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5 truncate" title="@employee.Location">@(string.IsNullOrEmpty(employee.Location) ? "—" : employee.Location)</span>
                     </div>
                     <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Joining Date</span>
@@ -221,7 +227,7 @@ else
                     </div>
                     <div class="flex flex-col border-b border-line-soft/60 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Reports To</span>
-                        <span class="text-xs font-medium text-txt-hi mt-0.5" title="@employee.Manager">@(string.IsNullOrEmpty(employee.Manager) ? "—" : employee.Manager)</span>
+                        <span class="text-xs font-medium text-txt-hi mt-0.5 truncate" title="@employee.Manager">@(string.IsNullOrEmpty(employee.Manager) ? "—" : employee.Manager)</span>
                     </div>
 
                     <div class="flex flex-col border-b border-line-soft/60 pb-2">
@@ -232,18 +238,18 @@ else
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Phone</span>
                         @if (!string.IsNullOrEmpty(employee.Contact))
                         {
-                            <a href="tel:@employee.Contact" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline mt-0.5">@employee.Contact</a>
+                            <a href="tel:@employee.Contact" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline mt-0.5 truncate">@employee.Contact</a>
                         }
                         else
                         {
                             <span class="text-xs font-medium text-txt-lo mt-0.5">—</span>
                         }
                     </div>
-                    <div class="flex flex-col border-b border-line-soft/60 pb-2 @(hasAbout ? "col-span-1 sm:col-span-2" : "")">
+                    <div class="flex flex-col border-b border-line-soft/60 pb-2 col-span-2 @(hasAbout ? "" : "lg:col-span-1")">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-txt-lo">Email</span>
                         @if (!string.IsNullOrEmpty(employee.Email))
                         {
-                            <a href="mailto:@employee.Email" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline break-all sm:break-normal mt-0.5" title="@employee.Email">@employee.Email</a>
+                            <a href="mailto:@employee.Email" class="text-xs font-medium text-txt-hi hover:text-accent-600 hover:underline break-all mt-0.5" title="@employee.Email">@employee.Email</a>
                         }
                         else
                         {
