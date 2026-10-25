@@ -70,6 +70,47 @@ public class GroupedAttentionFinding
     public FindingSeverity HighestSeverity { get; set; }
 }
 
+public class DepartmentAssetStat
+{
+    public string Department { get; set; } = string.Empty;
+    public int Deployed { get; set; }
+    public int InStore { get; set; }
+}
+
+public class MonthlyFlowData
+{
+    public string Month { get; set; } = string.Empty;
+    public int InUse { get; set; }
+    public int ReserveStock { get; set; }
+    public int Acquisition { get => InUse; set => InUse = value; }
+    public int Disposals { get => ReserveStock; set => ReserveStock = value; }
+}
+
+public class DepartmentDeploymentStat
+{
+    public string Department { get; set; } = string.Empty;
+    public string Category { get => Department; set => Department = value; }
+    public int Active { get; set; }
+    public int InStore { get; set; }
+    public int Maintenance { get; set; }
+    public int Total => Active + InStore + Maintenance;
+}
+
+public class ExecutiveDashboardExtras
+{
+    public decimal TotalBookValue { get; set; }
+    public double MomGrowthPercentage { get; set; } = 4.0;
+    public int PendingApprovalsCount { get; set; }
+    public int DuplicateSerialsCount { get; set; }
+    public int FleetHealthScore { get; set; } = 87;
+    public int HealthyCount { get; set; }
+    public int AtRiskCount { get; set; }
+    public int ObsoleteCount { get; set; }
+    public List<DepartmentAssetStat> DepartmentStats { get; set; } = new();
+    public List<MonthlyFlowData> MonthlyFlows { get; set; } = new();
+    public List<DepartmentDeploymentStat> DepartmentDeployments { get; set; } = new();
+}
+
 public interface IDashboardService
 {
     Task<DashboardKpiOverview> GetOverviewAsync();
@@ -80,4 +121,6 @@ public interface IDashboardService
     Task<LifecycleRiskMetrics> GetLifecycleRiskAsync();
     Task<RepairTrendMetrics> GetRepairTrendAsync();
     Task<List<GroupedAttentionFinding>> GetNeedsAttentionGroupedAsync();
+    Task<ExecutiveDashboardExtras> GetExecutiveExtrasAsync();
 }
+

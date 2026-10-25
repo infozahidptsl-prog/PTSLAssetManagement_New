@@ -117,23 +117,27 @@
                 {
                     <span class="block text-txt-hi">@(string.Join(" - ", new[] { device.Processor, device.Ram, device.Ssd, device.Hdd, device.MonitorDisplay }.Where(s => !string.IsNullOrWhiteSpace(s))))</span>
                 }
-                <span class="block text-txt-lo mt-0.5">@device.Condition</span>
             </td>
             <td class="px-3 py-3">
                 <StatusBadge Status="device.Status" />
             </td>
-            <td class="px-3 py-3 text-xs text-txt-mid">
+            <td class="px-3 py-3 text-xs text-txt-mid whitespace-nowrap">
                 @if (device.Status == DeviceStatus.InStore)
                 {
-                    <span>IT inventory</span>
+                    <span class="text-txt-lo">IT inventory</span>
                 }
                 else if (device.Status == DeviceStatus.InUse && (!string.IsNullOrEmpty(device.UserName) || !string.IsNullOrEmpty(device.EmployeeId)))
                 {
-                    @if (!string.IsNullOrEmpty(device.UserName))
-                    {
-                        <span class="block text-txt-hi font-medium whitespace-nowrap">@device.UserName</span>
-                    }
-                    <span class="block mt-0.5 text-txt-lo">@device.EmployeeId</span>
+                    <div class="inline-flex items-center gap-1.5">
+                        @if (!string.IsNullOrEmpty(device.UserName))
+                        {
+                            <span class="text-txt-hi font-medium">@device.UserName</span>
+                        }
+                        @if (!string.IsNullOrEmpty(device.EmployeeId))
+                        {
+                            <span class="text-txt-lo font-mono text-xs">@device.EmployeeId</span>
+                        }
+                    </div>
                 }
                 else
                 {

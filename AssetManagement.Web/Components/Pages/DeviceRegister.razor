@@ -20,6 +20,10 @@
 <PageHeader Title="All Assets" 
             Description="Every system, component and peripheral has its own Asset ID and QR tag, plus a holder, warranty clock and full movement history.">
     <Actions>
+        <button type="button" @onclick="ExportToExcel" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-[13px] font-medium text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer shadow-2xs" title="Export current filtered list to Excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+        </button>
         <button type="button" @onclick="OpenRepairModal" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-elevated px-3 py-1.5 text-[13px] font-medium text-txt-mid transition-colors duration-150 hover:border-line-strong hover:text-txt-hi focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15.7 18.4-.7.7a3.5 3.5 0 0 1-4.9-4.9l7-7a2.8 2.8 0 0 1 4 4l-7 7Z"/><path d="M7 11V5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5V11"/></svg>
             Send to repair
@@ -39,7 +43,7 @@
     </Actions>
     <ChildContent>
         <div class="mt-3 flex flex-row gap-3">
-            <div @onclick='() => SetTab("All")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #f5f3ff; border: 1px solid #ddd6fe;">
+            <div @onclick='() => SetTab("All")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(ActiveTab == "All" && string.IsNullOrEmpty(SelectedStatusFilter) ? "ring-2 ring-purple-500 shadow-md" : "")" style="background: #f5f3ff; border: 1px solid #ddd6fe;">
                 <div class="relative z-10 flex items-start justify-between p-2">
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #5b21b6;">Total assets</p>
@@ -52,7 +56,7 @@
                 </div>
             </div>
 
-            <div @onclick='() => SetTab("In inventory")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+            <div @onclick='() => SetTab("In inventory")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @((ActiveTab == "In inventory" || SelectedStatusFilter == "InStore") ? "ring-2 ring-blue-500 shadow-md" : "")" style="background: #eff6ff; border: 1px solid #bfdbfe;">
                 <div class="relative z-10 flex items-start justify-between p-2">
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #1e40af;">In inventory</p>
@@ -65,7 +69,7 @@
                 </div>
             </div>
 
-            <div @onclick='() => SetTab("Issued")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #ecfdf5; border: 1px solid #a7f3d0;">
+            <div @onclick='() => SetTab("Issued")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @((ActiveTab == "Issued" || SelectedStatusFilter == "InUse") ? "ring-2 ring-emerald-500 shadow-md" : "")" style="background: #ecfdf5; border: 1px solid #a7f3d0;">
                 <div class="relative z-10 flex items-start justify-between p-2">
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #065f46;">Issued</p>
@@ -78,11 +82,11 @@
                 </div>
             </div>
 
-            <div @onclick='() => SetTab("Repair shop")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #fffbeb; border: 1px solid #fde68a;">
+            <div @onclick='() => SetTab("Repair shop")' class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @((ActiveTab == "Repair shop" || SelectedStatusFilter == "InRepair") ? "ring-2 ring-amber-500 shadow-md" : "")" style="background: #fffbeb; border: 1px solid #fde68a;">
                 <div class="relative z-10 flex items-start justify-between p-2">
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #92400e;">Repair &amp; Obsolete</p>
-                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #b45309;">@(devices?.Count(d => d.Status == DeviceStatus.InRepair || d.Status == DeviceStatus.WrittenOff) ?? 0)</p>
+                        <p class="tnum mt-1 text-xl font-bold tracking-tight" style="color: #b45309;">@(devices?.Count(d => d.Status == DeviceStatus.InRepair || d.Status == DeviceStatus.Faulty || d.Status == DeviceStatus.WrittenOff || d.Status == DeviceStatus.Scrapped) ?? 0)</p>
                         <p class="mt-0.5 text-[11px] font-medium" style="color: #92400e;">Action required</p>
                     </div>
                     <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style="background: #fef3c7; color: #d97706;">
@@ -102,12 +106,20 @@
 <AssetManagement.Web.Components.Shared.RepairDeviceModal @bind-IsOpen="showRepairModal" FaultyDevices="devices ?? new()" OnRepaired="HandleRepairAdded" />
 
 <div class="px-6 pb-2 pt-3 lg:px-9 flex flex-wrap items-center justify-between gap-3 border-b border-line-soft">
-    <!-- Search (left) -->
+    <!-- Search and Filters (left) -->
     <div class="flex flex-wrap items-center gap-2">
         <div class="relative w-48 sm:w-64">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-txt-lo"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             <input type="search" placeholder="Search..." @bind="SearchTerm" @bind:event="oninput" @bind:after="OnSearchTermChanged" class="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-2 text-[13px] text-txt-hi placeholder:text-txt-lo transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500" />
         </div>
+        <select @bind="SelectedStatusFilter" @bind:after="OnStatusFilterChanged" class="rounded-md border py-1.5 px-2.5 text-[13px] transition-colors duration-150 focus:border-accent-border focus:outline-none @(!string.IsNullOrEmpty(SelectedStatusFilter) ? "border-accent-500 font-semibold text-accent-700 bg-accent-soft/40" : "border-line bg-surface text-txt-hi hover:border-line-strong")" title="Filter by Asset Status">
+            <option value="">All Statuses (@(devices?.Count ?? 0))</option>
+            <option value="InUse">In Use / Issued (@(devices?.Count(d => d.Status == DeviceStatus.InUse) ?? 0))</option>
+            <option value="InStore">In Store / Available (@(devices?.Count(d => d.Status == DeviceStatus.InStore) ?? 0))</option>
+            <option value="Returned">Returned (@(devices?.Count(d => d.Status == DeviceStatus.Returned) ?? 0))</option>
+            <option value="InRepair">In Repair / Faulty (@(devices?.Count(d => d.Status == DeviceStatus.InRepair || d.Status == DeviceStatus.Faulty) ?? 0))</option>
+            <option value="WrittenOff">Written Off / Scrapped (@(devices?.Count(d => d.Status == DeviceStatus.WrittenOff || d.Status == DeviceStatus.Scrapped) ?? 0))</option>
+        </select>
         <select @bind="SelectedLocation" @bind:after="ResetPage" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:border-accent-border focus:outline-none">
             <option value="">All Offices</option>
             @foreach (var loc in availableLocations)
@@ -154,6 +166,24 @@
                 </button>
             </span>
         }
+        @if (!string.IsNullOrEmpty(SelectedStatusFilter) || ActiveTab != "All")
+        {
+            var statusLabel = SelectedStatusFilter switch
+            {
+                "InUse" => "Status: In Use",
+                "InStore" => "Status: In Store",
+                "Returned" => "Status: Returned",
+                "InRepair" => "Status: In Repair / Faulty",
+                "WrittenOff" => "Status: Written Off",
+                _ => ActiveTab
+            };
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent-500">
+                <span>@statusLabel</span>
+                <button type="button" @onclick='() => SetTab("All")' class="ml-0.5 rounded-full hover:text-accent-700 focus:outline-none cursor-pointer" title="Clear status filter">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </span>
+        }
         @if (!string.IsNullOrEmpty(SelectedCategory))
         {
             <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[12px] font-semibold text-indigo-700">
@@ -174,15 +204,6 @@
                     @(devices?.Count(d => d.OwnerCompany != null && (d.OwnerCompany.Equals(SelectedCompany, StringComparison.OrdinalIgnoreCase) || (SelectedCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase) && d.OwnerCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase)))) ?? 0)
                 </span>
                 <button type="button" @onclick='() => { SelectedCompany = null; ResetPage(); }' class="ml-0.5 rounded-full hover:text-blue-900 focus:outline-none cursor-pointer" title="Clear company filter">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                </button>
-            </span>
-        }
-        @if (ActiveTab != "All")
-        {
-            <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent-500">
-                @ActiveTab
-                <button type="button" @onclick='() => SetTab("All")' class="ml-0.5 rounded-full hover:text-accent-700 focus:outline-none cursor-pointer" title="Clear status filter">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </span>
@@ -703,6 +724,7 @@
     // Filter State
     private string SearchTerm { get; set; } = "";
     private string ActiveTab { get; set; } = "All";
+    private string SelectedStatusFilter { get; set; } = "";
     private string? SelectedCategory { get; set; } = null;
     private string? SelectedCompany { get; set; } = null;
     private string SelectedKind { get; set; } = "";
@@ -717,6 +739,7 @@
                                      !string.IsNullOrEmpty(SelectedKind) ||
                                      !string.IsNullOrEmpty(SelectedWarranty) ||
                                      !string.IsNullOrEmpty(SelectedLocation) ||
+                                     !string.IsNullOrEmpty(SelectedStatusFilter) ||
                                      ActiveTab != "All";
 
     private void OnSearchTermChanged()
@@ -748,6 +771,7 @@
         SelectedKind = "";
         SelectedWarranty = "";
         SelectedLocation = "";
+        SelectedStatusFilter = "";
         ActiveTab = "All";
         ResetPage();
         if (NavigationManager.Uri.Contains("?") || NavigationManager.Uri.Contains("search=") || NavigationManager.Uri.Contains("category=") || NavigationManager.Uri.Contains("status="))
@@ -839,11 +863,20 @@
 
             var query = devices.AsQueryable();
 
-            if (ActiveTab == "In inventory") query = query.Where(d => d.Status == DeviceStatus.InStore);
-            else if (ActiveTab == "Issued") query = query.Where(d => d.Status == DeviceStatus.InUse && !d.IsComponent);
+            if (!string.IsNullOrEmpty(SelectedStatusFilter))
+            {
+                if (SelectedStatusFilter == "InUse") query = query.Where(d => d.Status == DeviceStatus.InUse);
+                else if (SelectedStatusFilter == "InStore") query = query.Where(d => d.Status == DeviceStatus.InStore);
+                else if (SelectedStatusFilter == "Returned") query = query.Where(d => d.Status == DeviceStatus.Returned);
+                else if (SelectedStatusFilter == "InRepair") query = query.Where(d => d.Status == DeviceStatus.Faulty || d.Status == DeviceStatus.InRepair);
+                else if (SelectedStatusFilter == "WrittenOff") query = query.Where(d => d.Status == DeviceStatus.WrittenOff || d.Status == DeviceStatus.Scrapped);
+            }
+            else if (ActiveTab == "In inventory") query = query.Where(d => d.Status == DeviceStatus.InStore);
+            else if (ActiveTab == "Issued") query = query.Where(d => d.Status == DeviceStatus.InUse);
             else if (ActiveTab == "Installed") query = query.Where(d => d.Status == DeviceStatus.InUse && d.IsComponent);
             else if (ActiveTab == "Repair shop") query = query.Where(d => d.Status == DeviceStatus.Faulty || d.Status == DeviceStatus.InRepair);
-            else if (ActiveTab == "Obsolete") query = query.Where(d => d.Status == DeviceStatus.WrittenOff);
+            else if (ActiveTab == "Obsolete") query = query.Where(d => d.Status == DeviceStatus.WrittenOff || d.Status == DeviceStatus.Scrapped);
+            else if (ActiveTab == "Returned") query = query.Where(d => d.Status == DeviceStatus.Returned);
 
             if (!string.IsNullOrEmpty(SelectedCategory))
             {
@@ -1028,13 +1061,18 @@
             SelectedCompany = QueryCompany;
         }
 
-        if (!string.IsNullOrEmpty(QueryStatus) && Enum.TryParse<DeviceStatus>(QueryStatus, out var stat))
+        if (!string.IsNullOrEmpty(QueryStatus))
         {
-            if (stat == DeviceStatus.InStore) ActiveTab = "In inventory";
-            else if (stat == DeviceStatus.InUse) ActiveTab = "Issued";
-            else if (stat == DeviceStatus.Faulty || stat == DeviceStatus.InRepair) ActiveTab = "Repair shop";
-            else if (stat == DeviceStatus.WrittenOff) ActiveTab = "Obsolete";
-            else ActiveTab = stat.ToString();
+            if (Enum.TryParse<DeviceStatus>(QueryStatus, out var stat))
+            {
+                SelectedStatusFilter = stat.ToString();
+                OnStatusFilterChanged();
+            }
+            else
+            {
+                SelectedStatusFilter = QueryStatus;
+                OnStatusFilterChanged();
+            }
         }
     }
 
@@ -1114,6 +1152,29 @@
     private void SetTab(string tab)
     {
         ActiveTab = tab;
+        SelectedStatusFilter = tab switch
+        {
+            "In inventory" => "InStore",
+            "Issued" => "InUse",
+            "Repair shop" => "InRepair",
+            "Obsolete" => "WrittenOff",
+            "Returned" => "Returned",
+            _ => ""
+        };
+        ResetPage();
+    }
+
+    private void OnStatusFilterChanged()
+    {
+        ActiveTab = SelectedStatusFilter switch
+        {
+            "InStore" => "In inventory",
+            "InUse" => "Issued",
+            "InRepair" => "Repair shop",
+            "WrittenOff" => "Obsolete",
+            "Returned" => "Returned",
+            _ => "All"
+        };
         ResetPage();
     }
 
@@ -1190,44 +1251,137 @@
 
     private async Task ExportToExcel()
     {
-        var itemsToExport = FilteredDevices;
+        var itemsToExport = FilteredDevices.ToList();
         
         using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Devices");
+        var worksheet = workbook.Worksheets.Add("Assets");
         
-        worksheet.Cell(1, 1).Value = "Device Model";
-        worksheet.Cell(1, 2).Value = "Asset Tag";
-        worksheet.Cell(1, 3).Value = "Brand";
-        worksheet.Cell(1, 4).Value = "Serial";
-        worksheet.Cell(1, 5).Value = "Category";
-        worksheet.Cell(1, 6).Value = "Processor";
-        worksheet.Cell(1, 7).Value = "RAM";
-        worksheet.Cell(1, 8).Value = "SSD";
-        worksheet.Cell(1, 9).Value = "Status";
-        worksheet.Cell(1, 10).Value = "UserName";
-        worksheet.Cell(1, 11).Value = "Designation";
-        worksheet.Cell(1, 12).Value = "Contact";
-        worksheet.Cell(1, 13).Value = "Email";
+        // Sheet tab styling
+        worksheet.TabColor = XLColor.FromHtml("#059669");
+
+        // Headers
+        var headers = new[]
+        {
+            "SL",
+            "Asset ID",
+            "Serial Number",
+            "Device Model",
+            "Brand",
+            "Category",
+            "Type",
+            "Status",
+            "Assigned User",
+            "Employee ID",
+            "Designation",
+            "Office Location",
+            "Company",
+            "Specification",
+            "Procurement Date",
+            "Warranty Status",
+            "Warranty Valid Until",
+            "Asset Value (BDT)"
+        };
+
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var cell = worksheet.Cell(1, i + 1);
+            cell.Value = headers[i];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontSize = 11;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E293B"); // Slate-800
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+        worksheet.Row(1).Height = 26;
 
         int row = 2;
+        int sl = 1;
         foreach (var item in itemsToExport)
         {
-            worksheet.Cell(row, 1).Value = item.DeviceName;
-            worksheet.Cell(row, 2).Value = item.AssetTag;
-            worksheet.Cell(row, 3).Value = item.Brand;
-            worksheet.Cell(row, 4).Value = item.Serial;
-            worksheet.Cell(row, 5).Value = item.Category;
-            worksheet.Cell(row, 6).Value = item.Processor;
-            worksheet.Cell(row, 7).Value = item.Ram;
-            worksheet.Cell(row, 8).Value = item.Ssd;
-            worksheet.Cell(row, 9).Value = item.Status.ToString();
-            worksheet.Cell(row, 10).Value = item.UserName;
-            worksheet.Cell(row, 11).Value = item.Designation;
-            worksheet.Cell(row, 12).Value = item.Contact;
-            worksheet.Cell(row, 13).Value = item.Email;
+            var specParts = new[] {
+                string.IsNullOrEmpty(item.Processor) ? null : $"{item.Processor}{(string.IsNullOrEmpty(item.ProcessorFamily) ? "" : $" ({item.ProcessorFamily})")}",
+                item.Ram,
+                item.Ssd,
+                string.IsNullOrEmpty(item.Hdd) ? null : item.Hdd.Trim(),
+                item.MonitorDisplay
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            var specString = specParts.Any() ? string.Join(" - ", specParts) : (item.IsComponent ? item.DeviceName : "—");
+
+            var statusText = item.Status switch
+            {
+                DeviceStatus.InUse => "In Use",
+                DeviceStatus.InStore => "In Store",
+                DeviceStatus.Returned => "Returned",
+                DeviceStatus.Faulty => "Faulty",
+                DeviceStatus.InRepair => "In Repair",
+                DeviceStatus.WrittenOff => "Written Off",
+                DeviceStatus.Scrapped => "Scrapped",
+                _ => item.Status.ToString()
+            };
+
+            var warrantyStatusText = !item.HasWarranty ? "No Warranty"
+                : (item.WarrantyEndDate.HasValue && item.WarrantyEndDate.Value > DateTime.Now ? "In Warranty" : "Expired");
+
+            var rowBgColor = (row % 2 == 0) ? XLColor.White : XLColor.FromHtml("#F8FAFC");
+
+            worksheet.Cell(row, 1).SetValue(sl);
+            worksheet.Cell(row, 2).SetValue(item.AssetTag ?? item.Id);
+            worksheet.Cell(row, 3).SetValue(string.IsNullOrWhiteSpace(item.Serial) ? "—" : item.Serial);
+            worksheet.Cell(row, 4).SetValue(string.IsNullOrWhiteSpace(item.DeviceName) ? "—" : item.DeviceName);
+            worksheet.Cell(row, 5).SetValue(string.IsNullOrWhiteSpace(item.Brand) ? "—" : item.Brand);
+            worksheet.Cell(row, 6).SetValue(string.IsNullOrWhiteSpace(item.Category) ? "Uncategorized" : item.Category);
+            worksheet.Cell(row, 7).SetValue(item.DeviceTypeDisplay);
+            worksheet.Cell(row, 8).SetValue(statusText);
+            worksheet.Cell(row, 9).SetValue(string.IsNullOrWhiteSpace(item.UserName) ? "—" : item.UserName);
+            worksheet.Cell(row, 10).SetValue(string.IsNullOrWhiteSpace(item.EmployeeId) ? "—" : item.EmployeeId);
+            worksheet.Cell(row, 11).SetValue(string.IsNullOrWhiteSpace(item.Designation) ? "—" : item.Designation);
+            worksheet.Cell(row, 12).SetValue(string.IsNullOrWhiteSpace(item.Location) ? "—" : item.Location);
+            worksheet.Cell(row, 13).SetValue(string.IsNullOrWhiteSpace(item.OwnerCompany) ? "—" : item.OwnerCompany);
+            worksheet.Cell(row, 14).SetValue(specString);
+            worksheet.Cell(row, 15).SetValue(item.EffectiveStartDate?.ToString("yyyy-MM-dd") ?? item.ReceivedDate ?? "—");
+            worksheet.Cell(row, 16).SetValue(warrantyStatusText);
+            worksheet.Cell(row, 17).SetValue(item.WarrantyEndDate?.ToString("yyyy-MM-dd") ?? "—");
+
+            if (item.AssetAmount.HasValue && item.AssetAmount.Value > 0)
+            {
+                var valCell = worksheet.Cell(row, 18);
+                valCell.SetValue(item.AssetAmount.Value);
+                valCell.Style.NumberFormat.Format = "#,##0.00";
+                valCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            }
+            else
+            {
+                var valCell = worksheet.Cell(row, 18);
+                valCell.SetValue("—");
+                valCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            }
+
+            // Cell alignment formatting
+            worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 10).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            for (int col = 1; col <= headers.Length; col++)
+            {
+                var cell = worksheet.Cell(row, col);
+                cell.Style.Fill.BackgroundColor = rowBgColor;
+                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                cell.Style.Border.OutsideBorderColor = XLColor.FromHtml("#E2E8F0");
+            }
+
             row++;
+            sl++;
         }
-        
+
+        worksheet.RangeUsed().SetAutoFilter();
+        worksheet.SheetView.FreezeRows(1);
         worksheet.Columns().AdjustToContents();
 
         using var memoryStream = new MemoryStream();
@@ -1235,7 +1389,8 @@
         memoryStream.Position = 0;
         
         using var streamRef = new DotNetStreamReference(stream: memoryStream);
-        await JS.InvokeVoidAsync("downloadFileFromStream", "Devices.xlsx", streamRef);
+        var filename = $"PrimeTech_Assets_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
     }
     
     private RenderFragment RenderSortIcon(string column) => __builder =>
