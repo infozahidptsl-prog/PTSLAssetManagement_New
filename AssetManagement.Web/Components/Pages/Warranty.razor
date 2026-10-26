@@ -3,13 +3,21 @@
 @attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Devices.View)]
 @using AssetManagement.Core.Entities
 @using AssetManagement.Infrastructure.Services
+@using ClosedXML.Excel
+@using System.IO
 @inject DeviceService DeviceService
 @inject EmployeeService EmployeeService
 @inject IJSRuntime JS
 
-<PageTitle>Warranty tracker - PrimeTech Asset Manager</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <PageHeader Title="Warranty tracker">
+    <Actions>
+        <button type="button" @onclick="ExportToExcel" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-[13px] font-medium text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer shadow-2xs" title="Export current filtered list to Excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+        </button>
+    </Actions>
     <ChildContent>
         <dl class="mt-6 flex flex-wrap gap-x-10 gap-y-3">
             <div>
@@ -275,6 +283,104 @@
         if (daysLeft < 0) return "expired";
         if (daysLeft <= 90) return "expiring";
         return "active";
+    }
+
+    private async Task ExportToExcel()
+    {
+        var itemsToExport = filteredDevices.ToList();
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Warranty Tracker");
+        worksheet.TabColor = XLColor.FromHtml("#059669");
+
+        var headers = new[]
+        {
+            "SL",
+            "Asset ID",
+            "Item Model",
+            "Device Name",
+            "Serial Number",
+            "Type",
+            "Purchased Date",
+            "Warranty End Date",
+            "Remaining Days",
+            "Warranty Status",
+            "Device Status",
+            "Held By",
+            "Office Location"
+        };
+
+        for (int col = 0; col < headers.Length; col++)
+        {
+            var cell = worksheet.Cell(1, col + 1);
+            cell.Value = headers[col];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E293B");
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+        worksheet.Row(1).Height = 26;
+
+        int row = 2;
+        int sl = 1;
+        foreach (var item in itemsToExport)
+        {
+            var daysLeft = GetWarrantyDaysLeft(item);
+            var isNoCover = !item.HasWarranty || item.WarrantyEndDate == null;
+            var wStatus = isNoCover ? "No Cover" : (daysLeft < 0 ? "Expired" : (daysLeft <= 90 ? "Expiring Soon" : "In Warranty"));
+
+            worksheet.Cell(row, 1).SetValue(sl++);
+            worksheet.Cell(row, 2).SetValue(item.AssetTag ?? item.Id ?? "-");
+            worksheet.Cell(row, 3).SetValue(item.DeviceName ?? item.Brand ?? "-");
+            worksheet.Cell(row, 4).SetValue(item.ComputerName ?? "-");
+            worksheet.Cell(row, 5).SetValue(item.Serial ?? "-");
+            worksheet.Cell(row, 6).SetValue(item.Category ?? item.DeviceTypeDisplay ?? "-");
+            worksheet.Cell(row, 7).SetValue(item.EffectiveStartDate?.ToString("d MMM yyyy") ?? "-");
+            worksheet.Cell(row, 8).SetValue(GetWarrantyEndDate(item)?.ToString("d MMM yyyy") ?? "-");
+            
+            if (isNoCover)
+            {
+                worksheet.Cell(row, 9).SetValue("No cover");
+            }
+            else if (daysLeft < 0)
+            {
+                worksheet.Cell(row, 9).SetValue($"{Math.Abs(daysLeft.Value)} days ago");
+            }
+            else
+            {
+                worksheet.Cell(row, 9).SetValue(daysLeft.HasValue ? $"{daysLeft.Value} days" : "-");
+            }
+
+            worksheet.Cell(row, 10).SetValue(wStatus);
+            worksheet.Cell(row, 11).SetValue(item.Status.ToString());
+            worksheet.Cell(row, 12).SetValue(string.IsNullOrEmpty(item.UserName) ? "IT inventory" : item.UserName);
+            worksheet.Cell(row, 13).SetValue(item.Location ?? "-");
+
+            var rowRange = worksheet.Range(row, 1, row, headers.Length);
+            if (row % 2 == 1)
+            {
+                rowRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F8FAFC");
+            }
+            rowRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#E2E8F0");
+            rowRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.InsideBorderColor = XLColor.FromHtml("#E2E8F0");
+
+            row++;
+        }
+
+        worksheet.RangeUsed()?.SetAutoFilter();
+        worksheet.SheetView.FreezeRows(1);
+        worksheet.Columns().AdjustToContents();
+
+        using var memoryStream = new MemoryStream();
+        workbook.SaveAs(memoryStream);
+        memoryStream.Position = 0;
+
+        using var streamRef = new DotNetStreamReference(stream: memoryStream);
+        var filename = $"PrimeTech_Warranty_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
     }
 }
 

@@ -182,6 +182,16 @@ public class DeviceService
             device.Status = AssetManagement.Core.Enums.DeviceStatus.InUse;
             device.From = handover.From;
             device.To = handover.To;
+
+            // When allocated to another employee, previous employee "Device Name" is removed and shows blank
+            if (!string.IsNullOrWhiteSpace(newAssignmentData?.ComputerName))
+            {
+                device.ComputerName = newAssignmentData.ComputerName.Trim();
+            }
+            else
+            {
+                device.ComputerName = null;
+            }
         }
         else if (transferType == "ReturnToStore")
         {

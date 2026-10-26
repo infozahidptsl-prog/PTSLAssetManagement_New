@@ -6,6 +6,8 @@
 @using AssetManagement.Infrastructure.Services
 @using AssetManagement.Web.Models
 @using Microsoft.AspNetCore.Components.Forms
+@using ClosedXML.Excel
+@using System.IO
 @inject RequisitionService RequisitionService
 @inject EmployeeService EmployeeService
 @inject ISettingsService SettingsService
@@ -13,11 +15,15 @@
 @inject IJSRuntime JS
 @inject NotificationService Notifications
 
-<PageTitle>Asset Requisitions - PrimeTech Asset Manager</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <div class="bg-surface pb-4 border-b border-line-soft">
 <PageHeader Title="Asset Requisitions">
     <Actions>
+        <button type="button" @onclick="ExportToExcel" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-[13px] font-medium text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer shadow-2xs" title="Export current filtered list to Excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+        </button>
         <AuthorizeView Policy="@AssetManagement.Core.Security.Permissions.Requisitions.Create">
             <button type="button" @onclick="OpenNewModal"
                     class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
@@ -146,15 +152,26 @@
                             <td class="py-3 pl-6 pr-3 lg:pl-9">
                                 <span class="font-mono text-xs font-semibold text-txt-hi">@req.RequisitionNumber</span>
                             </td>
-                            <td class="px-3 py-3">
-                                <span class="block text-xs font-medium text-txt-hi">@req.RequestedByName</span>
-                                @if (!string.IsNullOrEmpty(req.RequestedByEmployeeId))
+                            <td class="px-3 py-3 whitespace-nowrap">
+                                @if (!string.IsNullOrEmpty(req.RequestedByName) && !string.IsNullOrEmpty(req.RequestedByEmployeeId))
                                 {
-                                    <span class="block text-[11px] text-txt-lo mt-0.5">@req.RequestedByEmployeeId</span>
+                                    <span class="text-xs font-medium text-txt-hi">@req.RequestedByName</span><span class="text-xs text-txt-mid">, @req.RequestedByEmployeeId</span>
+                                }
+                                else if (!string.IsNullOrEmpty(req.RequestedByName))
+                                {
+                                    <span class="text-xs font-medium text-txt-hi">@req.RequestedByName</span>
+                                }
+                                else if (!string.IsNullOrEmpty(req.RequestedByEmployeeId))
+                                {
+                                    <span class="text-xs font-medium text-txt-hi">@req.RequestedByEmployeeId</span>
+                                }
+                                else
+                                {
+                                    <span class="text-xs text-txt-lo">—</span>
                                 }
                             </td>
                             <td class="px-3 py-3">
-                                @if (!string.IsNullOrEmpty(req.AssetCategory))
+                                @if (!string.IsNullOrEmpty(req.AssetCategory) && !string.Equals(req.AssetCategory, "Peripheral", StringComparison.OrdinalIgnoreCase) && !string.Equals(req.AssetCategory, "Peripherals", StringComparison.OrdinalIgnoreCase))
                                 {
                                     <span class="block text-[10px] font-medium text-txt-lo mb-0.5">@req.AssetCategory</span>
                                 }
@@ -198,29 +215,24 @@
                                 <div class="flex items-center gap-1.5 whitespace-nowrap">
                                     @if (req.Status != "Done")
                                     {
-                                        <button type="button" @onclick="() => MarkDone(req)" class="inline-flex items-center gap-1 rounded-md border border-line bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid hover:text-emerald-700 hover:border-emerald-300 transition-colors" title="Mark as Done">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-600"><polyline points="20 6 9 17 4 12"/></svg>
-                                            <span>Done</span>
+                                        <button type="button" @onclick="() => MarkDone(req)" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-elevated text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-all shadow-2xs cursor-pointer active:scale-95" title="Mark as Done">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                         </button>
                                     }
                                     else
                                     {
-                                        <button type="button" @onclick="() => Reopen(req)" class="inline-flex items-center gap-1 rounded-md border border-line bg-elevated px-2 py-1 text-[11px] font-medium text-txt-lo hover:text-amber-700 hover:border-amber-300 transition-colors" title="Reopen as Pending">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                                            <span>Reopen</span>
+                                        <button type="button" @onclick="() => Reopen(req)" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-elevated text-amber-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all shadow-2xs cursor-pointer active:scale-95" title="Reopen as Pending">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                         </button>
                                     }
-                                    <button type="button" @onclick="() => OpenEditModal(req)" class="inline-flex items-center gap-1 rounded-md border border-line bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid hover:text-txt-hi hover:border-line-strong transition-colors" title="Edit Requisition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                                        <span>Edit</span>
+                                    <button type="button" @onclick="() => OpenEditModal(req)" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-elevated text-txt-mid hover:bg-surface hover:text-accent-600 hover:border-line-strong transition-all shadow-2xs cursor-pointer active:scale-95" title="Edit Requisition">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                                     </button>
-                                    <button type="button" @onclick="() => OpenViewModal(req)" class="inline-flex items-center gap-1 rounded-md border border-line bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid hover:text-txt-hi hover:border-line-strong transition-colors" title="View Details">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                                        <span>View</span>
+                                    <button type="button" @onclick="() => OpenViewModal(req)" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-elevated text-txt-mid hover:bg-surface hover:text-txt-hi hover:border-line-strong transition-all shadow-2xs cursor-pointer active:scale-95" title="View Details">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                     </button>
-                                    <button type="button" @onclick="() => OpenDeleteModal(req)" class="inline-flex items-center gap-1 rounded-md border border-line bg-elevated px-2 py-1 text-[11px] font-medium text-txt-mid hover:text-red-600 hover:border-red-200 transition-colors" title="Delete Requisition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                        <span>Delete</span>
+                                    <button type="button" @onclick="() => OpenDeleteModal(req)" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-elevated text-txt-mid hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-2xs cursor-pointer active:scale-95" title="Delete Requisition">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                                     </button>
                                 </div>
                             </td>
@@ -1602,5 +1614,90 @@
             _ => sortAscending ? list.OrderBy(r => r.RequestedAt) : list.OrderByDescending(r => r.RequestedAt)
         };
         return list.ToList();
+    }
+
+    private async Task ExportToExcel()
+    {
+        var itemsToExport = GetSortedRequisitions();
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Requisitions");
+        worksheet.TabColor = XLColor.FromHtml("#059669");
+
+        var headers = new[]
+        {
+            "SL",
+            "Req. ID",
+            "Requested By",
+            "Employee ID",
+            "Category",
+            "Asset Type",
+            "Specification",
+            "Quantity",
+            "Priority",
+            "Status",
+            "Requisition Received Date",
+            "Requested Date",
+            "Project Manager",
+            "Approved By",
+            "Justification Note"
+        };
+
+        for (int col = 0; col < headers.Length; col++)
+        {
+            var cell = worksheet.Cell(1, col + 1);
+            cell.Value = headers[col];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E293B");
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+        worksheet.Row(1).Height = 26;
+
+        int row = 2;
+        int sl = 1;
+        foreach (var r in itemsToExport)
+        {
+            worksheet.Cell(row, 1).SetValue(sl++);
+            worksheet.Cell(row, 2).SetValue(r.RequisitionNumber ?? "-");
+            worksheet.Cell(row, 3).SetValue(r.RequestedByName ?? "-");
+            worksheet.Cell(row, 4).SetValue(r.RequestedByEmployeeId ?? "-");
+            worksheet.Cell(row, 5).SetValue(r.AssetCategory ?? "-");
+            worksheet.Cell(row, 6).SetValue(r.AssetType ?? "-");
+            worksheet.Cell(row, 7).SetValue(r.AssetSpecification ?? "-");
+            worksheet.Cell(row, 8).SetValue(r.Quantity);
+            worksheet.Cell(row, 9).SetValue(r.Priority ?? "Normal");
+            worksheet.Cell(row, 10).SetValue(r.Status ?? "Pending");
+            worksheet.Cell(row, 11).SetValue(r.RequisitionReceivedDate.HasValue ? r.RequisitionReceivedDate.Value.ToString("d MMM yyyy") : "-");
+            worksheet.Cell(row, 12).SetValue(r.RequestedAt.ToString("d MMM yyyy, h:mm tt"));
+            worksheet.Cell(row, 13).SetValue(r.ProjectManagerName ?? "-");
+            worksheet.Cell(row, 14).SetValue(r.ApprovedByName ?? "-");
+            worksheet.Cell(row, 15).SetValue(r.JustificationNote ?? "-");
+
+            var rowRange = worksheet.Range(row, 1, row, headers.Length);
+            if (row % 2 == 1)
+            {
+                rowRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F8FAFC");
+            }
+            rowRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#E2E8F0");
+            rowRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.InsideBorderColor = XLColor.FromHtml("#E2E8F0");
+
+            row++;
+        }
+
+        worksheet.RangeUsed()?.SetAutoFilter();
+        worksheet.SheetView.FreezeRows(1);
+        worksheet.Columns().AdjustToContents();
+
+        using var memoryStream = new MemoryStream();
+        workbook.SaveAs(memoryStream);
+        memoryStream.Position = 0;
+
+        using var streamRef = new DotNetStreamReference(stream: memoryStream);
+        var filename = $"PrimeTech_Requisitions_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
     }
 }

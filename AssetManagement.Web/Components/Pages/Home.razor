@@ -7,7 +7,7 @@
 @inject IDashboardService DashboardService
 @inject NavigationManager NavigationManager
 
-<PageTitle>Executive Asset Dashboard — Prime Tech Solutions Ltd.</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <style>
     @@keyframes fadeSlideUp {
@@ -321,9 +321,11 @@
         justify-content: center;
         flex: 1;
         max-width: 44px;
+        position: relative;
     }
     .monthly-bar {
         width: 12px;
+        min-height: 2px;
         border-radius: 2px 2px 0 0;
         transform-origin: bottom;
         animation: growBarUp 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -334,6 +336,28 @@
     .monthly-bar:hover {
         filter: brightness(1.15);
         transform: scaleX(1.15);
+    }
+    .monthly-bar-val {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 9.5px;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+    }
+    .monthly-bar-val.in-use {
+        color: #25779d;
+    }
+    .monthly-bar-val.reserve {
+        color: #2b2d5c;
+    }
+    .monthly-bar:hover .monthly-bar-val {
+        opacity: 0;
     }
     .monthly-bar-tooltip {
         position: absolute;
@@ -387,11 +411,11 @@
     .stacked-row {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 12px;
         position: relative;
     }
     .stacked-row-label {
-        width: 95px;
+        width: 85px;
         font-size: 12px;
         font-weight: 600;
         color: #334155;
@@ -414,16 +438,38 @@
         transition: filter 0.2s ease;
         position: relative;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         animation: growBarRight 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     }
     .stacked-segment:hover {
         filter: brightness(1.2);
     }
+    .stacked-segment-val {
+        font-size: 10px;
+        font-weight: 700;
+        color: #ffffff;
+        white-space: nowrap;
+        padding: 0 2px;
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+    }
+    .stacked-row-total {
+        width: 32px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #0f172a;
+        text-align: right;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+    }
     .stacked-x-axis {
         display: flex;
         justify-content: space-between;
-        padding-left: 109px;
-        padding-right: 0px;
+        padding-left: 97px;
+        padding-right: 44px;
         font-size: 11px;
         font-weight: 600;
         color: #94a3b8;
@@ -432,8 +478,8 @@
     }
     .stacked-grid-overlay {
         position: absolute;
-        left: 109px;
-        right: 0;
+        left: 97px;
+        right: 44px;
         top: 0;
         bottom: 26px;
         display: flex;
@@ -735,10 +781,18 @@ else
                                         <div class="monthly-bar-pair">
                                             <!-- In-Use Bar (Steel Blue / Teal #25779d) -->
                                             <div class="monthly-bar" style="height:@inUseHeightPct%; background:#25779d;" title="@m.Month In-Use: @m.InUse">
+                                                @if (m.InUse > 0)
+                                                {
+                                                    <span class="monthly-bar-val in-use">@m.InUse</span>
+                                                }
                                                 <div class="monthly-bar-tooltip">@m.InUse In-Use</div>
                                             </div>
                                             <!-- Reserve Stock Bar (Deep Indigo Navy #2b2d5c) -->
                                             <div class="monthly-bar" style="height:@reserveHeightPct%; background:#2b2d5c;" title="@m.Month Reserve: @m.ReserveStock">
+                                                @if (m.ReserveStock > 0)
+                                                {
+                                                    <span class="monthly-bar-val reserve">@m.ReserveStock</span>
+                                                }
                                                 <div class="monthly-bar-tooltip">@m.ReserveStock Reserve</div>
                                             </div>
                                         </div>
@@ -801,12 +855,37 @@ else
                                 <div class="stacked-row-label">@d.Category</div>
                                 <div class="stacked-bar-track">
                                     <!-- Active (Deep Navy #2b2d5c) -->
-                                    <div class="stacked-segment" style="width:@actWidth%; background:#2b2d5c;" title="@d.Category Active: @d.Active"></div>
+                                    @if (d.Active > 0)
+                                    {
+                                        <div class="stacked-segment" style="width:@actWidth%; background:#2b2d5c;" title="@d.Category Active: @d.Active">
+                                            @if (actWidth >= 8.0)
+                                            {
+                                                <span class="stacked-segment-val">@d.Active</span>
+                                            }
+                                        </div>
+                                    }
                                     <!-- In-Store (Steel Blue #25779d) -->
-                                    <div class="stacked-segment" style="width:@storeWidth%; background:#25779d;" title="@d.Category In-Store: @d.InStore"></div>
+                                    @if (d.InStore > 0)
+                                    {
+                                        <div class="stacked-segment" style="width:@storeWidth%; background:#25779d;" title="@d.Category In-Store: @d.InStore">
+                                            @if (storeWidth >= 8.0)
+                                            {
+                                                <span class="stacked-segment-val">@d.InStore</span>
+                                            }
+                                        </div>
+                                    }
                                     <!-- Maintenance (Coral Orange #dd5738) -->
-                                    <div class="stacked-segment" style="width:@maintWidth%; background:#dd5738;" title="@d.Category Maintenance: @d.Maintenance"></div>
+                                    @if (d.Maintenance > 0)
+                                    {
+                                        <div class="stacked-segment" style="width:@maintWidth%; background:#dd5738;" title="@d.Category Maintenance: @d.Maintenance">
+                                            @if (maintWidth >= 8.0)
+                                            {
+                                                <span class="stacked-segment-val">@d.Maintenance</span>
+                                            }
+                                        </div>
+                                    }
                                 </div>
+                                <div class="stacked-row-total" title="Total @d.Category: @d.Total">@d.Total</div>
                             </div>
                         }
                     }

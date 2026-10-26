@@ -1,102 +1,201 @@
-﻿@page "/automation"
+@page "/automation"
 @using AssetManagement.Core.Entities
 @using AssetManagement.Core.Enums
 @using AssetManagement.Core.Interfaces
+@using AssetManagement.Web.Components.Shared
 @inject IAutomationService AutomationService
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 
-<PageTitle>Automation Center | Prime Tech Asset Management</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
-<style>
-    @@keyframes fadeSlideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-    
-    html { overflow-y: scroll; }
-    
-    .automation-container { padding: 24px; animation: fadeSlideUp 0.5s ease-out forwards; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-    
-    .stat-card { background: #ffffff; border: 1px solid #eef0f4; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease; cursor: pointer; display: flex; align-items: flex-start; gap: 16px; }
-    .stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
-    
-    .stat-card.critical:hover { border-color: #fca5a5; }
-    .stat-card.warning:hover { border-color: #fcd34d; }
-    .stat-card.info:hover { border-color: #a5b4fc; }
-    .stat-card.resolved:hover { border-color: #86efac; }
-    
-    .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .stat-icon.critical { background: #fef2f2; color: #ef4444; }
-    .stat-icon.warning { background: #fffbeb; color: #f59e0b; }
-    .stat-icon.info { background: #eef2ff; color: #6366f1; }
-    .stat-icon.resolved { background: #f0fdf4; color: #10b981; }
+<div class="bg-surface pb-2 border-b border-line-soft">
+    <PageHeader Title="Automation Center" Description="Monitor and manage system alerts, automation rules and detected issues.">
+        <Actions>
+            <button type="button" @onclick="RunScan" disabled="@_isScanning" 
+                    class="inline-flex items-center justify-center gap-1.5 rounded-md bg-accent-500 px-3.5 py-1.5 text-[13px] font-medium text-accent-on transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500 disabled:opacity-50 shadow-xs cursor-pointer">
+                @if (_isScanning)
+                {
+                    <svg class="animate-spin -ml-0.5 mr-1 h-3.5 w-3.5 text-accent-on" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Scanning...</span>
+                }
+                else
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <span>Run Automation</span>
+                }
+            </button>
+        </Actions>
+        <ChildContent>
+            <!-- Interactive KPI Cards matching DeviceRegister & Repairs design -->
+            <div class="mt-3 flex flex-row gap-3">
+                <!-- Critical -->
+                <div @onclick='() => SetSeverityFilter(FindingSeverity.Critical)'
+                     class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(_currentSeverityFilter == FindingSeverity.Critical ? "ring-2 ring-rose-500 shadow-md" : "")"
+                     style="background: #fff1f2; border: 1px solid #fecdd3; @(_currentSeverityFilter == FindingSeverity.Critical ? "border-bottom: 3px solid #e11d48;" : "")">
+                    <div class="relative z-10 flex items-start justify-between p-2.5">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-rose-800">Critical</p>
+                            <p class="tnum mt-1 text-xl font-bold tracking-tight text-rose-950">@_criticalCount</p>
+                            <p class="mt-0.5 text-[11px] font-medium text-rose-700">Requires attention</p>
+                        </div>
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-200/80 text-rose-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                        </span>
+                    </div>
+                </div>
 
-    .stat-number { font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 4px; }
-    .stat-label { font-size: 14px; font-weight: 700; color: #334155; margin-bottom: 2px; }
-    .stat-sublabel { font-size: 12px; color: #64748b; }
+                <!-- Warning -->
+                <div @onclick='() => SetSeverityFilter(FindingSeverity.Warning)'
+                     class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(_currentSeverityFilter == FindingSeverity.Warning ? "ring-2 ring-amber-500 shadow-md" : "")"
+                     style="background: #fffbeb; border: 1px solid #fde68a; @(_currentSeverityFilter == FindingSeverity.Warning ? "border-bottom: 3px solid #d97706;" : "")">
+                    <div class="relative z-10 flex items-start justify-between p-2.5">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-amber-800">Warning</p>
+                            <p class="tnum mt-1 text-xl font-bold tracking-tight text-amber-950">@_warningCount</p>
+                            <p class="mt-0.5 text-[11px] font-medium text-amber-700">Needs review</p>
+                        </div>
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-200/80 text-amber-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                        </span>
+                    </div>
+                </div>
 
-    .automation-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-    .automation-table th { background: #f8fafc; color: #475569; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; }
-    .automation-table th:first-child { border-top-left-radius: 8px; border-left: 1px solid #e2e8f0; }
-    .automation-table th:last-child { border-top-right-radius: 8px; border-right: 1px solid #e2e8f0; }
-    .automation-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; background: #ffffff; vertical-align: middle; transition: background-color 0.2s; }
-    .automation-table tr:hover td { background: #f8fafc; }
-    .automation-table td:first-child { border-left: 1px solid #e2e8f0; }
-    .automation-table td:last-child { border-right: 1px solid #e2e8f0; }
-    .automation-table tr:last-child td:first-child { border-bottom-left-radius: 8px; }
-    .automation-table tr:last-child td:last-child { border-bottom-right-radius: 8px; }
-    
-    .badge-priority { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; border: 1px solid; }
-    .badge-priority .dot { width: 6px; height: 6px; border-radius: 50%; }
-    
-    .badge-priority.critical { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-    .badge-priority.critical .dot { background: #ef4444; }
-    
-    .badge-priority.high { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
-    .badge-priority.high .dot { background: #f97316; }
-    
-    .badge-priority.medium { background: #fefce8; color: #a16207; border-color: #fef08a; }
-    .badge-priority.medium .dot { background: #eab308; }
-    
-    .badge-priority.low { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-    .badge-priority.low .dot { background: #22c55e; }
+                <!-- Informational -->
+                <div @onclick='() => SetSeverityFilter(FindingSeverity.Info)'
+                     class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(_currentSeverityFilter == FindingSeverity.Info ? "ring-2 ring-blue-500 shadow-md" : "")"
+                     style="background: #eff6ff; border: 1px solid #bfdbfe; @(_currentSeverityFilter == FindingSeverity.Info ? "border-bottom: 3px solid #2563eb;" : "")">
+                    <div class="relative z-10 flex items-start justify-between p-2.5">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-blue-800">Informational</p>
+                            <p class="tnum mt-1 text-xl font-bold tracking-tight text-blue-950">@_infoCount</p>
+                            <p class="mt-0.5 text-[11px] font-medium text-blue-700">For your awareness</p>
+                        </div>
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-200/80 text-blue-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        </span>
+                    </div>
+                </div>
 
-    .status-badge { padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; display: inline-block; }
-    .status-new { background: #eff6ff; color: #2563eb; }
-    .status-progress { background: #fffbeb; color: #d97706; }
-    .status-resolved { background: #f0fdf4; color: #16a34a; }
-    
-    .btn-review { background: #4f46e5; color: white; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; transition: background 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .btn-review:hover { background: #4338ca; }
-    .btn-view { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
-    .btn-view:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
-    
-    .tab-btn { padding: 6px 16px; font-size: 14px; font-weight: 600; border-radius: 8px; transition: all 0.2s; color: #64748b; }
-    .tab-btn:hover { color: #1e293b; background: #f1f5f9; }
-    .tab-btn.active { background: #4f46e5; color: white; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.2); }
-</style>
+                <!-- Resolved -->
+                <div @onclick='() => SetStatusFilter(FindingStatus.Resolved)'
+                     class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-95 @(_currentStatusFilter == FindingStatus.Resolved ? "ring-2 ring-emerald-500 shadow-md" : "")"
+                     style="background: #ecfdf5; border: 1px solid #a7f3d0; @(_currentStatusFilter == FindingStatus.Resolved ? "border-bottom: 3px solid #059669;" : "")">
+                    <div class="relative z-10 flex items-start justify-between p-2.5">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-800">Resolved</p>
+                            <p class="tnum mt-1 text-xl font-bold tracking-tight text-emerald-950">@_resolvedCount</p>
+                            <p class="mt-0.5 text-[11px] font-medium text-emerald-700">Automatically handled</p>
+                        </div>
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-200/80 text-emerald-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </ChildContent>
+    </PageHeader>
+</div>
 
-<div class="automation-container">
-    <div class="flex items-start justify-between mb-8">
-        <div>
-            <p class="text-[11px] font-bold text-slate-400 tracking-wider uppercase mb-1">MANAGEMENT</p>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Automation Center</h1>
-            <p class="text-slate-500 text-sm mt-1">Monitor and manage system alerts, automation rules and detected issues.</p>
+<!-- Main Findings List Section -->
+<section id="automation-section" aria-label="Automation Findings" class="bg-surface">
+    <!-- Filter Tabs & Toolbar -->
+    <div class="px-6 pt-3 lg:px-9 flex flex-wrap items-center justify-between border-b border-line-soft gap-4">
+        <!-- Tabs on left -->
+        <div class="flex items-center gap-6">
+            <button type="button" @onclick='() => ClearFilters()' 
+                    class="pb-2.5 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(_currentStatusFilter == null && _currentSeverityFilter == null ? "border-accent-500 text-accent-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+                <span>All</span>
+                <span class="rounded-full bg-elevated text-txt-hi px-2 py-0.5 text-[10px] font-mono font-bold border border-line-soft">@(_findings?.Count ?? 0)</span>
+            </button>
+            <button type="button" @onclick='() => SetStatusFilter(FindingStatus.Open)' 
+                    class="pb-2.5 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(_currentStatusFilter == FindingStatus.Open ? "border-accent-500 text-accent-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+                <span>New</span>
+                <span class="rounded-full bg-accent-soft text-accent-700 px-2 py-0.5 text-[10px] font-mono font-bold">@_newCount</span>
+            </button>
+            <button type="button" @onclick='() => SetStatusFilter(FindingStatus.Resolved)' 
+                    class="pb-2.5 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(_currentStatusFilter == FindingStatus.Resolved ? "border-emerald-500 text-emerald-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+                <span>Resolved</span>
+                <span class="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-mono font-bold">@_resolvedCount</span>
+            </button>
+            <button type="button" @onclick='() => SetStatusFilter(FindingStatus.Dismissed)' 
+                    class="pb-2.5 text-[13px] font-semibold transition-colors border-b-2 flex items-center gap-2 @(_currentStatusFilter == FindingStatus.Dismissed ? "border-amber-500 text-amber-600" : "border-transparent text-txt-mid hover:text-txt-hi")">
+                <span>Dismissed</span>
+                <span class="rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-[10px] font-mono font-bold">@_dismissedCount</span>
+            </button>
         </div>
-        <button @onclick="RunScan" class="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-200 bg-accent-600 text-white hover:bg-accent-700 shadow-sm disabled:opacity-50" disabled="@_isScanning">
-            @if (_isScanning)
+
+        <!-- Filters & Search on right -->
+        <div class="relative flex flex-wrap items-center gap-2.5 pb-2">
+            <!-- Severity select -->
+            <select @bind="SelectedSeverityFilter" class="rounded-md border border-line bg-surface py-1.5 px-2.5 text-[13px] text-txt-hi transition-colors duration-150 hover:border-line-strong focus:outline-none focus:border-accent-border">
+                <option value="">All Severities</option>
+                <option value="Critical">Critical (@_criticalCount)</option>
+                <option value="Warning">Warning (@_warningCount)</option>
+                <option value="Info">Informational (@_infoCount)</option>
+            </select>
+
+            <!-- Search box -->
+            <div class="relative w-64">
+                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-txt-lo" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke-width="2"/></svg>
+                <input type="search" @bind="SearchQuery" @bind:event="oninput" placeholder="Search issues, assets..." class="w-full rounded-md border border-line bg-surface py-1.5 pl-9 pr-3 text-[13px] text-txt-hi placeholder:text-txt-lo hover:border-line-strong focus:outline-none focus:border-accent-border focus:ring-1 focus:ring-accent-500" />
+            </div>
+
+            @if (HasActiveFilters)
             {
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Scanning...</span>
+                <button type="button" @onclick="ClearFilters" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-line bg-surface py-1.5 px-2 text-xs font-medium text-txt-mid hover:text-txt-hi hover:bg-elevated transition-colors" title="Clear filters">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 6 6 18M6 6l12 12"/></svg>
+                    Clear
+                </button>
             }
-            else
+        </div>
+    </div>
+
+    <!-- Active Filters Summary Bar -->
+    <div class="px-6 py-2 lg:px-9 flex flex-wrap items-center justify-between gap-2 border-b border-line-soft bg-canvas/30 text-xs text-txt-mid">
+        <div class="flex items-center gap-2 flex-wrap">
+            @if (_currentSeverityFilter.HasValue)
             {
-                <svg class="mr-2 h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                <span>Run Automation</span>
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-700">
+                    <span>Severity: @_currentSeverityFilter.Value</span>
+                    <button type="button" @onclick='() => SetSeverityFilter(_currentSeverityFilter.Value)' class="ml-0.5 hover:text-accent-900 cursor-pointer" title="Remove severity filter">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                </span>
             }
-        </button>
+            @if (_currentStatusFilter.HasValue)
+            {
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-700">
+                    <span>Status: @_currentStatusFilter.Value</span>
+                    <button type="button" @onclick='() => SetStatusFilter(_currentStatusFilter.Value)' class="ml-0.5 hover:text-accent-900 cursor-pointer" title="Remove status filter">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-700">
+                    <span>Search: "@_searchQuery"</span>
+                    <button type="button" @onclick='() => SearchQuery = ""' class="ml-0.5 hover:text-accent-900 cursor-pointer" title="Clear search">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                </span>
+            }
+            <span>
+                @if (HasActiveFilters)
+                {
+                    <span>Showing <span class="font-bold text-txt-hi">@TotalCount</span> of <span class="font-semibold text-txt-mid">@(_findings?.Count ?? 0)</span> findings</span>
+                }
+                else
+                {
+                    <span>Showing all <span class="font-semibold text-txt-mid">@(_findings?.Count ?? 0)</span> findings — click a card above or use filters to refine</span>
+                }
+            </span>
+        </div>
     </div>
 
     @if (_findings == null)
@@ -107,217 +206,195 @@
     }
     else
     {
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="stat-card critical" @onclick="() => SetSeverityFilter(FindingSeverity.Critical)">
-                <div class="stat-icon critical">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                </div>
-                <div class="flex-1">
-                    <div class="flex justify-between items-start">
-                        <p class="stat-number">@_criticalCount</p>
-                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </div>
-                    <p class="stat-label">Critical</p>
-                    <p class="stat-sublabel">Requires immediate attention</p>
-                </div>
-            </div>
-            
-            <div class="stat-card warning" @onclick="() => SetSeverityFilter(FindingSeverity.Warning)">
-                <div class="stat-icon warning">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                </div>
-                <div class="flex-1">
-                    <div class="flex justify-between items-start">
-                        <p class="stat-number">@_warningCount</p>
-                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </div>
-                    <p class="stat-label">Warning</p>
-                    <p class="stat-sublabel">Needs review</p>
-                </div>
-            </div>
-
-            <div class="stat-card info" @onclick="() => SetSeverityFilter(FindingSeverity.Info)">
-                <div class="stat-icon info">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                </div>
-                <div class="flex-1">
-                    <div class="flex justify-between items-start">
-                        <p class="stat-number">@_infoCount</p>
-                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </div>
-                    <p class="stat-label">Informational</p>
-                    <p class="stat-sublabel">For your awareness</p>
-                </div>
-            </div>
-
-            <div class="stat-card resolved" @onclick="() => SetStatusFilter(FindingStatus.Resolved)">
-                <div class="stat-icon resolved">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                </div>
-                <div class="flex-1">
-                    <div class="flex justify-between items-start">
-                        <p class="stat-number">@_resolvedCount</p>
-                        <svg class="text-slate-300 w-4 h-4 mt-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </div>
-                    <p class="stat-label">Resolved</p>
-                    <p class="stat-sublabel">Automatically handled</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Controls Row -->
-        <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
-            <div class="flex items-center gap-2">
-                <button class="tab-btn @(_currentStatusFilter == null && _currentSeverityFilter == null ? "active" : "")" @onclick="() => ClearFilters()">All</button>
-                <button class="tab-btn @(_currentStatusFilter == FindingStatus.Open ? "active" : "")" @onclick="() => SetStatusFilter(FindingStatus.Open)">
-                    New <span class="ml-1 text-xs opacity-80">@_newCount</span>
-                </button>
-                <button class="tab-btn @(_currentStatusFilter == FindingStatus.Resolved ? "active" : "")" @onclick="() => SetStatusFilter(FindingStatus.Resolved)">
-                    Resolved <span class="ml-1 text-xs opacity-80">@_resolvedCount</span>
-                </button>
-                <button class="tab-btn @(_currentStatusFilter == FindingStatus.Dismissed ? "active" : "")" @onclick="() => SetStatusFilter(FindingStatus.Dismissed)">
-                    Dismissed <span class="ml-1 text-xs opacity-80">@_dismissedCount</span>
-                </button>
-            </div>
-            
-            <div class="flex items-center gap-3 w-full lg:w-auto">
-                <div class="relative flex-1 lg:w-80">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <input type="text" @bind="SearchQuery" @bind:event="oninput" 
-                           class="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:bg-white focus:border-accent-500 focus:ring-1 focus:ring-accent-500 sm:text-sm" 
-                           placeholder="Search issues, assets, references..." />
-                </div>
-                
-                <button class="inline-flex items-center px-3 py-2 border border-slate-200 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50">
-                    <svg class="mr-2 h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                    Filters
-                </button>
-            </div>
-        </div>
-
-        <!-- Automation Table -->
-        <div class="bg-white rounded-xl overflow-hidden" style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);">
-            <div class="overflow-x-auto">
-                <table class="automation-table">
-                    <thead>
+        <!-- Standard List Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                    <tr class="border-b border-line-soft text-left text-[11px] font-semibold uppercase tracking-widest text-txt-mid bg-canvas/30">
+                        <th scope="col" class="w-12 py-2.5 pl-6 pr-2.5 text-center">
+                            <input type="checkbox" class="h-4 w-4 rounded border-line text-accent-500 focus:ring-accent-500 cursor-pointer" />
+                        </th>
+                        <th scope="col" class="py-2.5 px-3">Priority</th>
+                        <th scope="col" class="py-2.5 px-3" style="width: 34%;">Issue</th>
+                        <th scope="col" class="py-2.5 px-3">Asset / Reference</th>
+                        <th scope="col" class="py-2.5 px-3">Detected</th>
+                        <th scope="col" class="py-2.5 px-3">Status</th>
+                        <th scope="col" class="py-2.5 pl-3 pr-6 text-right lg:pr-9">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-line-soft">
+                    @if (!FilteredFindings.Any())
+                    {
                         <tr>
-                            <th scope="col" class="w-12 text-center">
-                                <input type="checkbox" class="h-4 w-4 text-accent-600 focus:ring-accent-500 border-slate-300 rounded" />
-                            </th>
-                            <th scope="col">Priority</th>
-                            <th scope="col" style="width: 35%;">Issue</th>
-                            <th scope="col">Asset / Reference</th>
-                            <th scope="col">Detected</th>
-                            <th scope="col">Status</th>
-                            <th scope="col" class="text-right pr-6">Action</th>
+                            <td colspan="7" class="px-6 py-12 text-center text-txt-mid bg-surface">
+                                <div class="mx-auto w-12 h-12 bg-elevated rounded-full flex items-center justify-center mb-3 text-txt-lo">
+                                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                                </div>
+                                <p class="font-medium text-txt-hi">No findings match your criteria.</p>
+                                <p class="text-xs text-txt-mid mt-1">Try clearing active filters or searching for something else.</p>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @if (!FilteredFindings.Any())
+                    }
+                    else
+                    {
+                        @foreach (var finding in PaginatedFindings)
                         {
-                            <tr>
-                                <td colspan="7" class="px-6 py-12 text-center text-slate-500 bg-white border-b border-l border-r border-slate-200 rounded-b-lg">
-                                    <div class="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                                        <svg class="w-8 h-8 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-                                    </div>
-                                    <p class="font-medium text-slate-700">No findings match your criteria.</p>
+                            <tr class="transition-colors duration-150 hover:bg-elevated/40">
+                                <td class="py-3 pl-6 pr-2.5 text-center">
+                                    <input type="checkbox" class="h-4 w-4 rounded border-line text-accent-500 focus:ring-accent-500 cursor-pointer" />
                                 </td>
-                            </tr>
-                        }
-                        else
-                        {
-                            foreach (var finding in FilteredFindings)
-                            {
-                                <tr>
-                                    <td class="text-center">
-                                        <input type="checkbox" class="h-4 w-4 text-accent-600 focus:ring-accent-500 border-slate-300 rounded cursor-pointer" />
-                                    </td>
-                                    <td>
-                                        <span class="badge-priority @finding.Severity.ToString().ToLower()">
-                                            <span class="dot"></span>
-                                            @finding.Severity.ToString()
+                                <td class="py-3 px-3 whitespace-nowrap">
+                                    @if (finding.Severity == FindingSeverity.Critical)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                                            Critical
                                         </span>
-                                    </td>
-                                    <td>
-                                        <div class="font-bold text-slate-900 text-sm">@finding.Title</div>
-                                        <div class="text-xs text-slate-500 mt-0.5 line-clamp-1">@finding.Description</div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-slate-400">
-                                                @if (finding.DeviceId?.StartsWith("PUR-") == true)
-                                                {
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                                                }
-                                                else
-                                                {
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                                                }
-                                            </span>
-                                            <div>
-                                                <div class="font-semibold text-slate-700 text-sm">@(finding.DeviceId?.StartsWith("PUR-") == true ? "Network Device" : "Laptop")</div>
-                                                <div class="text-[11px] text-slate-500">
-                                                    @(finding.DeviceId?.StartsWith("PUR-") == true ? "PO" : "SN"): @finding.DeviceId
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="text-sm font-medium text-slate-700">@finding.CreatedAt.ToString("MMM d, yyyy h:mm tt")</div>
-                                        <div class="text-[11px] text-slate-400 mt-0.5">by System</div>
-                                    </td>
-                                    <td>
-                                        <span class="status-badge @(finding.Status == FindingStatus.Open ? "status-new" : (finding.Status == FindingStatus.Resolved ? "status-resolved" : "status-progress"))">
-                                            @finding.Status.ToString()
+                                    }
+                                    else if (finding.Severity == FindingSeverity.Warning)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                                            Warning
                                         </span>
-                                    </td>
-                                    <td class="text-right pr-6">
-                                        <div class="flex justify-end gap-2 items-center">
-                                            @if (finding.Status == FindingStatus.Open)
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                            Info
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 px-3">
+                                    <div class="font-semibold text-txt-hi text-sm">@finding.Title</div>
+                                    <div class="text-xs text-txt-mid mt-0.5 line-clamp-1">@finding.Description</div>
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-txt-lo">
+                                            @if (finding.DeviceId?.StartsWith("PUR-") == true)
                                             {
-                                                <button class="btn-review" @onclick="() => NavigateToResolution(finding)">Review</button>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                                             }
                                             else
                                             {
-                                                <button class="btn-view" @onclick="() => NavigateToResolution(finding)">View</button>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                                             }
-                                            <button class="text-slate-400 hover:text-slate-600 p-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                                            </button>
+                                        </span>
+                                        <div>
+                                            <div class="font-semibold text-txt-hi text-xs">@(finding.DeviceId?.StartsWith("PUR-") == true ? "Network Device" : "Laptop")</div>
+                                            <div class="font-mono text-[11px] text-txt-mid">
+                                                @(finding.DeviceId?.StartsWith("PUR-") == true ? "PO" : "SN"): @finding.DeviceId
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                            }
+                                    </div>
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap font-mono text-xs text-txt-mid">
+                                    <div>@finding.CreatedAt.ToString("MMM d, yyyy h:mm tt")</div>
+                                    <div class="text-[11px] text-txt-lo">by System</div>
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap">
+                                    @if (finding.Status == FindingStatus.Open)
+                                    {
+                                        <span class="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                            Open
+                                        </span>
+                                    }
+                                    else if (finding.Status == FindingStatus.Resolved)
+                                    {
+                                        <span class="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                                            Resolved
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                                            Dismissed
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 pl-3 pr-6 text-right whitespace-nowrap lg:pr-9">
+                                    <div class="flex justify-end gap-2 items-center">
+                                        @if (finding.Status == FindingStatus.Open)
+                                        {
+                                            <button type="button" class="inline-flex items-center justify-center rounded-md bg-accent-500 px-3 py-1.5 text-xs font-medium text-accent-on transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500 shadow-2xs cursor-pointer" @onclick="() => NavigateToResolution(finding)">
+                                                Review
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="inline-flex items-center justify-center rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium text-txt-hi transition-colors duration-150 hover:bg-elevated hover:border-line-strong focus:outline-none shadow-2xs cursor-pointer" @onclick="() => NavigateToResolution(finding)">
+                                                View
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
                         }
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Pagination Footer -->
-            <div class="bg-white px-6 py-4 border-t border-slate-200 border-l border-r rounded-b-lg flex items-center justify-between">
-                <div class="text-sm text-slate-500 font-medium">
-                    Showing <span class="font-bold text-slate-700">1</span>-<span class="font-bold text-slate-700">@FilteredFindings.Count()</span> of <span class="font-bold text-slate-700">@_findings.Count</span> items
-                </div>
-                <div class="flex items-center gap-1">
-                    <button class="w-8 h-8 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600 disabled:opacity-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                    </button>
-                    <button class="w-8 h-8 rounded bg-accent-600 text-white font-medium text-sm flex items-center justify-center">1</button>
-                    <button class="w-8 h-8 rounded hover:bg-slate-50 text-slate-600 font-medium text-sm flex items-center justify-center">2</button>
-                    <button class="w-8 h-8 rounded hover:bg-slate-50 text-slate-600 font-medium text-sm flex items-center justify-center">3</button>
-                    <button class="w-8 h-8 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </button>
-                </div>
-            </div>
+                    }
+                </tbody>
+            </table>
         </div>
+        
+        <!-- Standard Pagination Footer -->
+        @if (TotalCount > 0)
+        {
+            <div class="px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-line-soft bg-surface">
+                <div class="flex items-center gap-4 text-xs text-txt-mid">
+                    <div>
+                        Showing <span class="font-bold text-txt-hi">@StartItem</span>-<span class="font-bold text-txt-hi">@EndItem</span> of <span class="font-bold text-txt-hi">@TotalCount</span> findings
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span>Rows per page:</span>
+                        <select class="rounded border border-line bg-surface py-1 px-2 text-txt-hi text-xs focus:border-accent-border focus:outline-none cursor-pointer" 
+                                @bind="PageSize" @bind:after="OnPageSizeChanged">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1 select-none">
+                    <button type="button" 
+                            @onclick="() => ChangePage(_currentPage - 1)" 
+                            disabled="@(_currentPage <= 1)"
+                            class="h-8 px-2.5 rounded border border-line bg-surface text-txt-mid text-xs font-medium hover:bg-elevated hover:text-txt-hi disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            title="Previous page">
+                        Previous
+                    </button>
+
+                    @foreach (var pageNum in GetPageNumbers())
+                    {
+                        if (pageNum == -1)
+                        {
+                            <span class="w-8 h-8 flex items-center justify-center text-txt-lo text-xs">...</span>
+                        }
+                        else
+                        {
+                            var p = pageNum;
+                            <button type="button" 
+                                    @onclick="() => ChangePage(p)"
+                                    class="w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-all cursor-pointer @(p == _currentPage ? "bg-accent-500 text-accent-on font-bold shadow-2xs" : "border border-line bg-surface text-txt-mid hover:bg-elevated hover:text-txt-hi")">
+                                @p
+                            </button>
+                        }
+                    }
+
+                    <button type="button" 
+                            @onclick="() => ChangePage(_currentPage + 1)" 
+                            disabled="@(_currentPage >= TotalPages)"
+                            class="h-8 px-2.5 rounded border border-line bg-surface text-txt-mid text-xs font-medium hover:bg-elevated hover:text-txt-hi disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            title="Next page">
+                        Next
+                    </button>
+                </div>
+            </div>
+        }
     }
-</div>
+</section>
 
 @code {
     private List<AutomationFinding>? _findings;
@@ -326,6 +403,92 @@
 
     private FindingSeverity? _currentSeverityFilter;
     private FindingStatus? _currentStatusFilter;
+
+    // Pagination state
+    private int _currentPage = 1;
+    private int _pageSize = 25;
+
+    public int PageSize
+    {
+        get => _pageSize;
+        set => _pageSize = value;
+    }
+
+    private int TotalCount => FilteredFindings.Count();
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalCount / _pageSize));
+    private int StartItem => TotalCount == 0 ? 0 : ((_currentPage - 1) * _pageSize) + 1;
+    private int EndItem => Math.Min(_currentPage * _pageSize, TotalCount);
+
+    private IEnumerable<AutomationFinding> PaginatedFindings =>
+        FilteredFindings.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
+
+    private bool HasActiveFilters => _currentSeverityFilter.HasValue || _currentStatusFilter.HasValue || !string.IsNullOrWhiteSpace(_searchQuery);
+
+    private string SelectedSeverityFilter
+    {
+        get => _currentSeverityFilter?.ToString() ?? "";
+        set
+        {
+            _currentPage = 1;
+            if (string.IsNullOrEmpty(value))
+            {
+                _currentSeverityFilter = null;
+            }
+            else if (Enum.TryParse<FindingSeverity>(value, out var sev))
+            {
+                _currentSeverityFilter = sev;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= TotalPages)
+        {
+            _currentPage = page;
+            StateHasChanged();
+        }
+    }
+
+    private void OnPageSizeChanged()
+    {
+        _currentPage = 1;
+        StateHasChanged();
+    }
+
+    private IEnumerable<int> GetPageNumbers()
+    {
+        var total = TotalPages;
+        if (total <= 7)
+        {
+            return Enumerable.Range(1, total);
+        }
+
+        var pages = new List<int>();
+        pages.Add(1);
+
+        if (_currentPage > 3)
+        {
+            pages.Add(-1); // Ellipsis
+        }
+
+        var start = Math.Max(2, _currentPage - 1);
+        var end = Math.Min(total - 1, _currentPage + 1);
+
+        for (int i = start; i <= end; i++)
+        {
+            pages.Add(i);
+        }
+
+        if (_currentPage < total - 2)
+        {
+            pages.Add(-1); // Ellipsis
+        }
+
+        pages.Add(total);
+        return pages;
+    }
 
     // Counts
     private int _criticalCount = 0;
@@ -341,6 +504,7 @@
         set
         {
             _searchQuery = value;
+            _currentPage = 1;
             StateHasChanged();
         }
     }
@@ -382,6 +546,7 @@
     {
         _findings = await AutomationService.GetFindingsAsync();
         CalculateStats();
+        _currentPage = 1;
     }
 
     private void CalculateStats()
@@ -414,6 +579,7 @@
 
     private void SetSeverityFilter(FindingSeverity severity)
     {
+        _currentPage = 1;
         if (_currentSeverityFilter == severity)
         {
             _currentSeverityFilter = null; // Toggle off
@@ -427,6 +593,7 @@
 
     private void SetStatusFilter(FindingStatus status)
     {
+        _currentPage = 1;
         if (_currentStatusFilter == status)
         {
             _currentStatusFilter = null; // Toggle off
@@ -440,6 +607,7 @@
 
     private void ClearFilters()
     {
+        _currentPage = 1;
         _currentSeverityFilter = null;
         _currentStatusFilter = null;
         _searchQuery = "";
@@ -450,4 +618,3 @@
         NavigationManager.NavigateTo($"/automation/resolve/{finding.Id}");
     }
 }
-

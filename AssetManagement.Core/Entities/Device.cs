@@ -42,6 +42,9 @@ public class Device
     
     public string? Location { get; set; } // Physical office / branch location (e.g. TK Bhaban, BSEC Bhaban)
     
+    // Device Name (Hostname / Computer Name / Mobile Device Name for System items)
+    public string? ComputerName { get; set; }
+    
     // Warranty and Procurement
     public DateTime? ProcurementDate { get; set; }
     public bool HasWarranty { get; set; }

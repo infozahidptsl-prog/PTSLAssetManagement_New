@@ -5,15 +5,24 @@
 @using AssetManagement.Core.Enums
 @using AssetManagement.Infrastructure.Services
 @using AssetManagement.Web.Models
+@using ClosedXML.Excel
+@using System.IO
 @inject DeviceService DeviceService
 @inject HandoverService HandoverService
 @inject EmployeeService EmployeeService
 @inject RepairService RepairService
+@inject IJSRuntime JS
 
-<PageTitle>Transfer history - PrimeTech Asset Manager</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <div class="bg-surface pb-2 border-b border-line-soft">
 <PageHeader Title="Transfer history" ShowBackButton="true">
+    <Actions>
+        <button type="button" @onclick="ExportToExcel" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-[13px] font-medium text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer shadow-2xs" title="Export current filtered list to Excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+        </button>
+    </Actions>
     <ChildContent>
         <div class="mt-3 flex flex-row gap-3">
             <div class="cursor-pointer flex-1 group relative overflow-hidden rounded-xl text-left shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-95" style="background: #f5f3ff; border: 1px solid #ddd6fe;">
@@ -245,6 +254,86 @@
         }
 
         allMovements = movements;
+    }
+
+    private async Task ExportToExcel()
+    {
+        var itemsToExport = FilteredMovements.ToList();
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Transfer History");
+        worksheet.TabColor = XLColor.FromHtml("#059669");
+
+        var headers = new[]
+        {
+            "SL",
+            "Date",
+            "Event Type",
+            "Asset ID / Item",
+            "From",
+            "To",
+            "Notes / Specification"
+        };
+
+        for (int col = 0; col < headers.Length; col++)
+        {
+            var cell = worksheet.Cell(1, col + 1);
+            cell.Value = headers[col];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E293B");
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+        worksheet.Row(1).Height = 26;
+
+        int row = 2;
+        int sl = 1;
+        foreach (var m in itemsToExport)
+        {
+            var eventTypeTitle = m.Type switch
+            {
+                "purchase-in" => "Purchase & Add",
+                "allocate" => "Issue to Employee",
+                "return" => "Returned to Inventory",
+                "send-repair" => "Sent to Repair",
+                "repair-return" => "Returned from Repair",
+                "obsolete" => "Written Off",
+                _ => m.Type
+            };
+
+            worksheet.Cell(row, 1).SetValue(sl++);
+            worksheet.Cell(row, 2).SetValue(m.Date.ToString("d MMM yyyy, h:mm tt"));
+            worksheet.Cell(row, 3).SetValue(eventTypeTitle);
+            worksheet.Cell(row, 4).SetValue(m.ItemId ?? "-");
+            worksheet.Cell(row, 5).SetValue(string.IsNullOrEmpty(m.From) ? "-" : m.From);
+            worksheet.Cell(row, 6).SetValue(string.IsNullOrEmpty(m.To) ? "-" : m.To);
+            worksheet.Cell(row, 7).SetValue(string.IsNullOrEmpty(m.Note) ? "-" : m.Note);
+
+            var rowRange = worksheet.Range(row, 1, row, headers.Length);
+            if (row % 2 == 1)
+            {
+                rowRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F8FAFC");
+            }
+            rowRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#E2E8F0");
+            rowRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.InsideBorderColor = XLColor.FromHtml("#E2E8F0");
+
+            row++;
+        }
+
+        worksheet.RangeUsed()?.SetAutoFilter();
+        worksheet.SheetView.FreezeRows(1);
+        worksheet.Columns().AdjustToContents();
+
+        using var memoryStream = new MemoryStream();
+        workbook.SaveAs(memoryStream);
+        memoryStream.Position = 0;
+
+        using var streamRef = new DotNetStreamReference(stream: memoryStream);
+        var filename = $"PrimeTech_Movements_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
     }
 }
 

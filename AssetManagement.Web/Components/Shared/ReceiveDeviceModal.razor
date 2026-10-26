@@ -92,6 +92,13 @@
                             }
                         </InputSelect>
                     </div>
+                    @if (itemKind == "System" || newDevice.DeviceTypeDisplay == "System")
+                    {
+                        <div>
+                            <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-txt-lo">Device Name</label>
+                            <InputText @bind-Value="newDevice.ComputerName" placeholder="e.g. PTSL-LAPTOP-01" class="@InputClass" />
+                        </div>
+                    }
                     @if (newDevice.DeviceTypeDisplay == "System" && (newDevice.Category?.ToLowerInvariant().Contains("mobile") == true || newDevice.Category?.ToLowerInvariant().Contains("phone") == true || newDevice.Category?.ToLowerInvariant().Contains("tablet") == true))
                     {
                         <div>
@@ -358,6 +365,10 @@
     private async Task HandleSubmit()
     {
         newDevice.IsComponent = itemKind == "Component";
+        if (itemKind != "System" && newDevice.DeviceTypeDisplay != "System")
+        {
+            newDevice.ComputerName = null;
+        }
         if (newDevice.WarrantyMonths > 0) newDevice.HasWarranty = true;
         
         newDevice.InvoiceFilePath = uploadedInvoices.Any() 

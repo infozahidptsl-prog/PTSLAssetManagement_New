@@ -263,6 +263,9 @@ namespace AssetManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ComputerName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Condition")
                         .HasColumnType("nvarchar(max)");
 

@@ -9,12 +9,18 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 @inject NotificationService Notifications
+@using ClosedXML.Excel
+@using System.IO
 
-<PageTitle>Add new purchase - PrimeTech Asset Manager</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <div class="bg-surface pb-2 border-b border-line-soft">
 <PageHeader Title="Add new purchase">
     <Actions>
+        <button type="button" @onclick="ExportToExcel" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-[13px] font-medium text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer shadow-2xs" title="Export current filtered list to Excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+        </button>
         <button type="button" @onclick="ShowAiWizard" 
            style="background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%); color: #ffffff; box-shadow: 0 4px 12px -2px rgba(13, 148, 136, 0.35);" 
            class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 hover:brightness-110 hover:shadow-lg active:scale-[0.98] select-none cursor-pointer">
@@ -24,8 +30,8 @@
             <span>AI Invoice Capture</span>
         </button>
         <button type="button" @onclick="ShowReceiveModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>
-            Record purchase
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Add New
         </button>
     </Actions>
     <ChildContent>
@@ -349,78 +355,79 @@
 
     private string? newlyAddedDeviceId;
 
+    private IEnumerable<Device> GetSortedFilteredPurchases()
+    {
+        var result = purchasedItems.AsEnumerable();
+
+        if (currentCardFilter == "instore")
+        {
+            result = result.Where(d => d.Status == DeviceStatus.InStore);
+        }
+
+        if (!string.IsNullOrEmpty(SelectedCompany))
+        {
+            result = result.Where(d => d.OwnerCompany != null && (
+                d.OwnerCompany.Equals(SelectedCompany, StringComparison.OrdinalIgnoreCase) ||
+                (SelectedCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase) && d.OwnerCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase))
+            ));
+        }
+
+        if (FilterStartDate.HasValue)
+            result = result.Where(d => d.ProcurementDate >= FilterStartDate.Value);
+        if (FilterEndDate.HasValue)
+            result = result.Where(d => d.ProcurementDate <= FilterEndDate.Value);
+        
+        if (!string.IsNullOrWhiteSpace(QuerySearch))
+        {
+            var terms = QuerySearch.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            result = result.Where(d => terms.All(term =>
+                (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
+                (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
+                (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
+                (d.Brand != null && d.Brand.ToLower().Contains(term)) ||
+                (d.ComputerName != null && d.ComputerName.ToLower().Contains(term)) ||
+                (d.OwnerCompany != null && d.OwnerCompany.ToLower().Contains(term)) ||
+                (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
+                (d.Ram != null && d.Ram.ToLower().Contains(term))
+            ));
+        }
+
+        TotalItems = result.Count();
+        
+        return SortColumn switch
+        {
+            "Asset" => SortAscending 
+                ? result.OrderBy(d => d.AssetTag ?? d.Id).ThenBy(d => d.Brand) 
+                : result.OrderByDescending(d => d.AssetTag ?? d.Id).ThenByDescending(d => d.Brand),
+            "Type" => SortAscending 
+                ? result.OrderBy(d => d.Category).ThenBy(d => d.IsComponent) 
+                : result.OrderByDescending(d => d.Category).ThenByDescending(d => d.IsComponent),
+            "Specification" => SortAscending 
+                ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram) 
+                : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram),
+            "Date" => SortAscending 
+                ? result.OrderBy(d => d.ProcurementDate ?? DateTime.MinValue) 
+                : result.OrderByDescending(d => d.Id == newlyAddedDeviceId ? 1 : 0)
+                        .ThenByDescending(d => d.ProcurementDate ?? DateTime.MinValue)
+                        .ThenByDescending(d => d.QrTokenCreatedAt ?? DateTime.MinValue),
+            "Cost" => SortAscending 
+                ? result.OrderBy(d => d.AssetAmount ?? 0) 
+                : result.OrderByDescending(d => d.AssetAmount ?? 0),
+            "Warranty" => SortAscending 
+                ? result.OrderBy(d => d.HasWarranty ? 0 : 1).ThenBy(d => d.WarrantyEndDate) 
+                : result.OrderByDescending(d => d.HasWarranty ? 0 : 1).ThenByDescending(d => d.WarrantyEndDate),
+            _ => result.OrderByDescending(d => d.Id == newlyAddedDeviceId ? 1 : 0)
+                       .ThenByDescending(d => d.ProcurementDate ?? DateTime.MinValue)
+                       .ThenByDescending(d => d.QrTokenCreatedAt ?? DateTime.MinValue)
+        };
+    }
+
     private List<Device> filteredPurchasedItems 
     {
-        get
-        {
-            var result = purchasedItems.AsEnumerable();
-
-            if (currentCardFilter == "instore")
-            {
-                result = result.Where(d => d.Status == DeviceStatus.InStore);
-            }
-
-            if (!string.IsNullOrEmpty(SelectedCompany))
-            {
-                result = result.Where(d => d.OwnerCompany != null && (
-                    d.OwnerCompany.Equals(SelectedCompany, StringComparison.OrdinalIgnoreCase) ||
-                    (SelectedCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase) && d.OwnerCompany.Contains("Prime", StringComparison.OrdinalIgnoreCase))
-                ));
-            }
-
-            if (FilterStartDate.HasValue)
-                result = result.Where(d => d.ProcurementDate >= FilterStartDate.Value);
-            if (FilterEndDate.HasValue)
-                result = result.Where(d => d.ProcurementDate <= FilterEndDate.Value);
-            
-            if (!string.IsNullOrWhiteSpace(QuerySearch))
-            {
-                var terms = QuerySearch.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                result = result.Where(d => terms.All(term =>
-                    (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
-                    (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
-                    (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
-                    (d.Brand != null && d.Brand.ToLower().Contains(term)) ||
-                    (d.OwnerCompany != null && d.OwnerCompany.ToLower().Contains(term)) ||
-                    (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
-                    (d.Ram != null && d.Ram.ToLower().Contains(term))
-                ));
-            }
-
-            TotalItems = result.Count();
-            
-            result = SortColumn switch
-            {
-                "Asset" => SortAscending 
-                    ? result.OrderBy(d => d.AssetTag ?? d.Id).ThenBy(d => d.Brand) 
-                    : result.OrderByDescending(d => d.AssetTag ?? d.Id).ThenByDescending(d => d.Brand),
-                "Type" => SortAscending 
-                    ? result.OrderBy(d => d.Category).ThenBy(d => d.IsComponent) 
-                    : result.OrderByDescending(d => d.Category).ThenByDescending(d => d.IsComponent),
-                "Specification" => SortAscending 
-                    ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram) 
-                    : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram),
-                "Date" => SortAscending 
-                    ? result.OrderBy(d => d.ProcurementDate ?? DateTime.MinValue) 
-                    : result.OrderByDescending(d => d.Id == newlyAddedDeviceId ? 1 : 0)
-                            .ThenByDescending(d => d.ProcurementDate ?? DateTime.MinValue)
-                            .ThenByDescending(d => d.QrTokenCreatedAt ?? DateTime.MinValue),
-                "Cost" => SortAscending 
-                    ? result.OrderBy(d => d.AssetAmount ?? 0) 
-                    : result.OrderByDescending(d => d.AssetAmount ?? 0),
-                "Warranty" => SortAscending 
-                    ? result.OrderBy(d => d.HasWarranty ? 0 : 1).ThenBy(d => d.WarrantyEndDate) 
-                    : result.OrderByDescending(d => d.HasWarranty ? 0 : 1).ThenByDescending(d => d.WarrantyEndDate),
-                _ => result.OrderByDescending(d => d.Id == newlyAddedDeviceId ? 1 : 0)
-                           .ThenByDescending(d => d.ProcurementDate ?? DateTime.MinValue)
-                           .ThenByDescending(d => d.QrTokenCreatedAt ?? DateTime.MinValue)
-            };
-
-            return result
-                .Skip((CurrentPage - 1) * PageSize)
-                .Take(PageSize)
-                .ToList();
-        }
+        get => GetSortedFilteredPurchases()
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
     }
 
     private string SortColumn { get; set; } = "Date";
@@ -552,6 +559,141 @@
 
         showReceiveModal = false;
         await LoadData();
+    }
+
+    private async Task ExportToExcel()
+    {
+        var itemsToExport = GetSortedFilteredPurchases().ToList();
+        
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Purchases");
+        worksheet.TabColor = XLColor.FromHtml("#059669");
+
+        var headers = new[]
+        {
+            "SL",
+            "Asset ID",
+            "Serial Number",
+            "Item Model",
+            "Device Name",
+            "Brand",
+            "Category",
+            "Item Kind",
+            "Status",
+            "Specification",
+            "Supplier",
+            "Office Location",
+            "Owner Company",
+            "Purchase Date",
+            "Cost (BDT)",
+            "Warranty (Months)",
+            "Warranty End Date"
+        };
+
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var cell = worksheet.Cell(1, i + 1);
+            cell.Value = headers[i];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontSize = 11;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E293B");
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+        worksheet.Row(1).Height = 26;
+
+        int row = 2;
+        int sl = 1;
+        foreach (var item in itemsToExport)
+        {
+            var specParts = new[] {
+                string.IsNullOrEmpty(item.Processor) ? null : $"{item.Processor}{(string.IsNullOrEmpty(item.ProcessorFamily) ? "" : $" ({item.ProcessorFamily})")}",
+                item.Ram,
+                item.Ssd,
+                string.IsNullOrEmpty(item.Hdd) ? null : item.Hdd.Trim(),
+                item.MonitorDisplay
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            var specString = specParts.Any() ? string.Join(" - ", specParts) : (item.IsComponent ? item.DeviceName : "—");
+
+            var statusText = item.Status switch
+            {
+                DeviceStatus.InUse => "In Use",
+                DeviceStatus.InStore => "In Store",
+                DeviceStatus.Returned => "Returned",
+                DeviceStatus.Faulty => "Faulty",
+                DeviceStatus.InRepair => "In Repair",
+                DeviceStatus.WrittenOff => "Written Off",
+                DeviceStatus.Scrapped => "Scrapped",
+                _ => item.Status.ToString()
+            };
+
+            var rowBgColor = (row % 2 == 0) ? XLColor.White : XLColor.FromHtml("#F8FAFC");
+
+            worksheet.Cell(row, 1).SetValue(sl);
+            worksheet.Cell(row, 2).SetValue(item.AssetTag ?? item.Id);
+            worksheet.Cell(row, 3).SetValue(string.IsNullOrWhiteSpace(item.Serial) ? "—" : item.Serial);
+            worksheet.Cell(row, 4).SetValue(string.IsNullOrWhiteSpace(item.DeviceName) ? "—" : item.DeviceName);
+            worksheet.Cell(row, 5).SetValue(string.IsNullOrWhiteSpace(item.ComputerName) ? "—" : item.ComputerName);
+            worksheet.Cell(row, 6).SetValue(string.IsNullOrWhiteSpace(item.Brand) ? "—" : item.Brand);
+            worksheet.Cell(row, 7).SetValue(string.IsNullOrWhiteSpace(item.Category) ? "Uncategorized" : item.Category);
+            worksheet.Cell(row, 8).SetValue(item.DeviceTypeDisplay);
+            worksheet.Cell(row, 9).SetValue(statusText);
+            worksheet.Cell(row, 10).SetValue(specString);
+            worksheet.Cell(row, 11).SetValue(string.IsNullOrWhiteSpace(item.From) ? "—" : item.From);
+            worksheet.Cell(row, 12).SetValue(string.IsNullOrWhiteSpace(item.Location) ? "—" : item.Location);
+            worksheet.Cell(row, 13).SetValue(string.IsNullOrWhiteSpace(item.OwnerCompany) ? "—" : item.OwnerCompany);
+            worksheet.Cell(row, 14).SetValue(item.EffectiveStartDate?.ToString("yyyy-MM-dd") ?? item.ReceivedDate ?? "—");
+
+            if (item.AssetAmount.HasValue && item.AssetAmount.Value > 0)
+            {
+                var valCell = worksheet.Cell(row, 15);
+                valCell.SetValue(item.AssetAmount.Value);
+                valCell.Style.NumberFormat.Format = "#,##0.00";
+                valCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            }
+            else
+            {
+                var valCell = worksheet.Cell(row, 15);
+                valCell.SetValue("—");
+                valCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            }
+
+            worksheet.Cell(row, 16).SetValue(item.WarrantyMonths.HasValue && item.WarrantyMonths.Value > 0 ? item.WarrantyMonths.Value.ToString() : "—");
+            worksheet.Cell(row, 17).SetValue(item.WarrantyEndDate?.ToString("yyyy-MM-dd") ?? "—");
+
+            worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            for (int col = 1; col <= headers.Length; col++)
+            {
+                var cell = worksheet.Cell(row, col);
+                cell.Style.Fill.BackgroundColor = rowBgColor;
+                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                cell.Style.Border.OutsideBorderColor = XLColor.FromHtml("#E2E8F0");
+            }
+
+            row++;
+            sl++;
+        }
+
+        worksheet.RangeUsed().SetAutoFilter();
+        worksheet.SheetView.FreezeRows(1);
+        worksheet.Columns().AdjustToContents();
+
+        using var memoryStream = new MemoryStream();
+        workbook.SaveAs(memoryStream);
+        memoryStream.Position = 0;
+        
+        using var streamRef = new DotNetStreamReference(stream: memoryStream);
+        var filename = $"PrimeTech_Purchases_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
     }
 }
 

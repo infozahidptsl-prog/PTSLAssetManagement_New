@@ -8,13 +8,64 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
-<PageTitle>Asset tags & QR codes - PrimeTech Asset Manager</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <style>
     @@media print {
-        @@page { margin: 1cm; }
-        .no-print { display: none !important; }
+        @@page { 
+            size: landscape; 
+            margin: 1cm; 
+        }
+        aside, nav, .no-print { display: none !important; }
         body { background-color: #fff !important; }
+        main {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .print-layout-container {
+            display: block !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+        }
+        .print-sheet {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 12px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            width: 100% !important;
+            background: transparent !important;
+        }
+        .print-label {
+            display: flex !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            border: 1px solid #d1d5db !important;
+            background: #ffffff !important;
+        }
+        .qr-code-box {
+            width: 76px !important;
+            height: 76px !important;
+            min-width: 76px !important;
+            min-height: 76px !important;
+            max-width: 76px !important;
+            max-height: 76px !important;
+            padding: 4px !important;
+            box-sizing: border-box !important;
+        }
+        .qr-code-box img {
+            width: 66px !important;
+            height: 66px !important;
+            min-width: 66px !important;
+            min-height: 66px !important;
+            max-width: 66px !important;
+            max-height: 66px !important;
+            object-fit: contain !important;
+        }
     }
     .print-sheet {
         display: flex !important;
@@ -27,6 +78,24 @@
         break-inside: avoid;
         border: 1px solid #e5e7eb !important;
     }
+    .qr-code-box {
+        width: 76px !important;
+        height: 76px !important;
+        min-width: 76px !important;
+        min-height: 76px !important;
+        max-width: 76px !important;
+        max-height: 76px !important;
+        box-sizing: border-box !important;
+    }
+    .qr-code-box img {
+        width: 66px !important;
+        height: 66px !important;
+        min-width: 66px !important;
+        min-height: 66px !important;
+        max-width: 66px !important;
+        max-height: 66px !important;
+        object-fit: contain !important;
+    }
 </style>
 
 <div class="no-print">
@@ -35,12 +104,12 @@
             <button type="button" @onclick="SelectAll" class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
                 Select all shown (@filteredDevices.Count)
             </button>
-            <button type="button" @onclick="ClearSelection" disabled="@(!selectedIds.Any())" class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50 disabled:hover:bg-transparent">
+            <button type="button" @onclick="ClearSelection" disabled="@(!selectedDevices.Any())" class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-txt-hi transition-colors duration-150 hover:bg-elevated hover:text-txt-hi focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50 disabled:hover:bg-transparent">
                 Clear selection
             </button>
-            <button type="button" @onclick="PrintLabels" disabled="@(!selectedIds.Any())" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50">
+            <button type="button" @onclick="PrintLabels" disabled="@(!selectedDevices.Any())" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
-                Print @(selectedIds.Any() ? $"{selectedIds.Count} label(s)" : "labels")
+                Print @(selectedDevices.Any() ? $"{selectedDevices.Count} label(s)" : "labels")
             </button>
         </Actions>
         <ChildContent>
@@ -95,11 +164,11 @@
     </select>
 
     <span class="tnum ml-auto text-xs text-txt-lo">
-        @selectedIds.Count selected for printing
+        @selectedDevices.Count selected for printing
     </span>
 </div>
 
-<div class="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:px-9">
+<div class="print-layout-container grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:px-9">
     <section aria-label="Choose assets" class="no-print min-w-0">
         <h2 class="text-[11px] font-medium uppercase tracking-widest text-txt-lo">
             Choose assets (@filteredDevices.Count)
@@ -128,7 +197,7 @@
             Label sheet preview
         </h2>
         
-        @if (!selectedIds.Any())
+        @if (!selectedDevices.Any())
         {
             <p class="no-print mt-3 rounded-2xl border border-line-soft bg-surface p-6 text-sm text-txt-mid">
                 Pick one or more assets on the left to build a printable label sheet.
@@ -143,11 +212,11 @@
                     var qrUrl = GenerateQrCodeUrl(item);
                     var widthPercent = perRow == "1" ? "100%" : perRow == "2" ? "calc(50% - 6px)" : "calc(33.333% - 8px)";
 
-                    <article class="print-label flex gap-3 rounded-xl border border-line bg-elevated p-3" style="width: @widthPercent;">
-                        <div class="shrink-0 rounded-lg border border-line bg-surface p-1.5 flex items-center justify-center">
-                            <img src="@qrUrl" alt="QR Code" class="w-full h-full object-contain" style="max-width: @(perRow == "1" ? "120px" : perRow == "2" ? "96px" : "76px")" />
+                    <article class="print-label flex items-center gap-3 rounded-xl border border-line bg-elevated p-3" style="width: @widthPercent;">
+                        <div class="qr-code-box shrink-0 rounded-lg border border-line bg-surface flex items-center justify-center">
+                            <img src="@qrUrl" alt="QR Code" class="object-contain block" />
                         </div>
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                             <p class="text-[10px] font-semibold uppercase tracking-widest text-txt-lo">PrimeTech IT Asset</p>
                             <p class="tnum mt-0.5 font-mono text-xs font-semibold text-txt-hi">@assetId</p>
                             <p class="mt-0.5 truncate text-xs font-medium text-txt-hi">@item.Brand @item.DeviceName</p>
@@ -183,7 +252,9 @@
                     d.Id.ToString().Contains(searchTerm))
         .ToList();
 
-    private IEnumerable<Device> selectedDevices => allDevices.Where(d => selectedIds.Contains(d.Id));
+    private List<Device> selectedDevices => allDevices
+        .Where(d => selectedIds.Contains(d.Id) && selectedKinds.Contains(GetItemKind(d)))
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -197,22 +268,48 @@
                 selectedIds.Add(id);
             }
         }
+        else
+        {
+            foreach (var item in filteredDevices)
+            {
+                selectedIds.Add(item.Id);
+            }
+        }
     }
 
     private string GetItemKind(Device device)
     {
-        var category = device.Category?.ToLower() ?? "";
-        if (category.Contains("laptop") || category.Contains("desktop") || category.Contains("server") || category.Contains("macbook"))
-            return "system";
         if (device.IsComponent)
             return "component";
+        var type = device.DeviceTypeDisplay?.ToLowerInvariant() ?? "";
+        if (type == "system") return "system";
+        if (type == "component") return "component";
+        if (type == "peripheral") return "peripheral";
+
+        var category = device.Category?.ToLower() ?? "";
+        if (category.Contains("laptop") || category.Contains("desktop") || category.Contains("server") || category.Contains("macbook") || category.Contains("pc") || category.Contains("mobile") || category.Contains("phone") || category.Contains("tablet"))
+            return "system";
         return "peripheral";
     }
 
     private void ToggleKind(string kind, bool isChecked)
     {
-        if (isChecked) selectedKinds.Add(kind);
-        else selectedKinds.Remove(kind);
+        if (isChecked)
+        {
+            selectedKinds.Add(kind);
+            foreach (var d in allDevices.Where(d => GetItemKind(d) == kind))
+            {
+                selectedIds.Add(d.Id);
+            }
+        }
+        else
+        {
+            selectedKinds.Remove(kind);
+            foreach (var d in allDevices.Where(d => GetItemKind(d) == kind))
+            {
+                selectedIds.Remove(d.Id);
+            }
+        }
     }
 
     private string GetStatusLabel(DeviceStatus status) => status switch

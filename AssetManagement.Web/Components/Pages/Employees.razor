@@ -3,18 +3,25 @@
 @attribute [Authorize(Policy = AssetManagement.Core.Security.Permissions.Employees.View)]
 @using AssetManagement.Core.Entities
 @using AssetManagement.Infrastructure.Services
+@using ClosedXML.Excel
+@using System.IO
 @inject EmployeeService EmployeeService
 @inject HandoverService HandoverService
 @inject DeviceService DeviceService
 @inject NavigationManager Navigation
 @inject NotificationService Notifications
+@inject IJSRuntime JS
 
-<PageTitle>Employees Vs Assets - PrimeTech Asset Manager</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <div class="bg-surface pb-2 border-b border-line-soft">
 <PageHeader Title="Employees Vs Assets" 
             Description="Employee staff directory and issued asset custody ledger. View equipment assigned to individuals and teams.">
     <Actions>
+        <button type="button" @onclick="ExportToExcel" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-[13px] font-medium text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer shadow-2xs" title="Export current filtered list to Excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+        </button>
         <button type="button" id="btn-add-employee" @onclick="OpenAddModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
             Add employee
@@ -920,5 +927,95 @@
     private void NavigateToEmployee(string id)
     {
         Navigation.NavigateTo($"/employee/{id}");
+    }
+
+    private async Task ExportToExcel()
+    {
+        var itemsToExport = filteredEmployees;
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Employees vs Assets");
+        worksheet.TabColor = XLColor.FromHtml("#059669");
+
+        var headers = new[]
+        {
+            "SL",
+            "Employee Name",
+            "Employee ID",
+            "Designation",
+            "Department",
+            "Office Location",
+            "Official Email",
+            "Status",
+            "Account Type",
+            "Total Assets",
+            "Systems Count",
+            "Components Count",
+            "Peripherals Count",
+            "Assigned Asset IDs"
+        };
+
+        for (int col = 0; col < headers.Length; col++)
+        {
+            var cell = worksheet.Cell(1, col + 1);
+            cell.Value = headers[col];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E293B");
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+        worksheet.Row(1).Height = 26;
+
+        int row = 2;
+        int sl = 1;
+        foreach (var emp in itemsToExport)
+        {
+            employeeAssets.TryGetValue(emp.Id, out var counts);
+            counts ??= new EmployeeAssets();
+
+            var heldAssets = GetHeldAssets(emp);
+            var assetTags = heldAssets.Select(a => !string.IsNullOrEmpty(a.AssetTag) ? a.AssetTag : a.Id);
+            var assetTagsJoined = string.Join(", ", assetTags);
+
+            worksheet.Cell(row, 1).SetValue(sl++);
+            worksheet.Cell(row, 2).SetValue(emp.Name);
+            worksheet.Cell(row, 3).SetValue(emp.EmployeeId ?? "-");
+            worksheet.Cell(row, 4).SetValue(emp.Designation ?? "-");
+            worksheet.Cell(row, 5).SetValue(emp.Department ?? "-");
+            worksheet.Cell(row, 6).SetValue(emp.Location ?? "-");
+            worksheet.Cell(row, 7).SetValue(emp.Email ?? "-");
+            worksheet.Cell(row, 8).SetValue(emp.IsActive ? "Active" : "Inactive");
+            worksheet.Cell(row, 9).SetValue(emp.IsTeamAccount ? "Team Account" : "Individual");
+            worksheet.Cell(row, 10).SetValue(counts.Total);
+            worksheet.Cell(row, 11).SetValue(counts.Systems);
+            worksheet.Cell(row, 12).SetValue(counts.Components);
+            worksheet.Cell(row, 13).SetValue(counts.Peripherals);
+            worksheet.Cell(row, 14).SetValue(string.IsNullOrEmpty(assetTagsJoined) ? "-" : assetTagsJoined);
+
+            var rowRange = worksheet.Range(row, 1, row, headers.Length);
+            if (row % 2 == 1)
+            {
+                rowRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F8FAFC");
+            }
+            rowRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#E2E8F0");
+            rowRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.InsideBorderColor = XLColor.FromHtml("#E2E8F0");
+
+            row++;
+        }
+
+        worksheet.RangeUsed()?.SetAutoFilter();
+        worksheet.SheetView.FreezeRows(1);
+        worksheet.Columns().AdjustToContents();
+
+        using var memoryStream = new MemoryStream();
+        workbook.SaveAs(memoryStream);
+        memoryStream.Position = 0;
+
+        using var streamRef = new DotNetStreamReference(stream: memoryStream);
+        var filename = $"PrimeTech_Employees_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
     }
 }

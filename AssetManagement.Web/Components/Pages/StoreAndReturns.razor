@@ -5,17 +5,23 @@
 @using AssetManagement.Core.Enums
 @using AssetManagement.Infrastructure.Services
 @using AssetManagement.Web.Models
+@using ClosedXML.Excel
+@using System.IO
 @inject DeviceService DeviceService
 @inject HandoverService HandoverService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 @inject NotificationService Notifications
 
-<PageTitle>Receive returns - PrimeTech Asset Manager</PageTitle>
+<PageTitle>Prime Tech Solutions Ltd.</PageTitle>
 
 <div class="bg-surface pb-4 border-b border-line-soft">
 <PageHeader Title="Receive returns">
     <Actions>
+        <button type="button" @onclick="ExportToExcel" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-[13px] font-medium text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer shadow-2xs" title="Export current filtered list to Excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+        </button>
         <button type="button" @onclick="ShowReturnModal" class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-accent-on shadow-sm transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Record return
@@ -202,57 +208,57 @@
         }
     }
 
+    private IEnumerable<Device> GetSortedFilteredStock()
+    {
+        var result = returnedStock.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(QuerySearch))
+        {
+            var cleanSearch = QuerySearch.Replace("(", "").Replace(")", "").Replace("+", "").ToLower();
+            var terms = cleanSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            result = result.Where(d => terms.All(term =>
+                (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
+                (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
+                (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
+                (d.Brand != null && d.Brand.ToLower().Contains(term)) ||
+                (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
+                (d.Ram != null && d.Ram.ToLower().Contains(term))
+            ));
+        }
+
+        TotalItems = result.Count();
+
+        return SortColumn switch
+        {
+            "Asset" => SortAscending 
+                ? result.OrderBy(d => d.Brand).ThenBy(d => d.DeviceName).ThenBy(d => d.AssetTag) 
+                : result.OrderByDescending(d => d.Brand).ThenByDescending(d => d.DeviceName).ThenByDescending(d => d.AssetTag),
+            "Type" => SortAscending 
+                ? result.OrderBy(d => d.Category).ThenBy(d => d.IsComponent) 
+                : result.OrderByDescending(d => d.Category).ThenByDescending(d => d.IsComponent),
+            "Specification" => SortAscending 
+                ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram) 
+                : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram),
+            "Status" => SortAscending 
+                ? result.OrderBy(d => d.Status.ToString()) 
+                : result.OrderByDescending(d => d.Status.ToString()),
+            "ReturnedBy" => SortAscending 
+                ? result.OrderBy(d => returnerMap.GetValueOrDefault(d.Id, "")) 
+                : result.OrderByDescending(d => returnerMap.GetValueOrDefault(d.Id, "")),
+            "ReturnedOn" => SortAscending 
+                ? result.OrderBy(d => returnDateMap.GetValueOrDefault(d.Id, "")) 
+                : result.OrderByDescending(d => returnDateMap.GetValueOrDefault(d.Id, "")),
+            _ => result
+        };
+    }
+
     private List<Device> filteredReturnedStock 
     {
-        get
-        {
-            var result = returnedStock.AsEnumerable();
-
-            if (!string.IsNullOrWhiteSpace(QuerySearch))
-            {
-                var cleanSearch = QuerySearch.Replace("(", "").Replace(")", "").Replace("+", "").ToLower();
-                var terms = cleanSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                
-                result = result.Where(d => terms.All(term =>
-                    (d.AssetTag != null && d.AssetTag.ToLower().Contains(term)) ||
-                    (d.Serial != null && d.Serial.ToLower().Contains(term)) ||
-                    (d.DeviceName != null && d.DeviceName.ToLower().Contains(term)) ||
-                    (d.Brand != null && d.Brand.ToLower().Contains(term)) ||
-                    (d.Processor != null && d.Processor.ToLower().Contains(term)) ||
-                    (d.Ram != null && d.Ram.ToLower().Contains(term))
-                ));
-            }
-
-            TotalItems = result.Count();
-
-            result = SortColumn switch
-            {
-                "Asset" => SortAscending 
-                    ? result.OrderBy(d => d.Brand).ThenBy(d => d.DeviceName).ThenBy(d => d.AssetTag) 
-                    : result.OrderByDescending(d => d.Brand).ThenByDescending(d => d.DeviceName).ThenByDescending(d => d.AssetTag),
-                "Type" => SortAscending 
-                    ? result.OrderBy(d => d.Category).ThenBy(d => d.IsComponent) 
-                    : result.OrderByDescending(d => d.Category).ThenByDescending(d => d.IsComponent),
-                "Specification" => SortAscending 
-                    ? result.OrderBy(d => d.Processor).ThenBy(d => d.Ram) 
-                    : result.OrderByDescending(d => d.Processor).ThenByDescending(d => d.Ram),
-                "Status" => SortAscending 
-                    ? result.OrderBy(d => d.Status.ToString()) 
-                    : result.OrderByDescending(d => d.Status.ToString()),
-                "ReturnedBy" => SortAscending 
-                    ? result.OrderBy(d => returnerMap.GetValueOrDefault(d.Id, "")) 
-                    : result.OrderByDescending(d => returnerMap.GetValueOrDefault(d.Id, "")),
-                "ReturnedOn" => SortAscending 
-                    ? result.OrderBy(d => returnDateMap.GetValueOrDefault(d.Id, "")) 
-                    : result.OrderByDescending(d => returnDateMap.GetValueOrDefault(d.Id, "")),
-                _ => result
-            };
-
-            return result
-                .Skip((CurrentPage - 1) * PageSize)
-                .Take(PageSize)
-                .ToList();
-        }
+        get => GetSortedFilteredStock()
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
     }
 
     private string SortColumn { get; set; } = "Asset";
@@ -362,6 +368,89 @@
             Notifications.ShowSuccess($"Asset {device.AssetTag ?? device.Id} returned to IT inventory successfully.");
         }
         await LoadData();
+    }
+
+    private async Task ExportToExcel()
+    {
+        var itemsToExport = GetSortedFilteredStock().ToList();
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Returned Stock");
+        worksheet.TabColor = XLColor.FromHtml("#059669");
+
+        var headers = new[]
+        {
+            "SL",
+            "Asset ID",
+            "Item Model",
+            "Device Name",
+            "Serial Number",
+            "Type",
+            "Specification",
+            "Status",
+            "Returned By",
+            "Returned On",
+            "Office Location",
+            "Owner Company"
+        };
+
+        for (int col = 0; col < headers.Length; col++)
+        {
+            var cell = worksheet.Cell(1, col + 1);
+            cell.Value = headers[col];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E293B");
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+        worksheet.Row(1).Height = 26;
+
+        int row = 2;
+        int sl = 1;
+        foreach (var item in itemsToExport)
+        {
+            worksheet.Cell(row, 1).SetValue(sl++);
+            worksheet.Cell(row, 2).SetValue(item.AssetTag ?? item.Id ?? "-");
+            worksheet.Cell(row, 3).SetValue(item.DeviceName ?? item.Brand ?? "-");
+            worksheet.Cell(row, 4).SetValue(item.ComputerName ?? "-");
+            worksheet.Cell(row, 5).SetValue(item.Serial ?? "-");
+            worksheet.Cell(row, 6).SetValue(item.Category ?? item.DeviceTypeDisplay ?? "-");
+            
+            var specs = item.IsComponent 
+                ? (item.DeviceName ?? "-")
+                : $"{item.Processor ?? "-"} | {item.Ram ?? "-"} | {item.Ssd ?? "-"}";
+            worksheet.Cell(row, 7).SetValue(specs);
+            worksheet.Cell(row, 8).SetValue(item.Status.ToString());
+            worksheet.Cell(row, 9).SetValue(returnerMap.TryGetValue(item.Id, out var rName) ? rName : "Unknown");
+            worksheet.Cell(row, 10).SetValue(returnDateMap.TryGetValue(item.Id, out var rDate) ? rDate : (item.ReturnDate ?? "-"));
+            worksheet.Cell(row, 11).SetValue(item.Location ?? "-");
+            worksheet.Cell(row, 12).SetValue(item.OwnerCompany ?? "-");
+
+            var rowRange = worksheet.Range(row, 1, row, headers.Length);
+            if (row % 2 == 1)
+            {
+                rowRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F8FAFC");
+            }
+            rowRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#E2E8F0");
+            rowRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            rowRange.Style.Border.InsideBorderColor = XLColor.FromHtml("#E2E8F0");
+
+            row++;
+        }
+
+        worksheet.RangeUsed()?.SetAutoFilter();
+        worksheet.SheetView.FreezeRows(1);
+        worksheet.Columns().AdjustToContents();
+
+        using var memoryStream = new MemoryStream();
+        workbook.SaveAs(memoryStream);
+        memoryStream.Position = 0;
+
+        using var streamRef = new DotNetStreamReference(stream: memoryStream);
+        var filename = $"PrimeTech_Returns_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
     }
 }
 
