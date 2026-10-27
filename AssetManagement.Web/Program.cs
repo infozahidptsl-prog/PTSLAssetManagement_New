@@ -288,12 +288,12 @@ app.MapRazorComponents<App>()
 app.MapGet("/Account/Login", (HttpContext context) => 
 {
     var returnUrl = context.Request.Query["ReturnUrl"];
-    return Results.Redirect($"/login?returnUrl={returnUrl}");
+    return Results.Redirect($"{context.Request.PathBase}/login?returnUrl={returnUrl}");
 });
 
 app.MapGet("/Account/AccessDenied", (HttpContext context) => 
 {
-    return Results.Redirect("/login");
+    return Results.Redirect($"{context.Request.PathBase}/login");
 });
 
 app.MapPost("/Account/LoginPost", async (HttpContext context, Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser> signInManager) =>
@@ -309,17 +309,22 @@ app.MapPost("/Account/LoginPost", async (HttpContext context, Microsoft.AspNetCo
     
     if (result.Succeeded)
     {
-        var redirectUrl = string.IsNullOrEmpty(returnUrl) ? "/" : (returnUrl.StartsWith("/") ? returnUrl : "/" + returnUrl);
+        var basePath = context.Request.PathBase.Value ?? "";
+        var redirectUrl = string.IsNullOrEmpty(returnUrl) 
+            ? (string.IsNullOrEmpty(basePath) ? "/" : basePath + "/")
+            : (returnUrl.StartsWith("/") 
+                ? (!string.IsNullOrEmpty(basePath) && returnUrl.StartsWith(basePath) ? returnUrl : basePath + returnUrl) 
+                : (string.IsNullOrEmpty(basePath) ? "/" + returnUrl : basePath + "/" + returnUrl));
         return Results.Redirect(redirectUrl);
     }
     
-    return Results.Redirect($"/login?error=Invalid login attempt&returnUrl={returnUrl}");
+    return Results.Redirect($"{context.Request.PathBase}/login?error=Invalid login attempt&returnUrl={returnUrl}");
 });
 
-app.MapPost("/Account/LogoutPost", async (Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser> signInManager) =>
+app.MapPost("/Account/LogoutPost", async (HttpContext context, Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser> signInManager) =>
 {
     await signInManager.SignOutAsync();
-    return Results.Redirect("/login");
+    return Results.Redirect($"{context.Request.PathBase}/login");
 });
 
 app.Run();

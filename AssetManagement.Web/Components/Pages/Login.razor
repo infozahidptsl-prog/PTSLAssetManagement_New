@@ -9,7 +9,7 @@
     <!-- Video Background -->
     <video id="login-video" autoplay loop muted playsinline class="absolute inset-0 h-full w-full object-cover opacity-80"></video>
     <script>
-        fetch('/assets/Login-Bg.webm?v=2')
+        fetch('assets/Login-Bg.webm?v=2')
             .then(r => r.blob())
             .then(blob => {
                 var v = document.getElementById('login-video');
@@ -66,14 +66,14 @@
                     <!-- Logo Area -->
                     <div class="mb-8 flex flex-col items-center justify-center text-center">
                         <div class="mb-5 inline-flex items-center justify-center">
-                            <img src="/assets/whitelogo.png?v=3" alt="PrimeTech Logo" class="h-14 object-contain" />
+                            <img src="assets/whitelogo.png?v=3" alt="PrimeTech Logo" class="h-14 object-contain" />
                         </div>
                         <h1 class="text-xl font-semibold text-white tracking-wide outline-none focus:outline-none select-none">Asset Management System</h1>
                         <p class="mt-2 text-[13px] text-txt-lo">Asset & Device Management</p>
                     </div>
 
                     <!-- Form -->
-                    <form method="post" action="/Account/LoginPost" data-enhance="false" class="space-y-4">
+                    <form method="post" action="Account/LoginPost" data-enhance="false" class="space-y-4">
                         <AntiforgeryToken />
                         <input type="hidden" name="returnUrl" value="@ReturnUrl" />
                         

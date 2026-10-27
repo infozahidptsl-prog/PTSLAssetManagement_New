@@ -45,10 +45,12 @@ ehthumbs.db
 Desktop.ini
 .DS_Store
 
-## Backup folders
+## Backup & Publish folders
 backup/
 DeploymentBackup/
 BackgroundVideo/
+Publish_ready/
+PUBLISH_*/
 
 ## Uploaded user files
 AssetManagement.Web/wwwroot/uploads/*

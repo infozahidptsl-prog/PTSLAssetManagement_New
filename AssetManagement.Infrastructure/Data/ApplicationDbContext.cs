@@ -53,6 +53,19 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasForeignKey(d => d.ParentDeviceId)
             .OnDelete(DeleteBehavior.ClientSetNull);
             
+        // Precision for decimals
+        modelBuilder.Entity<Device>()
+            .Property(d => d.AssetAmount)
+            .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<PurchaseItem>()
+            .Property(p => p.UnitCost)
+            .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<RepairRecord>()
+            .Property(r => r.Cost)
+            .HasColumnType("decimal(18,2)");
+
         // For Employee DeviceIds, since it's a List<string> not mapped to a complex type
         modelBuilder.Entity<Employee>().Ignore(e => e.DeviceIds);
         modelBuilder.Entity<Employee>().Ignore(e => e.ActiveCount);
